@@ -311,7 +311,6 @@ class WebUIState {
     var moduleName: String = ""
     var moduleVersion: String = ""
     var moduleVersionCode: String = ""
-    var isBuiltinModule: Boolean = false
 
     var uiEvent by mutableStateOf<WebUIEvent>(WebUIEvent.Loading)
     var isUrlLoaded = false
@@ -370,7 +369,6 @@ class WebUIState {
         moduleVersion: String,
         moduleVersionCode: String,
         modDir: String,
-        isBuiltinModule: Boolean,
     ): Boolean {
         if (!isActive(loadGeneration)) return false
         this.moduleId = moduleId
@@ -378,7 +376,6 @@ class WebUIState {
         this.moduleVersion = moduleVersion
         this.moduleVersionCode = moduleVersionCode
         this.modDir = modDir
-        this.isBuiltinModule = isBuiltinModule
         return true
     }
 

@@ -30,8 +30,6 @@ import me.weishu.kernelsu.ui.util.InterfaceStylePackage
 import me.weishu.kernelsu.ui.util.CustomPageBackgroundSet
 import me.weishu.kernelsu.ui.util.CustomPageBackgroundTarget
 import me.weishu.kernelsu.ui.util.CustomWallpaperCrop
-import me.weishu.kernelsu.ui.util.BUILTIN_MOUNT_MODE_OVERLAY
-import me.weishu.kernelsu.ui.util.BUILTIN_MOUNT_VARIANT_LITE
 import me.weishu.kernelsu.ui.util.DEFAULT_CUSTOM_VIDEO_BACKGROUND_DURATION_SECONDS
 import me.weishu.kernelsu.ui.util.DEFAULT_CUSTOM_VIDEO_BACKGROUND_FRAME_RATE
 import me.weishu.kernelsu.ui.util.DEFAULT_CUSTOM_AUDIO_VOLUME
@@ -156,21 +154,6 @@ data class SettingsUiState(
 
     // Umount Modules
     val isDefaultUmountModules: Boolean = false,
-
-    // Built-in Hybrid Mount Lite
-    val isBuiltinMountEnabled: Boolean = false,
-    val builtinMountDefaultMode: String = BUILTIN_MOUNT_MODE_OVERLAY,
-    val builtinMountVariant: String = BUILTIN_MOUNT_VARIANT_LITE,
-    val isBuiltinMountWebUiAvailable: Boolean = false,
-    val builtinMountConflict: String? = null,
-    val builtinMountSourceUrl: String = "",
-    val builtinMountArchiveSha256: String = "",
-    val builtinMountLkmCount: Int = 0,
-    val builtinMountSupportedKmis: List<String> = emptyList(),
-    val builtinMountCurrentKmi: String = "",
-    val builtinMountCompatibility: String = "unknown",
-    val builtinMountLkmPurpose: String = "",
-    val builtinMountIsApkeSuRootDriver: Boolean = false,
 
     // Built-in KPatch Next
     val isKPatchNextInstalled: Boolean = false,
@@ -303,7 +286,6 @@ data class SettingsScreenActions(
     val onSetAdbRootEnabled: (Boolean) -> Unit,
     val onSetAvcSpoofEnabled: (Boolean) -> Unit,
     val onSetDefaultUmountModules: (Boolean) -> Unit,
-    val onOpenBuiltinMount: () -> Unit,
     val onSetKPatchNextEnabled: (Boolean) -> Unit,
     val onOpenKPatchNextWebUi: () -> Unit,
     val onOpenHiddenPathConfig: () -> Unit,

@@ -17,8 +17,8 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use crate::{
-    builtin_mount, defs, dynamic_manager, feature, init_event, kpatch_next, kpm, ksucalls, module,
-    pathmask, utils, web_manager_susfs,
+    defs, dynamic_manager, feature, init_event, kpatch_next, kpm, ksucalls, module, pathmask,
+    utils, web_manager_susfs,
 };
 
 const DEFAULT_PORT: u16 = 10_240;
@@ -885,7 +885,6 @@ fn route_authenticated(request: &Request, path: &str, context: &ServerContext) -
         ("GET", "/api/assets") => assets_response(),
         ("GET", "/api/kpm") => kpm_response(),
         ("GET", "/api/pathmask") => pathmask_response(),
-        ("GET", "/api/builtin-mount") => builtin_mount_response(),
         ("GET", "/api/kpatch-next") => kpatch_next_response(),
         ("GET", "/api/susfs") => susfs_response(),
         ("POST", "/api/reboot") => reboot_action_response(&request.body),
@@ -899,7 +898,6 @@ fn route_authenticated(request: &Request, path: &str, context: &ServerContext) -
         ("POST", "/api/kpm/policy") => kpm_policy_response(&request.body),
         ("POST", "/api/kpm/import") => kpm_import_response(request),
         ("POST", "/api/pathmask") => pathmask_action_response(&request.body),
-        ("POST", "/api/builtin-mount") => builtin_mount_action_response(&request.body),
         ("POST", "/api/kpatch-next") => kpatch_next_action_response(&request.body),
         ("POST", "/api/susfs") => susfs_action_response(&request.body),
         ("POST", "/api/admin/stop") => stop_server_response(),
@@ -997,7 +995,6 @@ fn api_meta_response(context: &ServerContext) -> Response {
                 "kpm",
                 "susfs",
                 "pathmask",
-                "builtinMount",
                 "kpatchNext",
             ],
         }),
@@ -1999,14 +1996,6 @@ fn ensure_lkm_management(feature_name: &str) -> Result<()> {
     Ok(())
 }
 
-fn ensure_persistent_management(feature_name: &str) -> Result<()> {
-    ensure!(
-        !ksucalls::is_late_load(),
-        "{feature_name} 不支持 late-load 模式"
-    );
-    Ok(())
-}
-
 fn kpm_response() -> Response {
     let caps = match ksud_json_result(&["kpm", "caps"]) {
         Ok(value) => value,
@@ -2185,56 +2174,6 @@ fn pathmask_action_response(body: &[u8]) -> Response {
     match result {
         Ok(()) => Response::json(200, json!({ "ok": true, "action": action })),
         Err(error) => Response::error(409, "pathmask_action_failed", format!("{error:#}")),
-    }
-}
-
-fn builtin_mount_response() -> Response {
-    if let Err(error) = ensure_persistent_management("内置挂载") {
-        return Response::error(409, "builtin_mount_unavailable", error.to_string());
-    }
-    match ksud_json_result(&["builtin-mount", "status"]) {
-        Ok(status) => Response::json(200, json!({ "ok": true, "status": status })),
-        Err(error) => Response::error(409, "builtin_mount_status_failed", format!("{error:#}")),
-    }
-}
-
-fn builtin_mount_action_response(body: &[u8]) -> Response {
-    if let Err(error) = ensure_persistent_management("内置挂载") {
-        return Response::error(409, "builtin_mount_unavailable", error.to_string());
-    }
-    let payload = match parse_json_body(body) {
-        Ok(value) => value,
-        Err(error) => return Response::error(400, "invalid_json", error.to_string()),
-    };
-    let action = payload
-        .get("action")
-        .and_then(Value::as_str)
-        .unwrap_or_default();
-    let value = payload
-        .get("value")
-        .and_then(Value::as_str)
-        .unwrap_or_default();
-    let _guard = WRITE_LOCK
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let result = match action {
-        "enable" => builtin_mount::enable(),
-        "disable" => builtin_mount::disable(),
-        "mode" => builtin_mount::MountMode::parse(value).and_then(builtin_mount::set_default_mode),
-        "variant" => {
-            builtin_mount::BuiltinMountVariant::parse(value).and_then(builtin_mount::set_variant)
-        }
-        _ => {
-            return Response::error(
-                400,
-                "unknown_builtin_mount_action",
-                "不支持这个内置挂载操作",
-            );
-        }
-    };
-    match result {
-        Ok(()) => Response::json(200, json!({ "ok": true, "action": action })),
-        Err(error) => Response::error(409, "builtin_mount_action_failed", format!("{error:#}")),
     }
 }
 
@@ -3296,14 +3235,14 @@ mod tests {
     fn asset_targets_are_strictly_whitelisted() {
         assert!(is_valid_asset("wallpaper", "lkm"));
         assert!(is_valid_asset("navicon", "settings"));
-        assert!(is_valid_asset("modulewall", "hybrid_mount"));
+        assert!(is_valid_asset("modulewall", "example_module"));
         assert_eq!(
             parse_asset_path("/api/assets/wallpaper/device"),
             Some(("wallpaper", "device"))
         );
         assert_eq!(
-            parse_asset_path("/api/assets/modulewall/hybrid_mount"),
-            Some(("modulewall", "hybrid_mount"))
+            parse_asset_path("/api/assets/modulewall/example_module"),
+            Some(("modulewall", "example_module"))
         );
         assert!(!is_valid_asset("wallpaper", "../config.json"));
         assert!(!is_valid_asset("modulewall", "../module"));

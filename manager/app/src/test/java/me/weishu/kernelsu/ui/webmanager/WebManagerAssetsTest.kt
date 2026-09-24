@@ -121,7 +121,7 @@ class WebManagerAssetsTest {
 
     @Test
     fun moduleWallNamesAcceptModuleIds() {
-        assertTrue(WebManagerAssets.isValidAsset("modulewall", "hybrid_mount"))
+        assertTrue(WebManagerAssets.isValidAsset("modulewall", "example_module"))
         assertTrue(WebManagerAssets.isValidAsset("modulewall", "KPatch-Next"))
         assertTrue(WebManagerAssets.isValidAsset("modulewall", "kr-susfs"))
         assertTrue(WebManagerAssets.isValidAsset("modulewall", "a.b_c-1"))
@@ -138,8 +138,8 @@ class WebManagerAssetsTest {
         assertFalse(WebManagerAssets.isValidAsset("modulewall", "a b"))
         assertFalse(WebManagerAssets.isValidAsset("modulewall", "a".repeat(65)))
         // 模块壁纸不能占用主页卡片/导航图标的保留名字
-        assertFalse(WebManagerAssets.isValidAsset("wallpaper", "hybrid_mount"))
-        assertFalse(WebManagerAssets.isValidAsset("navicon", "hybrid_mount"))
+        assertFalse(WebManagerAssets.isValidAsset("wallpaper", "example_module"))
+        assertFalse(WebManagerAssets.isValidAsset("navicon", "example_module"))
     }
 
     @Test
@@ -159,11 +159,11 @@ class WebManagerAssetsTest {
 
     @Test
     fun moduleWallFileNameStaysFlat() {
-        val name = WebManagerAssets.assetFileName(WebManagerAssets.KIND_MODULE_WALL, "hybrid_mount")
-        assertEquals("modulewall-hybrid_mount.img", name)
+        val name = WebManagerAssets.assetFileName(WebManagerAssets.KIND_MODULE_WALL, "example_module")
+        assertEquals("modulewall-example_module.img", name)
         assertFalse(name.contains("/"))
-        assertEquals("web_manager_asset_modulewall_hybrid_mount",
-            WebManagerAssets.metaKey(WebManagerAssets.KIND_MODULE_WALL, "hybrid_mount"))
+        assertEquals("web_manager_asset_modulewall_example_module",
+            WebManagerAssets.metaKey(WebManagerAssets.KIND_MODULE_WALL, "example_module"))
     }
 
     @Test

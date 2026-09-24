@@ -512,13 +512,6 @@ private const val WEB_MANAGER_PAGE_MARKUP: String = """
       </div>
       <div class="card">
         <div class="row">
-          <div class="row-main"><div class="row-title">内置挂载</div><div class="row-detail">Hybrid Mount Lite 内置挂载模块</div></div>
-          <button class="btn small" type="button" id="refreshBuiltinMount">刷新</button>
-        </div>
-        <div class="tool-rows" id="builtinMountBody"><div class="state">读取中……</div></div>
-      </div>
-      <div class="card">
-        <div class="row">
           <div class="row-main"><div class="row-title">KPatch-Next</div><div class="row-detail">内嵌 KPatch-Next 内核补丁模块</div></div>
           <button class="btn small" type="button" id="refreshKPatch">刷新</button>
         </div>
@@ -1887,7 +1880,7 @@ private const val WEB_MANAGER_PAGE_SCRIPT_TOOLS: String = """  // --------------
       return state.tools;
     }).catch(function (error) {
       state.toolsLoaded = false;
-      ["builtinMountBody", "kpatchBody", "pathmaskBody", "cpuSpoofBody"].forEach(function (nodeId) {
+      ["kpatchBody", "pathmaskBody", "cpuSpoofBody"].forEach(function (nodeId) {
         el(nodeId).innerHTML = '<div class="state error">工具状态读取失败：' +
           esc(error.message || "未知错误") + '</div>';
       });
@@ -1897,7 +1890,6 @@ private const val WEB_MANAGER_PAGE_SCRIPT_TOOLS: String = """  // --------------
 
   function renderTools() {
     var tools = state.tools || {};
-    renderBuiltinMount(tools.builtinMount);
     renderKPatch(tools.kpatchNext);
     renderPathmask(tools.pathmask);
     renderCpuSpoof(tools.cpuSpoof);
@@ -1916,34 +1908,6 @@ private const val WEB_MANAGER_PAGE_SCRIPT_TOOLS: String = """  // --------------
 
   function truthText(value) {
     return value ? "是" : "否";
-  }
-
-  function renderBuiltinMount(mount) {
-    var node = el("builtinMountBody");
-    if (!node) return;
-    if (!mount || mount.available === false) {
-      node.innerHTML = '<div class="state">读取不到内置挂载状态（ksud 不可用？）</div>';
-      return;
-    }
-    var rows = toolRow("安装状态", "版本 " + esc(mount.version || "未知") + " · " + (mount.installed ? "已安装" : "未安装"), "");
-    rows += toolRow("启用", mount.enabled ? "已启用" : "未启用",
-      toolCheckbox("data-tool-toggle", "builtinMount", mount.enabled));
-    rows += '<div class="row"><div class="row-main"><div class="row-title">模式</div>' +
-      '<div class="row-detail">overlay 走 OverlayFS，magic 走 magic mount</div></div>' +
-      '<select data-tool-select="builtinMountMode" aria-label="内置挂载模式">' +
-      ['overlay', 'magic'].map(function (mode) {
-        return '<option value="' + mode + '"' + (mount.mode === mode ? " selected" : "") + ">" + mode + "</option>";
-      }).join("") + "</select></div>";
-    rows += '<div class="row"><div class="row-main"><div class="row-title">变体</div>' +
-      '<div class="row-detail">lite 轻量 / full 完整</div></div>' +
-      '<select data-tool-select="builtinMountVariant" aria-label="内置挂载变体">' +
-      ['lite', 'full'].map(function (variant) {
-        return '<option value="' + variant + '"' + (mount.variant === variant ? " selected" : "") + ">" + variant + "</option>";
-      }).join("") + "</select></div>";
-    if (mount.conflict) {
-      rows += '<div class="tool-hint">冲突：' + esc(String(mount.conflict)) + "</div>";
-    }
-    node.innerHTML = rows;
   }
 
   function renderKPatch(kpatch) {
@@ -2971,10 +2935,7 @@ private const val WEB_MANAGER_PAGE_SCRIPT_TAIL: String = """
       if (toolToggle) {
         var toggleKind = toolToggle.dataset.toolToggle;
         var toggleOn = toolToggle.checked;
-        if (toggleKind === "builtinMount") {
-          runToolAction("builtin-mount", { action: "enabled", value: toggleOn }, null)
-            .then(afterToolAction).catch(afterToolAction);
-        } else if (toggleKind === "kpatch") {
+        if (toggleKind === "kpatch") {
           runToolAction("kpatch", { enabled: toggleOn }, null).then(afterToolAction).catch(afterToolAction);
         } else if (toggleKind === "pathmaskAutoLoad") {
           var delay = "0";
@@ -2986,19 +2947,6 @@ private const val WEB_MANAGER_PAGE_SCRIPT_TAIL: String = """
             }
           }
           runToolAction("pathmask", { action: "autoLoad", enabled: toggleOn, delaySeconds: Number(delay) || 0 }, null)
-            .then(afterToolAction).catch(afterToolAction);
-        }
-        return;
-      }
-      var toolSelect = event.target.closest("[data-tool-select]");
-      if (toolSelect) {
-        var selectKind = toolSelect.dataset.toolSelect;
-        var selectValue = toolSelect.value;
-        if (selectKind === "builtinMountMode") {
-          runToolAction("builtin-mount", { action: "mode", value: selectValue }, null)
-            .then(afterToolAction).catch(afterToolAction);
-        } else if (selectKind === "builtinMountVariant") {
-          runToolAction("builtin-mount", { action: "variant", value: selectValue }, null)
             .then(afterToolAction).catch(afterToolAction);
         }
         return;
@@ -3138,7 +3086,7 @@ private const val WEB_MANAGER_PAGE_SCRIPT_TAIL: String = """
           .finally(function () { button.disabled = false; });
       });
     });
-    [["refreshBuiltinMount", "builtinMountBody"], ["refreshKPatch", "kpatchBody"],
+    [["refreshKPatch", "kpatchBody"],
       ["refreshPathmask", "pathmaskBody"], ["refreshCpuSpoof", "cpuSpoofBody"]].forEach(function (pair) {
       var button = el(pair[0]);
       if (!button) return;

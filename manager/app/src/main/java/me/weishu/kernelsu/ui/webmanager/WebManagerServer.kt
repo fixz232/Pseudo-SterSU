@@ -518,7 +518,6 @@ internal object WebManagerServer {
             method == "GET" && path == "/api/features" -> HttpResponse(200, featuresJson())
             method == "GET" && path == "/api/tools" -> HttpResponse(200, toolsJson())
             method == "GET" && path == "/api/tools/reboot" -> HttpResponse(200, rebootStatusJson())
-            method == "POST" && path == "/api/tools/builtin-mount" -> handleBuiltinMountAction(body)
             method == "POST" && path == "/api/tools/kpatch" -> handleKPatchAction(body)
             method == "POST" && path == "/api/tools/pathmask" -> handlePathmaskAction(body)
             method == "POST" && path == "/api/tools/cpu-spoof" -> handleCpuSpoofAction(body)
@@ -1903,34 +1902,11 @@ internal object WebManagerServer {
 
     /**
      * 与原生「设置 → 挂载与隐藏 / 工具箱」同一套工具：
-     * 内置挂载、KPatch-Next、隐藏路径（pathmask）、CPU 伪装、语言、软重启。
+     * KPatch-Next、隐藏路径（pathmask）、CPU 伪装、语言、软重启。
      * 状态全部来自原生仓库/`ksud`，失败写诊断而不是编数据。
      */
     private fun toolsJson(): String {
         val root = JSONObject()
-
-        val mount = runWithDeadline(TOOLS_QUERY_DEADLINE_MILLIS, "tool-builtin-mount") {
-            runBlocking { settingsRepository.getBuiltinMountStatus() }
-        }
-        root.put(
-            "builtinMount",
-            if (mount == null) {
-                diagnostics.warn("tools", "builtin mount status unavailable")
-                JSONObject().put("available", false)
-            } else {
-                JSONObject()
-                    .put("available", true)
-                    .put("installed", mount.installed)
-                    .put("enabled", mount.enabled)
-                    .put("version", mount.version)
-                    .put("versionCode", mount.versionCode)
-                    .put("moduleName", mount.moduleName)
-                    .put("mode", mount.defaultMode)
-                    .put("variant", mount.variant)
-                    .put("webUi", mount.webUi)
-                    .put("conflict", mount.conflict ?: JSONObject.NULL)
-            },
-        )
 
         val kpatch = runWithDeadline(TOOLS_QUERY_DEADLINE_MILLIS, "tool-kpatch") {
             runBlocking { settingsRepository.getKPatchNextStatus() }
@@ -2032,32 +2008,6 @@ internal object WebManagerServer {
         )
 
         return root.toString()
-    }
-
-    private fun handleBuiltinMountAction(body: String?): HttpResponse {
-        val payload = runCatching { JSONObject(body.orEmpty()) }.getOrNull()
-            ?: return errorResponse(400, "bad_request", "请求内容不是合法 JSON")
-        val action = payload.optString("action", "")
-        val result = runWithDeadline(TOOLS_ACTION_DEADLINE_MILLIS, "tool-builtin-mount-set") {
-            runBlocking {
-                when (action) {
-                    "enabled" -> settingsRepository.setBuiltinMountEnabled(payload.optBoolean("value", false))
-                    "mode" -> settingsRepository.setBuiltinMountDefaultMode(payload.optString("value", ""))
-                    "variant" -> settingsRepository.setBuiltinMountVariant(payload.optString("value", ""))
-                    else -> false
-                }
-            }
-        }
-        if (action != "enabled" && action != "mode" && action != "variant") {
-            return errorResponse(400, "unknown_action", "未知的内置挂载操作")
-        }
-        val ok = result == true
-        diagnostics.info("tools", "builtin mount $action -> $ok")
-        return if (ok) {
-            HttpResponse(200, JSONObject().put("ok", true).put("action", action).toString())
-        } else {
-            errorResponse(500, "tool_failed", "内置挂载设置失败或超时")
-        }
     }
 
     private fun nativeSusfsManagerResponse(): HttpResponse {

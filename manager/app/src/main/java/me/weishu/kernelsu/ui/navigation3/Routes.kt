@@ -174,10 +174,6 @@ sealed interface Route : NavKey, Parcelable {
 
     @Parcelize
     @Serializable
-    data object BuiltinMount : Route
-
-    @Parcelize
-    @Serializable
     data object ThemeStore : Route
 
     @Parcelize

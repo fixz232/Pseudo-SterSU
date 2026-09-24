@@ -614,16 +614,6 @@ fun SettingPagerMiuix(
                                 onCheckedChange = actions.onSetDefaultUmountModules,
                             )
 
-                            val builtinMountSummary = uiState.builtinMountConflict?.let {
-                                stringResource(id = R.string.settings_builtin_mount_conflict_summary, it)
-                            } ?: stringResource(id = R.string.settings_builtin_mount_summary)
-                            CategorizedMiuixActionRow(
-                                title = stringResource(id = R.string.settings_builtin_mount),
-                                summary = builtinMountSummary,
-                                icon = Icons.Rounded.Layers,
-                                onClick = actions.onOpenBuiltinMount,
-                            )
-
                             CategorizedMiuixSwitchRow(
                                 title = stringResource(id = R.string.settings_kpatch_next),
                                 summary = kPatchNextSummary(uiState),

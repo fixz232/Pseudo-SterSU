@@ -45,10 +45,6 @@ import me.weishu.kernelsu.ui.util.InterfaceStyleRegistry
 import me.weishu.kernelsu.ui.util.InstalledInterfaceStyle
 import me.weishu.kernelsu.ui.util.InterfaceStylePackage
 import me.weishu.kernelsu.ui.util.setNativeWebManagerEnabled
-import me.weishu.kernelsu.ui.util.BUILTIN_MOUNT_MODE_MAGIC
-import me.weishu.kernelsu.ui.util.BUILTIN_MOUNT_MODE_OVERLAY
-import me.weishu.kernelsu.ui.util.BUILTIN_MOUNT_VARIANT_FULL
-import me.weishu.kernelsu.ui.util.BUILTIN_MOUNT_VARIANT_LITE
 import me.weishu.kernelsu.ui.util.LauncherIconOption
 import me.weishu.kernelsu.ui.util.KernelStatusEvents
 import me.weishu.kernelsu.stealth.StealthModeStore
@@ -201,7 +197,6 @@ class SettingsViewModel(
             val avcSpoofStatus = repo.getAvcSpoofStatus()
             val isAvcSpoofEnabled = repo.isAvcSpoofEnabled()
             val isDefaultUmountModules = repo.isDefaultUmountModules()
-            val builtinMountStatus = repo.getBuiltinMountStatus()
             val kPatchNextStatus = repo.getKPatchNextStatus()
             val kpmCaps = repo.getKpmCaps()
             val isEpkesuHideEnabled = repo.getEpkesuHideStatus()
@@ -303,19 +298,6 @@ class SettingsViewModel(
                     avcSpoofStatus = avcSpoofStatus,
                     isAvcSpoofEnabled = isAvcSpoofEnabled,
                     isDefaultUmountModules = isDefaultUmountModules,
-                    isBuiltinMountEnabled = builtinMountStatus.enabled,
-                    builtinMountDefaultMode = builtinMountStatus.defaultMode,
-                    builtinMountVariant = builtinMountStatus.variant,
-                    isBuiltinMountWebUiAvailable = builtinMountStatus.webUi,
-                    builtinMountConflict = builtinMountStatus.conflict,
-                    builtinMountSourceUrl = builtinMountStatus.sourceUrl,
-                    builtinMountArchiveSha256 = builtinMountStatus.archiveSha256,
-                    builtinMountLkmCount = builtinMountStatus.lkmCount,
-                    builtinMountSupportedKmis = builtinMountStatus.supportedKmis,
-                    builtinMountCurrentKmi = builtinMountStatus.currentKmi,
-                    builtinMountCompatibility = builtinMountStatus.compatibility,
-                    builtinMountLkmPurpose = builtinMountStatus.lkmPurpose,
-                    builtinMountIsApkeSuRootDriver = builtinMountStatus.apkeSuRootDriver,
                     isKPatchNextInstalled = if (
                         kPatchNextRefreshGeneration == kPatchNextStateGeneration.get() &&
                         kPatchNextStatus.error.isBlank()
@@ -1339,54 +1321,6 @@ class SettingsViewModel(
         }
     }
 
-    fun setBuiltinMountEnabled(enabled: Boolean) {
-        viewModelScope.launch(Dispatchers.IO) {
-            if (repo.setBuiltinMountEnabled(enabled)) {
-                refreshBuiltinMountStatus()
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(ksuApp, R.string.settings_builtin_mount_reboot_required, Toast.LENGTH_LONG).show()
-                }
-            } else {
-                refreshBuiltinMountStatus()
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(ksuApp, R.string.settings_builtin_mount_failed, Toast.LENGTH_LONG).show()
-                }
-            }
-        }
-    }
-
-    fun setBuiltinMountDefaultMode(index: Int) {
-        val mode = if (index == 1) BUILTIN_MOUNT_MODE_MAGIC else BUILTIN_MOUNT_MODE_OVERLAY
-        viewModelScope.launch(Dispatchers.IO) {
-            if (repo.setBuiltinMountDefaultMode(mode)) {
-                refreshBuiltinMountStatus()
-            } else {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(ksuApp, R.string.settings_builtin_mount_failed, Toast.LENGTH_LONG).show()
-                }
-            }
-        }
-    }
-
-    fun setBuiltinMountVariant(index: Int) {
-        val variant = if (index == 1) BUILTIN_MOUNT_VARIANT_FULL else BUILTIN_MOUNT_VARIANT_LITE
-        viewModelScope.launch(Dispatchers.IO) {
-            if (repo.setBuiltinMountVariant(variant)) {
-                refreshBuiltinMountStatus()
-                if (_uiState.value.isBuiltinMountEnabled) {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(ksuApp, R.string.settings_builtin_mount_reboot_required, Toast.LENGTH_LONG).show()
-                    }
-                }
-            } else {
-                refreshBuiltinMountStatus()
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(ksuApp, R.string.settings_builtin_mount_failed, Toast.LENGTH_LONG).show()
-                }
-            }
-        }
-    }
-
     fun setKPatchNextEnabled(enabled: Boolean) {
         if (!Natives.isLkmMode || Natives.isLateLoadMode) {
             _uiState.update {
@@ -1460,27 +1394,6 @@ class SettingsViewModel(
                     Toast.makeText(ksuApp, R.string.settings_epkesu_hide_failed, Toast.LENGTH_LONG).show()
                 }
             }
-        }
-    }
-
-    private suspend fun refreshBuiltinMountStatus() {
-        val status = repo.getBuiltinMountStatus()
-        _uiState.update {
-            it.copy(
-                isBuiltinMountEnabled = status.enabled,
-                builtinMountDefaultMode = status.defaultMode,
-                builtinMountVariant = status.variant,
-                isBuiltinMountWebUiAvailable = status.webUi,
-                builtinMountConflict = status.conflict,
-                builtinMountSourceUrl = status.sourceUrl,
-                builtinMountArchiveSha256 = status.archiveSha256,
-                builtinMountLkmCount = status.lkmCount,
-                builtinMountSupportedKmis = status.supportedKmis,
-                builtinMountCurrentKmi = status.currentKmi,
-                builtinMountCompatibility = status.compatibility,
-                builtinMountLkmPurpose = status.lkmPurpose,
-                builtinMountIsApkeSuRootDriver = status.apkeSuRootDriver,
-            )
         }
     }
 

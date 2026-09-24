@@ -146,10 +146,6 @@ pub fn foreach_module(
             warn!("{} is not a directory, skip", path.display());
             continue;
         }
-        if crate::builtin_mount::is_compat_module_entry(&path) {
-            continue;
-        }
-
         if module_type == Active && path.join(defs::DISABLE_FILE_NAME).exists() {
             info!("{} is disabled, skip", path.display());
             continue;
@@ -1128,9 +1124,6 @@ fn list_module(path: &str) -> Vec<HashMap<String, String>> {
         let path = entry.path();
         info!("path: {}", path.display());
 
-        if crate::builtin_mount::is_compat_module_entry(&path) {
-            continue;
-        }
         if !path.join("module.prop").exists() {
             continue;
         }

@@ -63,12 +63,7 @@ private const val DYNAMIC_MANAGER_MAX_CERTIFICATE_SIZE = 0x1000
 private val DYNAMIC_MANAGER_CERTIFICATE_SHA256 = Regex("[0-9a-f]{64}")
 private var lastManagerRegistrationFailureKey: String? = null
 private var lastManagerRegistrationFailureAt = 0L
-const val HYBRID_MOUNT_MODULE_ID = "hybrid_mount"
 const val KPATCH_NEXT_MODULE_ID = "KPatch-Next"
-const val BUILTIN_MOUNT_MODE_OVERLAY = "overlay"
-const val BUILTIN_MOUNT_MODE_MAGIC = "magic"
-const val BUILTIN_MOUNT_VARIANT_LITE = "lite"
-const val BUILTIN_MOUNT_VARIANT_FULL = "full"
 const val HIDDEN_PATH_CONFIG_FILE_NAME = "apkesu_hidden_path_config.json"
 const val HIDDEN_PATH_CONFIG_MIME_TYPE = "application/json"
 const val HIDDEN_PATH_MAX_AUTO_LOAD_DELAY_SECONDS = 300
@@ -131,28 +126,6 @@ data class DynamicManagerCliState(
     val certificateSha256: String = "",
     val managerSignatureIndexes: Map<Int, Int> = emptyMap(),
     val error: String = "",
-)
-
-data class BuiltinMountStatus(
-    val moduleId: String = HYBRID_MOUNT_MODULE_ID,
-    val moduleName: String = "Hybrid Mount Lite",
-    val modulePath: String = "/data/adb/ksu/builtin/hybrid_mount",
-    val version: String = "",
-    val versionCode: String = "",
-    val installed: Boolean = false,
-    val enabled: Boolean = false,
-    val conflict: String? = null,
-    val defaultMode: String = BUILTIN_MOUNT_MODE_OVERLAY,
-    val variant: String = BUILTIN_MOUNT_VARIANT_LITE,
-    val webUi: Boolean = false,
-    val sourceUrl: String = "",
-    val archiveSha256: String = "",
-    val lkmCount: Int = 0,
-    val supportedKmis: List<String> = emptyList(),
-    val currentKmi: String = "",
-    val compatibility: String = "unknown",
-    val lkmPurpose: String = "",
-    val apkeSuRootDriver: Boolean = false,
 )
 
 data class KPatchNextStatus(
@@ -795,90 +768,6 @@ fun getNativeWebManagerUrl(): String? = runCatching {
     ).trim()
     output.takeIf { it.startsWith("http://127.0.0.1:") && it.contains("/#pair=") }
 }.getOrNull()
-
-suspend fun getBuiltinMountStatus(): BuiltinMountStatus = withContext(Dispatchers.IO) {
-    if (shouldSkipUnsafeKsudCommand()) {
-        return@withContext BuiltinMountStatus()
-    }
-
-    runCatching {
-        val stdout = ArrayList<String>()
-        val stderr = ArrayList<String>()
-        val result = withTimeoutOrNull(SHELL_JOB_TIMEOUT_MILLIS) {
-            getRootShell().newJob()
-                .add("${getKsuDaemonPath()} builtin-mount status")
-                .to(stdout, stderr)
-                .exec()
-        }
-
-        if (result == null) {
-            Log.w(TAG, "builtin-mount status timed out")
-            KsuCli.reset()
-            return@runCatching BuiltinMountStatus()
-        }
-
-        if (!result.isSuccess) {
-            Log.w(TAG, "builtin-mount status failed: ${stderr.joinToString("\n")}")
-            return@runCatching BuiltinMountStatus()
-        }
-
-        val obj = JSONObject(stdout.joinToString("\n"))
-        val mode = obj.optString("defaultMode", BUILTIN_MOUNT_MODE_OVERLAY)
-            .takeIf { it == BUILTIN_MOUNT_MODE_OVERLAY || it == BUILTIN_MOUNT_MODE_MAGIC }
-            ?: BUILTIN_MOUNT_MODE_OVERLAY
-        val variant = obj.optString("variant", BUILTIN_MOUNT_VARIANT_LITE)
-            .takeIf { it == BUILTIN_MOUNT_VARIANT_LITE || it == BUILTIN_MOUNT_VARIANT_FULL }
-            ?: BUILTIN_MOUNT_VARIANT_LITE
-        BuiltinMountStatus(
-            moduleId = obj.optString("moduleId", HYBRID_MOUNT_MODULE_ID),
-            moduleName = obj.optString("moduleName", "Hybrid Mount Lite"),
-            modulePath = obj.optString("modulePath", "/data/adb/ksu/builtin/hybrid_mount"),
-            version = obj.optString("version", ""),
-            versionCode = obj.optString("versionCode", ""),
-            installed = obj.optBoolean("installed", false),
-            enabled = obj.optBoolean("enabled", false),
-            conflict = obj.optString("conflict").takeIf { it.isNotBlank() && it != "null" },
-            defaultMode = mode,
-            variant = variant,
-            webUi = obj.optBoolean("webui", false),
-            sourceUrl = obj.optString("sourceUrl", ""),
-            archiveSha256 = obj.optString("archiveSha256", ""),
-            lkmCount = obj.optInt("lkmCount", 0),
-            supportedKmis = obj.optJSONArray("supportedKmis").toStringList(),
-            currentKmi = obj.optString("currentKmi", ""),
-            compatibility = obj.optString("compatibility", "unknown"),
-            lkmPurpose = obj.optString("lkmPurpose", ""),
-            apkeSuRootDriver = obj.optBoolean("apkesuRootDriver", false),
-        )
-    }.getOrElse {
-        Log.w(TAG, "builtin-mount status unavailable", it)
-        KsuCli.reset()
-        BuiltinMountStatus()
-    }
-}
-
-fun setBuiltinMountEnabled(enabled: Boolean): Boolean {
-    val command = if (enabled) "enable" else "disable"
-    return execKsud("builtin-mount $command", true)
-}
-
-fun setBuiltinMountDefaultMode(mode: String): Boolean {
-    val normalized = if (mode == BUILTIN_MOUNT_MODE_MAGIC) {
-        BUILTIN_MOUNT_MODE_MAGIC
-    } else {
-        BUILTIN_MOUNT_MODE_OVERLAY
-    }
-    return execKsud("builtin-mount set-default-mode $normalized", true)
-}
-
-fun setBuiltinMountVariant(variant: String): Boolean {
-    val normalized = if (variant == BUILTIN_MOUNT_VARIANT_FULL) {
-        BUILTIN_MOUNT_VARIANT_FULL
-    } else {
-        BUILTIN_MOUNT_VARIANT_LITE
-    }
-    return execKsud("builtin-mount set-variant $normalized", true)
-}
 
 suspend fun getKPatchNextStatus(): KPatchNextStatus = withContext(Dispatchers.IO) {
     if (shouldSkipUnsafeKsudCommand()) {

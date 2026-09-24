@@ -4,7 +4,7 @@ use std::ffi::CString;
 use std::process::Command;
 
 use crate::module::{handle_updated_modules, prune_modules};
-use crate::{assets, builtin_mount, defs, init_event, ksucalls, metamodule, restorecon, utils};
+use crate::{assets, defs, init_event, ksucalls, metamodule, restorecon, utils};
 
 fn dump_process_info(label: &str) {
     use rustix::process::{getgid, getgroups, getpid, getuid};
@@ -243,10 +243,6 @@ pub fn run(
 
     if let Err(e) = prune_modules() {
         warn!("prune modules failed: {e}");
-    }
-
-    if let Err(e) = builtin_mount::ensure_active_compat_entry() {
-        warn!("ensure builtin mount compat entry failed: {e}");
     }
 
     if let Err(e) = restorecon::restorecon() {

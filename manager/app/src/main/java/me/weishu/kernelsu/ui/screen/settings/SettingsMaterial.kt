@@ -398,9 +398,6 @@ fun SettingPagerMaterial(
 
             KsuIsValid {
                 MaterialSettingsSection(SettingsCategory.MountAndHide) {
-                    val builtinMountSummary = uiState.builtinMountConflict?.let {
-                        stringResource(R.string.settings_builtin_mount_conflict_summary, it)
-                    } ?: stringResource(R.string.settings_builtin_mount_summary)
                     SegmentedColumn(
                         content = buildList {
                             add {
@@ -410,14 +407,6 @@ fun SettingPagerMaterial(
                                     summary = stringResource(R.string.settings_umount_modules_default_summary),
                                     checked = uiState.isDefaultUmountModules,
                                     onCheckedChange = actions.onSetDefaultUmountModules,
-                                )
-                            }
-                            add {
-                                MaterialSettingsLink(
-                                    title = stringResource(R.string.settings_builtin_mount),
-                                    summary = builtinMountSummary,
-                                    icon = Icons.Rounded.Layers,
-                                    onClick = actions.onOpenBuiltinMount,
                                 )
                             }
                             add {

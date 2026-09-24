@@ -196,7 +196,6 @@ import me.weishu.kernelsu.ui.screen.settings.BackgroundSettingsScreen
 import me.weishu.kernelsu.ui.screen.settings.CardStyleCreatorScreen
 import me.weishu.kernelsu.ui.screen.settings.AiChatScreen
 import me.weishu.kernelsu.ui.screen.settings.AiModuleStudioScreen
-import me.weishu.kernelsu.ui.screen.settings.BuiltinMountScreen
 import me.weishu.kernelsu.ui.screen.settings.CpuSpoofScreen
 import me.weishu.kernelsu.ui.screen.settings.DeviceIdentityScreen
 import me.weishu.kernelsu.ui.screen.settings.DynamicManagerScreen
@@ -658,7 +657,6 @@ class MainActivity : ComponentActivity() {
                                 entry<Route.GraphicsRenderer> { PluginRouteGate(ManagerPlugin.GraphicsRenderer) { GraphicsRendererScreen() } }
                                 entry<Route.Kpm> { KpmScreen() }
                                 entry<Route.ImageTool> { PluginRouteGate(ManagerPlugin.ImageTools) { ImageToolScreen() } }
-                                entry<Route.BuiltinMount> { BuiltinMountScreen() }
                                 entry<Route.ThemeStore> { ThemeStoreScreen() }
                                 entry<Route.PluginStore> { PluginStoreScreen() }
                                 entry<Route.InterfaceStyleStore> {

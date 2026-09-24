@@ -268,9 +268,7 @@ private fun categoryStatus(category: SettingsCategory, uiState: SettingsUiState)
         uiState.runtimeModeResolved -> stringResource(R.string.settings_runtime_mode_gki)
         else -> null
     }
-    SettingsCategory.MountAndHide -> uiState.builtinMountConflict?.let {
-        stringResource(R.string.settings_builtin_mount_conflict_summary, it)
-    }
+    SettingsCategory.MountAndHide -> null
     SettingsCategory.Toolbox -> null
     SettingsCategory.AppAndMaintenance -> null
 }

@@ -24,9 +24,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.weishu.kernelsu.R
 import me.weishu.kernelsu.data.repository.ModuleRepositoryImpl
-import me.weishu.kernelsu.ui.util.HYBRID_MOUNT_MODULE_ID
 import me.weishu.kernelsu.ui.util.createRootShell
-import me.weishu.kernelsu.ui.util.getBuiltinMountStatus
 import me.weishu.kernelsu.ui.viewmodel.SuperUserViewModel
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -124,30 +122,11 @@ internal suspend fun prepareWebView(
         val moduleVersionCode: String
         val modDir: String
         val hasWebUiHint: Boolean
-        val isBuiltinModule: Boolean
-
         if (moduleInfo == null) {
-            if (moduleId != HYBRID_MOUNT_MODULE_ID) {
-                withContext(Dispatchers.Main) {
-                    webUIState.reportError(loadGeneration, activity.getString(R.string.no_such_module, moduleId))
-                }
-                return@withContext
+            withContext(Dispatchers.Main) {
+                webUIState.reportError(loadGeneration, activity.getString(R.string.no_such_module, moduleId))
             }
-
-            val builtinMountStatus = getBuiltinMountStatus()
-            moduleName = builtinMountStatus.moduleName
-            moduleVersion = builtinMountStatus.version
-            moduleVersionCode = builtinMountStatus.versionCode
-            modDir = builtinMountStatus.modulePath
-            hasWebUiHint = builtinMountStatus.webUi
-            isBuiltinModule = true
-
-            if (!builtinMountStatus.enabled) {
-                withContext(Dispatchers.Main) {
-                    webUIState.reportError(loadGeneration, activity.getString(R.string.module_unavailable, moduleName))
-                }
-                return@withContext
-            }
+            return@withContext
         } else if (!moduleInfo.enabled || (!allowPendingUpdate && moduleInfo.update) || moduleInfo.remove) {
             withContext(Dispatchers.Main) {
                 webUIState.reportError(loadGeneration, activity.getString(R.string.module_unavailable, moduleInfo.name))
@@ -159,7 +138,6 @@ internal suspend fun prepareWebView(
             moduleVersionCode = moduleInfo.versionCode.toString()
             modDir = "/data/adb/modules/${moduleId}"
             hasWebUiHint = moduleInfo.hasWebUi
-            isBuiltinModule = false
         }
 
         val shell = createRootShell(true)
@@ -183,7 +161,6 @@ internal suspend fun prepareWebView(
                     moduleVersion = moduleVersion,
                     moduleVersionCode = moduleVersionCode,
                     modDir = modDir,
-                    isBuiltinModule = isBuiltinModule,
                 )
             ) {
                 shell.close()

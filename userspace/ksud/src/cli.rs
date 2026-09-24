@@ -10,9 +10,9 @@ use crate::kpimg::{BootInfoKpimgArgs, BootPatchKpimgArgs};
 use crate::lkm_image::BootPatchV2Args;
 use crate::module::regenerate_preinit_rc;
 use crate::{
-    apk_sign, assets, builtin_mount, cpu_spoof, debug, defs, dynamic_manager, epkesu_hide,
-    init_event, kpatch_next, kpm, ksu_uapi, ksucalls, module, module_config, pathmask, rescue,
-    sulog, utils, web_manager,
+    apk_sign, assets, cpu_spoof, debug, defs, dynamic_manager, epkesu_hide, init_event,
+    kpatch_next, kpm, ksu_uapi, ksucalls, module, module_config, pathmask, rescue, sulog, utils,
+    web_manager,
 };
 
 /// KernelSU userspace cli
@@ -29,12 +29,6 @@ enum Commands {
     Module {
         #[command(subcommand)]
         command: Module,
-    },
-
-    /// Manage the built-in Hybrid Mount package
-    BuiltinMount {
-        #[command(subcommand)]
-        command: BuiltinMount,
     },
 
     /// Manage built-in KPatch Next
@@ -624,33 +618,6 @@ enum ModuleConfigCmd {
 }
 
 #[derive(clap::Subcommand, Debug)]
-enum BuiltinMount {
-    /// Print built-in mount status as JSON
-    Status,
-
-    /// Install or enable the built-in Hybrid Mount package
-    Enable,
-
-    /// Disable the built-in Hybrid Mount package
-    Disable,
-
-    /// Print the global default mount mode
-    GetDefaultMode,
-
-    /// Set the global default mount mode: overlay or magic
-    SetDefaultMode {
-        /// overlay or magic
-        mode: String,
-    },
-
-    /// Set the built-in mount package variant: lite or full
-    SetVariant {
-        /// lite or full
-        variant: String,
-    },
-}
-
-#[derive(clap::Subcommand, Debug)]
 enum KpatchNext {
     /// Print built-in KPatch Next status as JSON
     Status,
@@ -1037,29 +1004,6 @@ pub fn run() -> Result<()> {
                             module_config::clear_config(&module_id, config_type)
                         }
                     }
-                }
-            }
-        }
-        Commands::BuiltinMount { command } => {
-            utils::switch_mnt_ns(1)?;
-            match command {
-                BuiltinMount::Status => {
-                    builtin_mount::print_status();
-                    Ok(())
-                }
-                BuiltinMount::Enable => builtin_mount::enable(),
-                BuiltinMount::Disable => builtin_mount::disable(),
-                BuiltinMount::GetDefaultMode => {
-                    builtin_mount::print_default_mode();
-                    Ok(())
-                }
-                BuiltinMount::SetDefaultMode { mode } => {
-                    let mode = builtin_mount::MountMode::parse(&mode)?;
-                    builtin_mount::set_default_mode(mode)
-                }
-                BuiltinMount::SetVariant { variant } => {
-                    let variant = builtin_mount::BuiltinMountVariant::parse(&variant)?;
-                    builtin_mount::set_variant(variant)
                 }
             }
         }

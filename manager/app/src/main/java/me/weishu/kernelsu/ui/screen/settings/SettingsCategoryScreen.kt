@@ -642,15 +642,6 @@ private fun MountHideSettingsContent(
     onOpen: (Route) -> Unit,
 ) {
     SettingsGroup(stringResource(R.string.settings_group_mounting)) {
-        SettingsActionRow(
-            title = stringResource(R.string.settings_builtin_mount),
-            summary = uiState.builtinMountConflict?.let {
-                stringResource(R.string.settings_builtin_mount_conflict_summary, it)
-            } ?: stringResource(R.string.settings_builtin_mount_summary),
-            icon = Icons.Rounded.Layers,
-            onClick = { onOpen(Route.BuiltinMount) },
-        )
-        SettingsDivider()
         SettingsSwitchRow(
             title = stringResource(R.string.settings_umount_modules_default),
             summary = stringResource(R.string.settings_umount_modules_default_summary),

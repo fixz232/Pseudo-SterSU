@@ -10,7 +10,6 @@ import me.weishu.kernelsu.ui.theme.ThemeSyncStrategy
 import me.weishu.kernelsu.ui.component.NightBackgroundEffect
 import me.weishu.kernelsu.ui.component.decoration.UiDecorationConfig
 import me.weishu.kernelsu.ui.component.decoration.CustomUiDecorationPreset
-import me.weishu.kernelsu.ui.util.BuiltinMountStatus
 import me.weishu.kernelsu.ui.util.CustomNavigationIconSet
 import me.weishu.kernelsu.ui.util.CustomNavigationIconSlot
 import me.weishu.kernelsu.ui.util.CustomNavigationIconState
@@ -161,11 +160,6 @@ interface SettingsRepository {
 
     fun isDefaultUmountModules(): Boolean
     fun setDefaultUmountModules(enabled: Boolean): Boolean
-
-    suspend fun getBuiltinMountStatus(): BuiltinMountStatus
-    fun setBuiltinMountEnabled(enabled: Boolean): Boolean
-    fun setBuiltinMountDefaultMode(mode: String): Boolean
-    fun setBuiltinMountVariant(variant: String): Boolean
 
     suspend fun getKPatchNextStatus(): KPatchNextStatus
     fun setKPatchNextEnabled(enabled: Boolean): Boolean

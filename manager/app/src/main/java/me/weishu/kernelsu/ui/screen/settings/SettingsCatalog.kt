@@ -60,7 +60,6 @@ internal object SettingsCatalog {
         entry("soft_reboot", SettingsCategory.RootAndPermissions, R.string.settings_soft_reboot, R.string.settings_soft_reboot_summary),
 
         entry("default_umount", SettingsCategory.MountAndHide, R.string.settings_umount_modules_default, R.string.settings_umount_modules_default_summary),
-        entry("builtin_mount", SettingsCategory.MountAndHide, R.string.settings_builtin_mount, R.string.settings_builtin_mount_summary),
         entry("kpatch_next", SettingsCategory.MountAndHide, R.string.settings_kpatch_next, R.string.settings_kpatch_next_summary),
         entry("kpatch_webui", SettingsCategory.MountAndHide, R.string.settings_kpatch_next_webui, R.string.settings_kpatch_next_webui_disabled_summary),
         entry("path_config", SettingsCategory.MountAndHide, R.string.hidden_path_lkm_builtin_title),

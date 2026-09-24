@@ -34,7 +34,6 @@
       kpm: null,
       susfs: null,
       pathmask: null,
-      builtinMount: null,
       kpatchNext: null,
     },
     apiMeta: null,
@@ -1715,33 +1714,6 @@
     }
   }
 
-  function renderBuiltinMount(data) {
-    state.tools.builtinMount = data;
-    const status = data.status || {};
-    $('builtin-mount-enabled').disabled = false;
-    $('builtin-mount-mode').disabled = false;
-    $('builtin-mount-variant').disabled = false;
-    $('builtin-mount-enabled').checked = Boolean(status.enabled);
-    $('builtin-mount-mode').value = status.defaultMode || 'overlay';
-    $('builtin-mount-variant').value = status.variant || 'lite';
-    const compatibility = status.compatibility === 'unsupported' ? '当前 KMI 不兼容' : status.compatibility === 'compatible' ? 'KMI 兼容' : status.compatibility === 'not_required' ? '无需 KMI 匹配' : 'KMI 状态未知';
-    $('builtin-mount-detail').textContent = `${status.moduleName || 'Hybrid Mount'} ${status.version || ''}`.trim();
-    $('builtin-mount-status').innerHTML = `${status.conflict ? `<span class="badge warn">与 ${esc(status.conflict)} 冲突</span>` : ''}<span class="badge ${status.enabled ? 'ok' : ''}">${status.installed ? status.enabled ? '已启用' : '已安装但停用' : '未安装'}</span> <span class="badge ${status.compatibility === 'unsupported' ? 'warn' : ''}">${esc(compatibility)}</span><div class="row-detail">切换内置版本或启停后通常需要重启才能完全生效。</div>`;
-  }
-
-  async function loadBuiltinMount() {
-    try {
-      const data = await api('/api/builtin-mount', { timeout: 20000 });
-      renderBuiltinMount(data);
-      return data;
-    } catch (error) {
-      state.tools.builtinMount = null;
-      $('builtin-mount-enabled').disabled = true;
-      $('builtin-mount-status').textContent = `无法读取：${errorMessage(error)}`;
-      throw error;
-    }
-  }
-
   function renderKpatchNext(data) {
     state.tools.kpatchNext = data;
     const status = data.status || {};
@@ -1773,18 +1745,17 @@
     const lateLoad = mode === 'late-load';
     const gki = mode === 'gki';
     const lkm = mode === 'lkm';
-    $('tools-summary').textContent = lateLoad ? 'Late-load 模式 · 内核扩展管理不可用' : gki ? 'GKI 模式 · 原生 KPM、SUSFS 与内置挂载' : lkm ? 'LKM 模式 · KPatch-Next、PathMask 与内置挂载' : '内核模式未知';
+    $('tools-summary').textContent = lateLoad ? 'Late-load 模式 · 内核扩展管理不可用' : gki ? 'GKI 模式 · 原生 KPM 与 SUSFS' : lkm ? 'LKM 模式 · KPatch-Next 与 PathMask' : '内核模式未知';
     $('tools-runtime').innerHTML = `<b>${gki ? 'GKI' : lkm ? 'LKM' : lateLoad ? 'Late-load' : '未知模式'}</b><span>${lateLoad ? '当前加载方式不支持持久内核扩展。' : '页面只显示当前模式支持的真实能力；所有更改均由 ksud 执行。'}</span>`;
     $('tools-runtime').className = `notice${lateLoad || (!gki && !lkm) ? ' warn' : ''}`;
     showToolPanel('kpm-panel', gki || lkm);
     showToolPanel('susfs-panel', gki);
     showToolPanel('pathmask-panel', lkm);
-    showToolPanel('builtin-mount-panel', gki || lkm);
     showToolPanel('kpatch-next-panel', lkm);
     const jobs = [];
     if (gki || lkm) jobs.push(loadKpm());
-    if (gki) jobs.push(loadSusfs(), loadBuiltinMount());
-    if (lkm) jobs.push(loadPathmask(), loadBuiltinMount(), loadKpatchNext());
+    if (gki) jobs.push(loadSusfs());
+    if (lkm) jobs.push(loadPathmask(), loadKpatchNext());
     const results = await Promise.allSettled(jobs);
     const failures = results.filter((result) => result.status === 'rejected').length;
     if (failures && jobs.length && failures === jobs.length) throw new Error('当前模式的内核工具均无法读取');
@@ -2024,9 +1995,6 @@
     else if (event.target.id === 'theme-select') { applyTheme(event.target.value); }
     else if (event.target.id === 'auto-start') { changeAutoStart(event.target); }
     else if (event.target.id === 'kpm-policy') { postTool('/api/kpm/policy', { enabled: event.target.checked }, event.target, 'KPM 策略已更新'); }
-    else if (event.target.id === 'builtin-mount-enabled') { postTool('/api/builtin-mount', { action: event.target.checked ? 'enable' : 'disable' }, event.target, '内置挂载状态已更新'); }
-    else if (event.target.id === 'builtin-mount-mode') { postTool('/api/builtin-mount', { action: 'mode', value: event.target.value }, event.target, '默认挂载模式已更新'); }
-    else if (event.target.id === 'builtin-mount-variant') { postTool('/api/builtin-mount', { action: 'variant', value: event.target.value }, event.target, '内置挂载版本已更新'); }
     else if (event.target.id === 'kpatch-next-enabled') { postTool('/api/kpatch-next', { action: event.target.checked ? 'enable' : 'disable' }, event.target, 'KPatch-Next 状态已更新'); }
   });
 

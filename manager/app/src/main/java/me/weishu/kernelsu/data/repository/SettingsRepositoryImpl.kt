@@ -106,7 +106,6 @@ import me.weishu.kernelsu.ui.util.LauncherIconOption
 import me.weishu.kernelsu.ui.util.applyLauncherIcon
 import me.weishu.kernelsu.ui.util.execKsud
 import me.weishu.kernelsu.ui.webmanager.WEB_MANAGER_AUTO_START_KEY
-import me.weishu.kernelsu.ui.util.getBuiltinMountStatus as readBuiltinMountStatus
 import me.weishu.kernelsu.ui.util.getFeaturePersistValue
 import me.weishu.kernelsu.ui.util.getFeatureStatus
 import me.weishu.kernelsu.ui.util.getKPatchNextStatus as readKPatchNextStatus
@@ -134,9 +133,6 @@ import me.weishu.kernelsu.ui.util.setCustomPageBackgroundVisualSettings as write
 import me.weishu.kernelsu.ui.util.setGlobalBackgroundVisualSettings as writeGlobalBackgroundVisualSettings
 import me.weishu.kernelsu.ui.util.setStartupAnimationSettings as writeStartupAnimationSettings
 import me.weishu.kernelsu.ui.util.setCustomPageBackgroundWallpaper as writeCustomPageBackgroundWallpaper
-import me.weishu.kernelsu.ui.util.setBuiltinMountDefaultMode as writeBuiltinMountDefaultMode
-import me.weishu.kernelsu.ui.util.setBuiltinMountEnabled as writeBuiltinMountEnabled
-import me.weishu.kernelsu.ui.util.setBuiltinMountVariant as writeBuiltinMountVariant
 import me.weishu.kernelsu.ui.util.setKPatchNextEnabled as writeKPatchNextEnabled
 import me.weishu.kernelsu.ui.util.getEpkesuHideStatus as readEpkesuHideStatus
 import me.weishu.kernelsu.ui.util.setEpkesuHideEnabled as writeEpkesuHideEnabled
@@ -1015,14 +1011,6 @@ class SettingsRepositoryImpl : SettingsRepository {
     override fun isDefaultUmountModules(): Boolean = Natives.isDefaultUmountModules()
 
     override fun setDefaultUmountModules(enabled: Boolean): Boolean = Natives.setDefaultUmountModules(enabled)
-
-    override suspend fun getBuiltinMountStatus() = readBuiltinMountStatus()
-
-    override fun setBuiltinMountEnabled(enabled: Boolean): Boolean = writeBuiltinMountEnabled(enabled)
-
-    override fun setBuiltinMountDefaultMode(mode: String): Boolean = writeBuiltinMountDefaultMode(mode)
-
-    override fun setBuiltinMountVariant(variant: String): Boolean = writeBuiltinMountVariant(variant)
 
     override suspend fun getKPatchNextStatus() = readKPatchNextStatus()
 

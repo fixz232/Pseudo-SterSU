@@ -212,14 +212,6 @@ fun SettingPagerDelta(
                     checked = uiState.isDefaultUmountModules,
                     onCheckedChange = actions.onSetDefaultUmountModules,
                 )
-                DeltaActionRow(
-                    title = stringResource(R.string.settings_builtin_mount),
-                    summary = uiState.builtinMountConflict?.let {
-                        stringResource(R.string.settings_builtin_mount_conflict_summary, it)
-                    } ?: stringResource(R.string.settings_builtin_mount_summary),
-                    icon = Icons.Rounded.Apps,
-                    onClick = actions.onOpenBuiltinMount,
-                )
                 DeltaSwitchRow(
                     title = stringResource(R.string.settings_kpatch_next),
                     summary = kPatchNextSummary(uiState),

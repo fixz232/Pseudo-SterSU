@@ -210,7 +210,6 @@ fun SettingPager(
         onSetAdbRootEnabled = viewModel::setAdbRootEnabled,
         onSetAvcSpoofEnabled = viewModel::setAvcSpoofEnabled,
         onSetDefaultUmountModules = viewModel::setDefaultUmountModules,
-        onOpenBuiltinMount = { navigator.push(Route.BuiltinMount) },
         onSetKPatchNextEnabled = { enabled ->
             if (uiState.canToggleKPatchNext) {
                 viewModel.setKPatchNextEnabled(enabled)
