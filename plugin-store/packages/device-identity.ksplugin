@@ -1,0 +1,20 @@
+{
+  "schema": "io.github.fixz.apkesu.plugin",
+  "version": 1,
+  "id": "device-identity",
+  "name": "标识修改",
+  "summary": "安全修改受支持的设备标识并保留恢复备份。",
+  "description": "管理序列号、Android ID、MAC 和 OAID 等受支持标识，带格式校验、备份、读回验证和回滚。",
+  "instructions": [
+    "导出或确认自动备份已成功。",
+    "一次只修改一种标识，验证通过后再重启。"
+  ],
+  "slots": [
+    "toolbox.device-identity"
+  ],
+  "minManagerVersionCode": 32800,
+  "minKsudVersionCode": 32800,
+  "downloadUrl": "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/packages/device-identity.ksplugin",
+  "sha256": "",
+  "sizeBytes": 0
+}

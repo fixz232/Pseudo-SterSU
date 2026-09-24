@@ -21,6 +21,7 @@ import me.weishu.kernelsu.ui.component.pixel.LocalPixelStyle
 import me.weishu.kernelsu.ui.component.rain.LocalRainStyle
 import me.weishu.kernelsu.ui.component.rain.rainPalette
 import me.weishu.kernelsu.ui.util.AppFontState
+import me.weishu.kernelsu.ui.util.LocalInterfaceStyleTheme
 import me.weishu.kernelsu.ui.util.resolveAppFontFamily
 import me.weishu.kernelsu.ui.webui.MonetColorsProvider
 import top.yukonga.miuix.kmp.theme.ColorSchemeMode
@@ -43,10 +44,12 @@ fun MiuixKernelSUTheme(
     val isLiquidGlass = LocalInterfaceStyle.current == InterfaceStyle.LiquidGlass.value
     val isRainStyle = LocalInterfaceStyle.current == InterfaceStyle.Rain.value
     val rainStyle = LocalRainStyle.current
+    val interfaceTheme = LocalInterfaceStyleTheme.current
     val forceInterfaceDark = isInterfaceForcedDark(
         interfaceStyle = LocalInterfaceStyle.current,
         rainStyle = LocalRainStyle.current,
         pixelStyle = LocalPixelStyle.current,
+        interfaceTheme = interfaceTheme,
     )
     val darkTheme = resolveEffectiveDarkMode(
         colorMode = appSettings.colorMode,
@@ -54,6 +57,7 @@ fun MiuixKernelSUTheme(
         interfaceStyle = LocalInterfaceStyle.current,
         rainStyle = LocalRainStyle.current,
         pixelStyle = LocalPixelStyle.current,
+        interfaceTheme = interfaceTheme,
     )
     val colorStyle = appSettings.paletteStyle
     val colorSpec = appSettings.colorSpec
@@ -61,8 +65,8 @@ fun MiuixKernelSUTheme(
         appSettings = appSettings,
         forceDark = forceInterfaceDark,
     )
-    val rainColors = remember(isRainStyle, rainStyle, darkTheme) {
-        if (isRainStyle) rainPalette(rainStyle, darkTheme) else null
+    val rainColors = remember(isRainStyle, rainStyle, darkTheme, interfaceTheme) {
+        if (isRainStyle) rainPalette(interfaceTheme, rainStyle, darkTheme) else null
     }
     val effectiveMaterialColorScheme = remember(materialColorScheme, rainColors, darkTheme) {
         when {
@@ -131,6 +135,7 @@ fun MiuixKernelSUTheme(
             }
         },
         keyColor = when {
+            isLiquidGlass && interfaceTheme != null -> Color(interfaceTheme.accent)
             isLiquidGlass -> Color(0xFF58758A)
             appSettings.keyColor == 0 -> null
             else -> Color(appSettings.keyColor)

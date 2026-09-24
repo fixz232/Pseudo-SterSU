@@ -9,6 +9,14 @@ import me.weishu.kernelsu.ui.theme.defaultThemePresetForUiMode
 
 class InterfaceStyleTest {
     @Test
+    fun onlyFourInterfaceStylesAreBundled() {
+        assertEquals(
+            listOf(InterfaceStyle.Miuix, InterfaceStyle.Material, InterfaceStyle.Skrootpro, InterfaceStyle.Alpha),
+            InterfaceStyle.selectableEntries,
+        )
+    }
+
+    @Test
     fun alphaAndDeltaShareOneSelectableEntry() {
         assertTrue(InterfaceStyle.Alpha in InterfaceStyle.selectableEntries)
         assertFalse(InterfaceStyle.Delta in InterfaceStyle.selectableEntries)

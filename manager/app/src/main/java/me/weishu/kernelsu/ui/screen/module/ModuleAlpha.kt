@@ -31,12 +31,19 @@ import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -315,6 +322,7 @@ private fun AlphaModuleCard(
     val wallpaperState = rememberModuleCardWallpaperState(module.id)
     val wallpaperEntry = rememberModuleCardWallpaperFrame(wallpaperState, paused = wallpaperPaused)
     val wallpaperBitmap = rememberModuleCardWallpaperLoadState(wallpaperEntry).bitmap
+    var actionsExpanded by remember(module.id) { mutableStateOf(false) }
 
     AlphaCard(
         contentPadding = PaddingValues(0.dp),
@@ -385,13 +393,6 @@ private fun AlphaModuleCard(
                     }
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    IconButton(onClick = { actions.onOpenWallpaperEditor(module) }) {
-                        Icon(
-                            imageVector = Icons.Rounded.Image,
-                            contentDescription = stringResource(R.string.module_wallpaper_editor_open),
-                            tint = AlphaColors.Muted,
-                        )
-                    }
                     AlphaSwitch(
                         checked = module.enabled && !module.remove,
                         enabled = !pending,
@@ -416,41 +417,96 @@ private fun AlphaModuleCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (updateInfo != null && !module.remove) {
-                    AlphaButton(
-                        text = stringResource(R.string.module_update),
-                        onClick = { actions.onRequestUpdateConfirmation(module, updateInfo) },
-                        modifier = Modifier.weight(1f),
+                val primaryAction = resolveModulePrimaryAction(
+                    module = module,
+                    hasUpdate = !updateInfo?.downloadUrl.isNullOrEmpty(),
+                )
+                when (primaryAction) {
+                    ModulePrimaryAction.UndoUninstall -> AlphaOutlinedButton(
+                        text = stringResource(R.string.undo),
+                        icon = Icons.AutoMirrored.Rounded.Undo,
+                        onClick = { actions.onUndoUninstallModule(module) },
+                        modifier = Modifier.weight(1f).height(48.dp),
                     )
-                }
-                if (module.hasActionScript && module.enabled && !pending) {
-                    AlphaOutlinedButton(
+
+                    ModulePrimaryAction.Update -> AlphaButton(
+                        text = stringResource(R.string.module_update),
+                        icon = Icons.Rounded.Add,
+                        onClick = { actions.onRequestUpdateConfirmation(module, checkNotNull(updateInfo)) },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                    )
+
+                    ModulePrimaryAction.WebUi -> AlphaButton(
+                        text = "WebUI",
+                        icon = Icons.Rounded.Code,
+                        onClick = { actions.onOpenWebUi(module) },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                    )
+
+                    ModulePrimaryAction.Action -> AlphaButton(
                         text = stringResource(R.string.action),
                         icon = Icons.Rounded.PlayArrow,
                         onClick = { actions.onExecuteModuleAction(module) },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).height(48.dp),
                     )
+
+                    ModulePrimaryAction.None -> Spacer(modifier = Modifier.weight(1f))
                 }
-                if (module.hasWebUi && module.enabled && !pending) {
-                    AlphaOutlinedButton(
-                        text = stringResource(R.string.open),
-                        icon = Icons.Rounded.Code,
-                        onClick = { actions.onOpenWebUi(module) },
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-                AlphaOutlinedButton(
-                    text = stringResource(if (module.remove) R.string.undo else R.string.uninstall),
-                    icon = if (module.remove) Icons.AutoMirrored.Rounded.Undo else Icons.Rounded.Delete,
-                    onClick = {
-                        if (module.remove) {
-                            actions.onUndoUninstallModule(module)
-                        } else {
-                            actions.onRequestUninstallConfirmation(module)
+                Box {
+                    IconButton(
+                        onClick = { actionsExpanded = true },
+                        modifier = Modifier.size(48.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.MoreVert,
+                            contentDescription = stringResource(R.string.module_more_actions),
+                            tint = AlphaColors.Muted,
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = actionsExpanded,
+                        onDismissRequest = { actionsExpanded = false },
+                    ) {
+                        if (module.enabled && !pending && module.hasWebUi && primaryAction != ModulePrimaryAction.WebUi) {
+                            DropdownMenuItem(
+                                text = { Text("WebUI") },
+                                leadingIcon = { Icon(Icons.Rounded.Code, contentDescription = null) },
+                                onClick = {
+                                    actionsExpanded = false
+                                    actions.onOpenWebUi(module)
+                                },
+                            )
                         }
-                    },
-                    modifier = Modifier.weight(1f),
-                )
+                        if (module.enabled && !pending && module.hasActionScript && primaryAction != ModulePrimaryAction.Action) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.action)) },
+                                leadingIcon = { Icon(Icons.Rounded.PlayArrow, contentDescription = null) },
+                                onClick = {
+                                    actionsExpanded = false
+                                    actions.onExecuteModuleAction(module)
+                                },
+                            )
+                        }
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.module_wallpaper_editor_open)) },
+                            leadingIcon = { Icon(Icons.Rounded.Image, contentDescription = null) },
+                            onClick = {
+                                actionsExpanded = false
+                                actions.onOpenWallpaperEditor(module)
+                            },
+                        )
+                        if (!module.remove) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.uninstall)) },
+                                leadingIcon = { Icon(Icons.Rounded.Delete, contentDescription = null) },
+                                onClick = {
+                                    actionsExpanded = false
+                                    actions.onRequestUninstallConfirmation(module)
+                                },
+                            )
+                        }
+                    }
+                }
             }
         }
     }

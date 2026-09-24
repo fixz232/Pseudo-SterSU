@@ -600,9 +600,12 @@ fn run_server(config: WebManagerConfig) -> Result<()> {
     utils::switch_mnt_ns(1).context("switch to the global mount namespace")?;
     let listener = TcpListener::bind(server_addr(config.port))
         .with_context(|| format!("bind web manager to 127.0.0.1:{}", config.port))?;
-    listener
-        .set_nonblocking(true)
-        .context("set web manager listener nonblocking")?;
+    // Keep the accept loop blocked while idle.  The previous non-blocking
+    // listener woke the ksud web-manager thread every 50 ms even when there
+    // were no clients.  On devices with coarse scheduler/timer behaviour this
+    // can turn into a persistent CPU wakeup.  stop() connects to the listener
+    // after creating WEB_MANAGER_STOP_PATH, so a blocking accept still exits
+    // promptly when the server is asked to stop.
     SHUTDOWN.store(false, Ordering::Release);
     unsafe {
         libc::signal(
@@ -662,9 +665,7 @@ fn run_server(config: WebManagerConfig) -> Result<()> {
                     warn!("failed to spawn web manager client: {error}");
                 }
             }
-            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
-                std::thread::sleep(Duration::from_millis(50));
-            }
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {}
             Err(error) => return Err(error).context("accept web manager client"),
         }
     }

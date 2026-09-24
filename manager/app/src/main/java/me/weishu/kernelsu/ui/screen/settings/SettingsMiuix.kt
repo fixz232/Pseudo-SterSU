@@ -124,6 +124,7 @@ import me.weishu.kernelsu.ui.util.MIN_CUSTOM_WALLPAPER_OPACITY
 import me.weishu.kernelsu.ui.util.MIN_CUSTOM_WALLPAPER_PASSTHROUGH_OPACITY
 import me.weishu.kernelsu.ui.util.MIN_CUSTOM_VIDEO_BACKGROUND_DURATION_SECONDS
 import me.weishu.kernelsu.ui.util.rememberBlurBackdrop
+import me.weishu.kernelsu.ui.util.ManagerPlugin
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
@@ -296,10 +297,13 @@ fun SettingPagerMiuix(
                         topPadding = 12.dp,
                     ) {
                         val dayNightChecked = isDayNightSwitchChecked(uiState.themeMode)
+                        val interfaceStyleOptions = InterfaceStyle.selectableEntries.map {
+                            stringResource(it.labelRes)
+                        } + uiState.installedInterfaceStyles.map { it.style.name }
                         OverlayDropdownPreference(
                             title = stringResource(id = R.string.settings_ui_mode),
                             summary = stringResource(id = R.string.settings_ui_mode_summary),
-                            items = InterfaceStyle.selectableEntries.map { stringResource(it.labelRes) },
+                            items = interfaceStyleOptions,
                             startAction = {
                                 Icon(
                                     Icons.Rounded.Dashboard,
@@ -308,8 +312,17 @@ fun SettingPagerMiuix(
                                     tint = colorScheme.onBackground
                                 )
                             },
-                            selectedIndex = InterfaceStyle.selectedIndex(uiState.uiMode),
-                            onSelectedIndexChange = actions.onSetUiModeIndex
+                            selectedIndex = uiState.interfaceStyleSelectedIndex(),
+                            onSelectedIndexChange = { index ->
+                                if (index < InterfaceStyle.selectableEntries.size) {
+                                    actions.onSetUiModeIndex(index)
+                                } else {
+                                    uiState.installedInterfaceStyles
+                                        .getOrNull(index - InterfaceStyle.selectableEntries.size)
+                                        ?.style
+                                        ?.let(actions.onApplyInterfaceStylePackage)
+                                }
+                            }
                         )
                         if (
                             uiState.uiMode == InterfaceStyle.Alpha.value ||
@@ -337,27 +350,27 @@ fun SettingPagerMiuix(
                             )
                         }
                         if (uiState.uiMode == InterfaceStyle.Snow.value) {
-                            SeasonMiuixPreference(
-                                selectedValue = uiState.seasonStyle,
-                                cardMotionEnabled = uiState.seasonCardMotionEnabled,
-                                onSelectedIndexChange = actions.onSetSeasonStyleIndex,
-                                onCardMotionEnabledChange = actions.onSetSeasonCardMotionEnabled,
+                            SwitchPreference(
+                                title = stringResource(R.string.settings_season_card_motion),
+                                summary = stringResource(R.string.settings_season_card_motion_summary),
+                                checked = uiState.seasonCardMotionEnabled,
+                                onCheckedChange = actions.onSetSeasonCardMotionEnabled,
                             )
                         }
                         if (uiState.uiMode == InterfaceStyle.Rain.value) {
-                            RainMiuixPreference(
-                                selectedValue = uiState.rainStyle,
-                                cardMotionEnabled = uiState.rainCardMotionEnabled,
-                                onSelectedIndexChange = actions.onSetRainStyleIndex,
-                                onCardMotionEnabledChange = actions.onSetRainCardMotionEnabled,
+                            SwitchPreference(
+                                title = stringResource(R.string.settings_rain_card_motion),
+                                summary = stringResource(R.string.settings_rain_card_motion_summary),
+                                checked = uiState.rainCardMotionEnabled,
+                                onCheckedChange = actions.onSetRainCardMotionEnabled,
                             )
                         }
                         if (uiState.uiMode == InterfaceStyle.Pixel.value) {
-                            PixelMiuixPreference(
-                                selectedValue = uiState.pixelStyle,
-                                cardMotionEnabled = uiState.pixelCardMotionEnabled,
-                                onSelectedIndexChange = actions.onSetPixelStyleIndex,
-                                onCardMotionEnabledChange = actions.onSetPixelCardMotionEnabled,
+                            SwitchPreference(
+                                title = stringResource(R.string.settings_pixel_card_motion),
+                                summary = stringResource(R.string.settings_pixel_card_motion_summary),
+                                checked = uiState.pixelCardMotionEnabled,
+                                onCheckedChange = actions.onSetPixelCardMotionEnabled,
                             )
                         }
                         DayNightMiuixPreference(
@@ -365,6 +378,12 @@ fun SettingPagerMiuix(
                             summary = stringResource(id = R.string.settings_day_night_switch_summary),
                             checked = dayNightChecked,
                             onCheckedChange = actions.onSetDayNightMode,
+                        )
+                        CategorizedMiuixActionRow(
+                            title = stringResource(R.string.interface_style_store_title),
+                            summary = stringResource(R.string.interface_style_store_summary),
+                            icon = Icons.Rounded.Storefront,
+                            onClick = actions.onOpenInterfaceStyleStore,
                         )
                         CategorizedMiuixActionRow(
                             title = stringResource(id = R.string.theme_store),
@@ -655,36 +674,42 @@ fun SettingPagerMiuix(
                             onExpandedChange = { updateCategory(SettingsCategory.Toolbox, it) },
                         ) {
                             CategorizedMiuixActionRow(
+                                title = stringResource(R.string.plugin_store_title),
+                                summary = stringResource(R.string.plugin_store_security_notice),
+                                icon = Icons.Rounded.Storefront,
+                                onClick = actions.onOpenPluginStore,
+                            )
+                            if (uiState.hasPlugin(ManagerPlugin.RescueProtection)) CategorizedMiuixActionRow(
                                 title = stringResource(id = R.string.rescue_protection),
                                 summary = stringResource(id = R.string.rescue_protection_summary),
                                 icon = Icons.Rounded.Security,
                                 onClick = actions.onOpenRescueProtection,
                             )
-                            CategorizedMiuixActionRow(
+                            if (uiState.hasPlugin(ManagerPlugin.ImageTools)) CategorizedMiuixActionRow(
                                 title = stringResource(id = R.string.image_tool_title),
                                 summary = stringResource(id = R.string.image_tool_settings_summary),
                                 icon = Icons.Rounded.ImageSearch,
                                 onClick = actions.onOpenImageTool,
                             )
-                            CategorizedMiuixActionRow(
+                            if (uiState.hasPlugin(ManagerPlugin.CpuSpoof)) CategorizedMiuixActionRow(
                                 title = stringResource(id = R.string.settings_cpu_spoof),
                                 summary = stringResource(id = R.string.settings_cpu_spoof_summary),
                                 icon = Icons.Rounded.DeveloperMode,
                                 onClick = actions.onOpenCpuSpoof,
                             )
-                            CategorizedMiuixActionRow(
+                            if (uiState.hasPlugin(ManagerPlugin.DeviceIdentity)) CategorizedMiuixActionRow(
                                 title = stringResource(id = R.string.settings_device_identity),
                                 summary = stringResource(id = R.string.settings_device_identity_summary),
                                 icon = Icons.Rounded.Badge,
                                 onClick = actions.onOpenDeviceIdentity,
                             )
-                            CategorizedMiuixActionRow(
+                            if (uiState.hasPlugin(ManagerPlugin.AiChat)) CategorizedMiuixActionRow(
                                 title = stringResource(id = R.string.settings_ai_chat),
                                 summary = stringResource(id = R.string.settings_ai_chat_summary),
                                 icon = Icons.Rounded.AutoFixHigh,
                                 onClick = actions.onOpenAiChat,
                             )
-                            CategorizedMiuixSwitchRow(
+                            if (uiState.hasPlugin(ManagerPlugin.GraphicsRenderer)) CategorizedMiuixSwitchRow(
                                 title = stringResource(R.string.settings_graphics_renderer_tool),
                                 summary = stringResource(R.string.settings_graphics_renderer_tool_summary),
                                 icon = Icons.Rounded.DeveloperMode,
@@ -692,7 +717,7 @@ fun SettingPagerMiuix(
                                 onCheckedChange = actions.onSetGraphicsRendererFeatureEnabled,
                             )
 
-                            if (uiState.graphicsRendererFeatureEnabled) {
+                            if (uiState.hasPlugin(ManagerPlugin.GraphicsRenderer) && uiState.graphicsRendererFeatureEnabled) {
                                 CategorizedMiuixActionRow(
                                     title = stringResource(R.string.settings_graphics_renderer),
                                     summary = stringResource(R.string.settings_graphics_renderer_summary),
@@ -751,20 +776,20 @@ fun SettingPagerMiuix(
                                 onCheckedChange = actions.onSetShowGkiWarning,
                             )
                         }
-                        CategorizedMiuixSwitchRow(
+                        if (uiState.hasPlugin(ManagerPlugin.RemoteManagementSuite)) CategorizedMiuixSwitchRow(
                             title = stringResource(id = R.string.web_manager_auto_start),
                             summary = stringResource(id = R.string.web_manager_auto_start_summary),
                             icon = Icons.Rounded.Language,
                             checked = uiState.webManagerAutoStart,
                             onCheckedChange = actions.onSetWebManagerAutoStart,
                         )
-                        CategorizedMiuixActionRow(
+                        if (uiState.hasPlugin(ManagerPlugin.RemoteManagementSuite)) CategorizedMiuixActionRow(
                             title = stringResource(id = R.string.web_manager_open),
                             summary = stringResource(id = R.string.web_manager_open_summary),
                             icon = Icons.Rounded.Language,
                             onClick = actions.onOpenWebManager,
                         )
-                        CategorizedMiuixSwitchRow(
+                        if (uiState.hasPlugin(ManagerPlugin.RemoteManagementSuite)) CategorizedMiuixSwitchRow(
                             title = stringResource(id = R.string.stealth_mode_title),
                             summary = stringResource(id = R.string.stealth_mode_summary),
                             icon = Icons.Rounded.Security,
@@ -777,7 +802,7 @@ fun SettingPagerMiuix(
                                 }
                             },
                         )
-                        CategorizedMiuixActionRow(
+                        if (uiState.hasPlugin(ManagerPlugin.RemoteManagementSuite)) CategorizedMiuixActionRow(
                             title = stringResource(id = R.string.stealth_mode_code_title),
                             summary = uiState.stealthModeCode,
                             icon = Icons.Rounded.Visibility,

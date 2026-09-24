@@ -1,0 +1,20 @@
+{
+  "schema": "io.github.fixz.apkesu.plugin",
+  "version": 1,
+  "id": "image-tools",
+  "name": "镜像工具",
+  "summary": "检查、导入和刷写受支持的 boot/init_boot 镜像。",
+  "description": "面向受支持分区的镜像检查与安全操作工具，执行前会校验路径、大小、哈希和当前模式。",
+  "instructions": [
+    "选择来源镜像并先运行检查。",
+    "仅对明确匹配当前设备和槽位的镜像执行操作。"
+  ],
+  "slots": [
+    "toolbox.image-tools"
+  ],
+  "minManagerVersionCode": 32800,
+  "minKsudVersionCode": 32800,
+  "downloadUrl": "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/packages/image-tools.ksplugin",
+  "sha256": "",
+  "sizeBytes": 0
+}

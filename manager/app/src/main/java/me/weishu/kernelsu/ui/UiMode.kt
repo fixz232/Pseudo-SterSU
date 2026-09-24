@@ -31,7 +31,12 @@ enum class InterfaceStyle(val value: String, @StringRes val labelRes: Int) {
     Delta("delta", R.string.interface_style_delta);
 
     companion object {
-        val selectableEntries: List<InterfaceStyle> = entries.filterNot { it == Delta }
+        /** The four styles that remain bundled in every APK. */
+        val builtInEntries: List<InterfaceStyle> = listOf(Miuix, Material, Skrootpro, Alpha)
+
+        // Only these styles are guaranteed to be present in the APK. Extended
+        // Snow/Rain/Pixel variants are exposed by the downloaded style registry.
+        val selectableEntries: List<InterfaceStyle> = builtInEntries
 
         fun fromIndex(index: Int): InterfaceStyle = selectableEntries.getOrElse(index) { Miuix }
 

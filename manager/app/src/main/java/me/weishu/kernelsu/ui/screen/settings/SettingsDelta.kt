@@ -137,6 +137,12 @@ fun SettingPagerDelta(
                     onVariantSelected = actions.onSetDeltaColorVariant,
                 )
                 DeltaActionRow(
+                    title = stringResource(R.string.interface_style_store_title),
+                    summary = stringResource(R.string.interface_style_store_summary),
+                    icon = Icons.Rounded.Storefront,
+                    onClick = actions.onOpenInterfaceStyleStore,
+                )
+                DeltaActionRow(
                     title = stringResource(R.string.theme_store),
                     summary = stringResource(R.string.theme_store_settings_summary),
                     icon = Icons.Rounded.Storefront,
@@ -860,6 +866,27 @@ private fun DeltaStylePicker(
             ) {
                 Text(
                     text = stringResource(style.labelRes),
+                    color = if (selected) DeltaColors.Ink else DeltaColors.Muted,
+                    fontSize = deltaSp(12.5f, maxScale = 1.0f),
+                    fontWeight = FontWeight.Black,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        uiState.installedInterfaceStyles.forEach { installed ->
+            val selected = uiState.isInterfaceStyleActive(installed.style)
+            Box(
+                modifier = Modifier
+                    .height(36.dp)
+                    .clip(DeltaShapes.Control)
+                    .background(if (selected) DeltaColors.AccentSoft else DeltaColors.SurfaceDeep)
+                    .clickable { actions.onApplyInterfaceStylePackage(installed.style) }
+                    .padding(horizontal = 14.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = installed.style.name,
                     color = if (selected) DeltaColors.Ink else DeltaColors.Muted,
                     fontSize = deltaSp(12.5f, maxScale = 1.0f),
                     fontWeight = FontWeight.Black,

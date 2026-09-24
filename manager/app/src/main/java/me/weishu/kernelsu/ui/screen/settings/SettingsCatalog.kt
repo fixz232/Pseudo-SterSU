@@ -28,17 +28,19 @@ internal object SettingsCatalog {
         entry("alpha_delta", SettingsCategory.Appearance, R.string.settings_alpha_delta_mode, R.string.settings_alpha_delta_mode_summary) {
             it.uiMode == InterfaceStyle.Alpha.value || it.uiMode == InterfaceStyle.Delta.value
         },
-        entry("season_style", SettingsCategory.Appearance, R.string.settings_season_style) {
+        entry("season_motion", SettingsCategory.Appearance, R.string.settings_season_card_motion, R.string.settings_season_card_motion_summary) {
             it.uiMode == InterfaceStyle.Snow.value
         },
-        entry("rain_style", SettingsCategory.Appearance, R.string.interface_style_rain) {
+        entry("rain_motion", SettingsCategory.Appearance, R.string.settings_rain_card_motion, R.string.settings_rain_card_motion_summary) {
             it.uiMode == InterfaceStyle.Rain.value
         },
-        entry("pixel_style", SettingsCategory.Appearance, R.string.settings_pixel_style) {
+        entry("pixel_motion", SettingsCategory.Appearance, R.string.settings_pixel_card_motion, R.string.settings_pixel_card_motion_summary) {
             it.uiMode == InterfaceStyle.Pixel.value
         },
+        entry("interface_style_store", SettingsCategory.Appearance, R.string.interface_style_store_title, R.string.interface_style_store_summary),
         entry("day_night", SettingsCategory.Appearance, R.string.settings_day_night_switch, R.string.settings_day_night_switch_summary),
         entry("theme_store", SettingsCategory.Appearance, R.string.theme_store, R.string.theme_store_settings_summary),
+        entry("plugin_store", SettingsCategory.Toolbox, R.string.plugin_store_title, R.string.plugin_store_security_notice),
 
         entry("manager_identity", SettingsCategory.HomeAndManager, R.string.settings_manager_identity, R.string.settings_manager_identity_summary),
         entry("dynamic_manager", SettingsCategory.HomeAndManager, R.string.dynamic_manager_title, R.string.dynamic_manager_settings_summary),
@@ -64,14 +66,14 @@ internal object SettingsCatalog {
         entry("path_config", SettingsCategory.MountAndHide, R.string.hidden_path_lkm_builtin_title),
         entry("apkesu_hide", SettingsCategory.MountAndHide, R.string.settings_epkesu_hide, R.string.settings_epkesu_hide_summary),
 
-        entry("rescue", SettingsCategory.Toolbox, R.string.rescue_protection, R.string.rescue_protection_summary),
-        entry("image_tool", SettingsCategory.Toolbox, R.string.image_tool_title, R.string.image_tool_settings_summary),
-        entry("cpu_spoof", SettingsCategory.Toolbox, R.string.settings_cpu_spoof, R.string.settings_cpu_spoof_summary),
-        entry("device_identity", SettingsCategory.Toolbox, R.string.settings_device_identity, R.string.settings_device_identity_summary),
-        entry("ai_chat", SettingsCategory.Toolbox, R.string.settings_ai_chat, R.string.settings_ai_chat_summary),
-        entry("graphics_toggle", SettingsCategory.Toolbox, R.string.settings_graphics_renderer_tool, R.string.settings_graphics_renderer_tool_summary),
+        entry("rescue", SettingsCategory.Toolbox, R.string.rescue_protection, R.string.rescue_protection_summary) { it.hasPlugin(me.weishu.kernelsu.ui.util.ManagerPlugin.RescueProtection) },
+        entry("image_tool", SettingsCategory.Toolbox, R.string.image_tool_title, R.string.image_tool_settings_summary) { it.hasPlugin(me.weishu.kernelsu.ui.util.ManagerPlugin.ImageTools) },
+        entry("cpu_spoof", SettingsCategory.Toolbox, R.string.settings_cpu_spoof, R.string.settings_cpu_spoof_summary) { it.hasPlugin(me.weishu.kernelsu.ui.util.ManagerPlugin.CpuSpoof) },
+        entry("device_identity", SettingsCategory.Toolbox, R.string.settings_device_identity, R.string.settings_device_identity_summary) { it.hasPlugin(me.weishu.kernelsu.ui.util.ManagerPlugin.DeviceIdentity) },
+        entry("ai_chat", SettingsCategory.Toolbox, R.string.settings_ai_chat, R.string.settings_ai_chat_summary) { it.hasPlugin(me.weishu.kernelsu.ui.util.ManagerPlugin.AiChat) },
+        entry("graphics_toggle", SettingsCategory.Toolbox, R.string.settings_graphics_renderer_tool, R.string.settings_graphics_renderer_tool_summary) { it.hasPlugin(me.weishu.kernelsu.ui.util.ManagerPlugin.GraphicsRenderer) },
         entry("graphics_renderer", SettingsCategory.Toolbox, R.string.settings_graphics_renderer, R.string.settings_graphics_renderer_summary) {
-            it.graphicsRendererFeatureEnabled
+            it.graphicsRendererFeatureEnabled && it.hasPlugin(me.weishu.kernelsu.ui.util.ManagerPlugin.GraphicsRenderer)
         },
         entry("kpm", SettingsCategory.Toolbox, R.string.kpm_title, R.string.kpm_settings_summary) {
             it.isKpmSettingsEntryVisible
@@ -82,10 +84,10 @@ internal object SettingsCatalog {
         entry("version_warning", SettingsCategory.AppAndMaintenance, R.string.settings_version_mismatch_warning, R.string.settings_version_mismatch_warning_summary),
         entry("gki_warning", SettingsCategory.AppAndMaintenance, R.string.settings_gki_warning, R.string.settings_gki_warning_summary),
         entry("web_debugging", SettingsCategory.AppAndMaintenance, R.string.enable_web_debugging, R.string.enable_web_debugging_summary),
-        entry("web_manager_auto_start", SettingsCategory.AppAndMaintenance, R.string.web_manager_auto_start, R.string.web_manager_auto_start_summary),
-        entry("web_manager_open", SettingsCategory.AppAndMaintenance, R.string.web_manager_open, R.string.web_manager_open_summary),
-        entry("stealth_mode", SettingsCategory.AppAndMaintenance, R.string.stealth_mode_title, R.string.stealth_mode_summary),
-        entry("stealth_mode_code", SettingsCategory.AppAndMaintenance, R.string.stealth_mode_code_title, R.string.stealth_mode_code_format),
+        entry("web_manager_auto_start", SettingsCategory.AppAndMaintenance, R.string.web_manager_auto_start, R.string.web_manager_auto_start_summary) { it.hasPlugin(me.weishu.kernelsu.ui.util.ManagerPlugin.RemoteManagementSuite) },
+        entry("web_manager_open", SettingsCategory.AppAndMaintenance, R.string.web_manager_open, R.string.web_manager_open_summary) { it.hasPlugin(me.weishu.kernelsu.ui.util.ManagerPlugin.RemoteManagementSuite) },
+        entry("stealth_mode", SettingsCategory.AppAndMaintenance, R.string.stealth_mode_title, R.string.stealth_mode_summary) { it.hasPlugin(me.weishu.kernelsu.ui.util.ManagerPlugin.RemoteManagementSuite) },
+        entry("stealth_mode_code", SettingsCategory.AppAndMaintenance, R.string.stealth_mode_code_title, R.string.stealth_mode_code_format) { it.hasPlugin(me.weishu.kernelsu.ui.util.ManagerPlugin.RemoteManagementSuite) },
         entry("auto_jailbreak", SettingsCategory.AppAndMaintenance, R.string.settings_auto_jailbreak, R.string.settings_auto_jailbreak_summary),
         entry("uninstall", SettingsCategory.AppAndMaintenance, R.string.settings_uninstall) { it.isLkmMode },
         entry("send_log", SettingsCategory.AppAndMaintenance, R.string.send_log),

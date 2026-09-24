@@ -11,4 +11,13 @@ class KsuCliModuleVisibilityTest {
         assertTrue(isManagerHiddenModuleId("kpatch-next"))
         assertFalse(isManagerHiddenModuleId("user-module"))
     }
+
+    @Test
+    fun nativeWebManagerMustBeBothDisabledAndStoppedBeforeRemoval() {
+        assertTrue(isNativeWebManagerDisabledStatus("""{"supported":true,"enabled":false,"running":false}"""))
+        assertFalse(isNativeWebManagerDisabledStatus("""{"supported":true,"enabled":true,"running":false}"""))
+        assertFalse(isNativeWebManagerDisabledStatus("""{"supported":true,"enabled":false,"running":true}"""))
+        assertFalse(isNativeWebManagerDisabledStatus("""{"supported":false,"enabled":false,"running":false}"""))
+        assertFalse(isNativeWebManagerDisabledStatus("not-json"))
+    }
 }

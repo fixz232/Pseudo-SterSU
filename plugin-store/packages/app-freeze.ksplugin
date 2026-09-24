@@ -1,0 +1,20 @@
+{
+  "schema": "io.github.fixz.apkesu.plugin",
+  "version": 1,
+  "id": "app-freeze",
+  "name": "应用 ID 冻结",
+  "summary": "冻结或解冻应用并查看当前状态。",
+  "description": "通过受限的包管理操作冻结应用，保留状态查询、失败原因和恢复入口。",
+  "instructions": [
+    "确认目标包名和应用名称一致。",
+    "系统关键包不要冻结；出现异常时立即解冻并重启。"
+  ],
+  "slots": [
+    "superuser.app-freeze"
+  ],
+  "minManagerVersionCode": 32800,
+  "minKsudVersionCode": 32800,
+  "downloadUrl": "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/packages/app-freeze.ksplugin",
+  "sha256": "",
+  "sizeBytes": 0
+}

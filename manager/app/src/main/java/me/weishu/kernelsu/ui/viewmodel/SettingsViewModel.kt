@@ -41,6 +41,9 @@ import me.weishu.kernelsu.ui.theme.ThemeSyncStrategy
 import me.weishu.kernelsu.ui.util.CustomNavigationIconSlot
 import me.weishu.kernelsu.ui.util.CustomPageBackgroundTarget
 import me.weishu.kernelsu.ui.util.CustomWallpaperCrop
+import me.weishu.kernelsu.ui.util.InterfaceStyleRegistry
+import me.weishu.kernelsu.ui.util.InstalledInterfaceStyle
+import me.weishu.kernelsu.ui.util.InterfaceStylePackage
 import me.weishu.kernelsu.ui.util.setNativeWebManagerEnabled
 import me.weishu.kernelsu.ui.util.BUILTIN_MOUNT_MODE_MAGIC
 import me.weishu.kernelsu.ui.util.BUILTIN_MOUNT_MODE_OVERLAY
@@ -51,10 +54,15 @@ import me.weishu.kernelsu.ui.util.KernelStatusEvents
 import me.weishu.kernelsu.stealth.StealthModeStore
 import me.weishu.kernelsu.ui.webmanager.ManagerAppSettingsStore
 import java.util.concurrent.atomic.AtomicLong
+import me.weishu.kernelsu.ui.util.ManagerPluginRegistry
+import me.weishu.kernelsu.ui.util.ManagerPlugin
 
 class SettingsViewModel(
     private val repo: SettingsRepository = SettingsRepositoryImpl()
 ) : ViewModel() {
+
+    private val interfaceStyleRegistry = InterfaceStyleRegistry(ksuApp)
+    private val pluginRegistry = ManagerPluginRegistry(ksuApp)
 
     private val refreshExceptionHandler = CoroutineExceptionHandler { _, throwable ->
         Log.e(TAG, "refresh settings failed", throwable)
@@ -88,6 +96,8 @@ class SettingsViewModel(
             val keyColor = repo.keyColor
             val enablePredictiveBack = repo.enablePredictiveBack
             val uiMode = repo.uiMode
+            val installedInterfaceStyles = interfaceStyleRegistry.list()
+            val installedPluginIds = pluginRegistry.ids()
             val enableBlur = resolveRealtimeBlurEnabled(uiMode, repo.enableBlur)
             val enableFloatingBottomBar = repo.enableFloatingBottomBar
             val enableFloatingBottomBarBlur = resolveRealtimeBlurEnabled(
@@ -202,6 +212,8 @@ class SettingsViewModel(
             _uiState.update {
                 it.copy(
                     uiMode = uiMode,
+                    installedInterfaceStyles = installedInterfaceStyles,
+                    installedPluginIds = installedPluginIds,
                     checkModuleUpdate = checkModuleUpdate,
                     showVersionMismatchWarning = showVersionMismatchWarning,
                     showGkiWarning = showGkiWarning,
@@ -428,6 +440,14 @@ class SettingsViewModel(
         repo.applyInterfaceStyle(normalizedMode, preset, currentThemeMode)
         refreshAppearanceState()
         refresh()
+    }
+
+    fun applyInterfaceStylePackage(style: InterfaceStylePackage) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repo.applyInterfaceStylePackage(style)
+            refreshAppearanceState()
+            refresh()
+        }
     }
 
     private fun refreshAppearanceState() {
@@ -1138,6 +1158,10 @@ class SettingsViewModel(
     }
 
     fun setWebManagerAutoStart(enabled: Boolean) {
+        if (!pluginRegistry.contains(ManagerPlugin.RemoteManagementSuite.id)) {
+            Log.w(TAG, "ignoring web manager setting without remote management plugin")
+            return
+        }
         repo.webManagerAutoStart = enabled
         _uiState.update { it.copy(webManagerAutoStart = enabled) }
         viewModelScope.launch(Dispatchers.IO) {
@@ -1148,6 +1172,10 @@ class SettingsViewModel(
     }
 
     fun setStealthMode(enabled: Boolean, code: String) {
+        if (!pluginRegistry.contains(ManagerPlugin.RemoteManagementSuite.id)) {
+            Log.w(TAG, "ignoring stealth setting without remote management plugin")
+            return
+        }
         if (_uiState.value.stealthModeBusy) return
         if (!enabled) {
             Log.w(TAG, "ignoring in-app stealth disable request")

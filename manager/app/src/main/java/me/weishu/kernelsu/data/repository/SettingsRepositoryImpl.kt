@@ -88,6 +88,8 @@ import me.weishu.kernelsu.ui.util.CustomNavigationIconSet
 import me.weishu.kernelsu.ui.util.CustomNavigationIconSlot
 import me.weishu.kernelsu.ui.util.CustomNavigationIconState
 import me.weishu.kernelsu.ui.util.MediaVisualSettings
+import me.weishu.kernelsu.ui.util.InterfaceStylePackage
+import me.weishu.kernelsu.ui.util.InterfaceStyleRegistry
 import me.weishu.kernelsu.ui.util.StartupAnimationSettings
 import me.weishu.kernelsu.ui.util.CustomPageBackgroundSet
 import me.weishu.kernelsu.ui.util.CustomPageBackgroundTarget
@@ -179,17 +181,44 @@ class SettingsRepositoryImpl : SettingsRepository {
     private val prefs by lazy {
         ksuApp.getSharedPreferences(SETTINGS_PREFS, Context.MODE_PRIVATE)
     }
+    private val interfaceStyleRegistry by lazy { InterfaceStyleRegistry(ksuApp) }
 
     override var uiMode: String
         get() {
             val storedValue = prefs.getString("ui_mode", UiMode.DEFAULT_VALUE)
-            val normalizedValue = InterfaceStyle.normalizeValue(storedValue)
+            val requestedValue = InterfaceStyle.normalizeValue(storedValue)
+            val normalizedValue = if (isDownloadedInterfaceStyleAvailable(requestedValue)) {
+                requestedValue
+            } else {
+                UiMode.DEFAULT_VALUE
+            }
             if (storedValue != normalizedValue) {
                 prefs.edit { putString("ui_mode", normalizedValue) }
             }
             return normalizedValue
         }
         set(value) = prefs.edit { putString("ui_mode", InterfaceStyle.normalizeValue(value)) }
+
+    private fun isDownloadedInterfaceStyleAvailable(mode: String): Boolean {
+        if (mode in InterfaceStyle.builtInEntries.map(InterfaceStyle::value) || mode == InterfaceStyle.Delta.value) {
+            return true
+        }
+        val variant = when (mode) {
+            InterfaceStyle.Snow.value -> SeasonStyle.fromValue(
+                prefs.getString(SEASON_STYLE_KEY, SeasonStyle.DEFAULT_VALUE)
+            ).value
+            InterfaceStyle.Rain.value -> RainStyle.fromValue(
+                prefs.getString(RAIN_STYLE_KEY, RainStyle.DEFAULT_VALUE)
+            ).value
+            InterfaceStyle.Pixel.value -> PixelStyle.fromValue(
+                prefs.getString(PIXEL_STYLE_KEY, PixelStyle.DEFAULT_VALUE)
+            ).value
+            else -> null
+        }
+        return interfaceStyleRegistry.list().any { installed ->
+            installed.style.engine == mode && installed.style.variant == variant
+        }
+    }
 
     override var checkModuleUpdate: Boolean
         get() = prefs.getBoolean("module_check_update", true)
@@ -1038,6 +1067,58 @@ class SettingsRepositoryImpl : SettingsRepository {
                 themeKey("theme_preset", syncStrategy, targetUiMode),
                 ThemePreset.CUSTOM.value,
             )
+        }
+    }
+
+    override fun applyInterfaceStylePackage(style: InterfaceStylePackage) {
+        val mode = InterfaceStyle.normalizeValue(style.engine)
+        val preset = when (mode) {
+            InterfaceStyle.Skrootpro.value -> ThemePreset.SKROOTPRO
+            InterfaceStyle.Alpha.value -> ThemePreset.ALPHA
+            InterfaceStyle.LiquidGlass.value -> ThemePreset.LIQUID_GLASS
+            InterfaceStyle.Snow.value -> ThemePreset.SNOW
+            InterfaceStyle.Rain.value -> ThemePreset.RAIN
+            InterfaceStyle.Pixel.value -> ThemePreset.PIXEL
+            InterfaceStyle.Material.value -> ThemePreset.CLEAN_TOOL
+            else -> ThemePreset.CLEAN_TOOL
+        }
+        val preservedColorMode = themeMode
+        val season = SeasonStyle.fromValue(style.variant)
+        val rain = RainStyle.fromValue(style.variant)
+        val pixel = PixelStyle.fromValue(style.variant)
+        val keyColor = when (mode) {
+            InterfaceStyle.Snow.value -> season.keyColor
+            InterfaceStyle.Rain.value -> rain.keyColor
+            InterfaceStyle.Pixel.value -> pixel.keyColor
+            else -> preset.keyColor
+        }
+        val syncStrategy = themeSyncStrategy
+        prefs.edit {
+            putString("ui_mode", mode)
+            writeThemeSnapshot(
+                ThemeAppearanceSnapshot(
+                    colorMode = preservedColorMode,
+                    miuixMonet = preset.miuixMonet,
+                    keyColor = keyColor,
+                    colorStyle = preset.paletteStyle.name,
+                    colorSpec = preset.colorSpec.name,
+                    monetSurfaceOpacity = preset.monetSurfaceOpacity,
+                    enableBlur = preset.enableBlur,
+                    enableFloatingBottomBar = preset.enableFloatingBottomBar,
+                    enableFloatingBottomBarBlur = preset.enableFloatingBottomBarBlur,
+                    pageScale = preset.pageScale,
+                    fontScale = ThemeAppearanceDefaults.FONT_SCALE,
+                    blurIntensity = ThemeAppearanceDefaults.BLUR_INTENSITY,
+                ),
+                mode,
+                syncStrategy,
+            )
+            when (mode) {
+                InterfaceStyle.Snow.value -> putString(SEASON_STYLE_KEY, season.value)
+                InterfaceStyle.Rain.value -> putString(RAIN_STYLE_KEY, rain.value)
+                InterfaceStyle.Pixel.value -> putString(PIXEL_STYLE_KEY, pixel.value)
+            }
+            putString(themeKey("theme_preset", syncStrategy, mode), preset.value)
         }
     }
 

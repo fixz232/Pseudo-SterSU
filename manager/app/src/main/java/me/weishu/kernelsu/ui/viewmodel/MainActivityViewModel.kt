@@ -68,6 +68,7 @@ import me.weishu.kernelsu.ui.util.CustomNavigationIconSlot
 import me.weishu.kernelsu.ui.util.CustomNavigationIconSet
 import me.weishu.kernelsu.ui.util.CustomPageBackgroundSet
 import me.weishu.kernelsu.ui.util.CustomWallpaperCrop
+import me.weishu.kernelsu.ui.util.InterfaceStyleRegistry
 import me.weishu.kernelsu.ui.util.APP_FONT_PREFERENCE_KEYS
 import me.weishu.kernelsu.ui.util.AppFontState
 import me.weishu.kernelsu.ui.util.AppAudioSettings
@@ -95,6 +96,7 @@ class MainActivityViewModel(
     private val prefs = ksuApp.getSharedPreferences("settings", Context.MODE_PRIVATE)
     private val settingRepo: SettingsRepository = SettingsRepositoryImpl()
     private val componentStyleStore = ComponentStyleStore(ksuApp)
+    private val interfaceStyleRegistry = InterfaceStyleRegistry(ksuApp)
     private val mainPageState = MainPageState(savedStateHandle)
     @Volatile
     private var stealthModeResolved = false
@@ -109,6 +111,7 @@ class MainActivityViewModel(
     val selectedMainDestination: StateFlow<MainDestination> = mainPageState.selectedDestination
 
     init {
+        normalizeUnavailableInterfaceStyle()
         prefs.registerOnSharedPreferenceChangeListener(listener)
         resolveStealthModeFromRoot()
     }
@@ -130,7 +133,7 @@ class MainActivityViewModel(
     }
 
     private fun readUiState(): MainActivityUiState {
-        val interfaceStyle = settingRepo.uiMode
+        val interfaceStyle = resolveInterfaceStyle(settingRepo.uiMode)
         return MainActivityUiState(
             appSettings = ThemeController.getAppSettings(ksuApp),
             appFont = readAppFontState(ksuApp),
@@ -190,6 +193,33 @@ class MainActivityViewModel(
             stealthModeEnabled = StealthModeStore.isEnabled(),
             stealthModeResolved = stealthModeResolved,
         )
+    }
+
+    private fun normalizeUnavailableInterfaceStyle() {
+        val requested = settingRepo.uiMode
+        if (resolveInterfaceStyle(requested) == requested) return
+        settingRepo.applyInterfaceStyle(
+            UiMode.DEFAULT_VALUE,
+            ThemePreset.CLEAN_TOOL,
+            settingRepo.themeMode,
+        )
+    }
+
+    private fun resolveInterfaceStyle(requested: String): String {
+        val normalized = InterfaceStyle.normalizeValue(requested)
+        if (normalized == InterfaceStyle.Delta.value ||
+            InterfaceStyle.builtInEntries.any { it.value == normalized }) {
+            return normalized
+        }
+        val installed = interfaceStyleRegistry.list().any { item ->
+            item.style.engine == normalized && when (normalized) {
+                InterfaceStyle.Snow.value -> item.style.variant == settingRepo.seasonStyle
+                InterfaceStyle.Rain.value -> item.style.variant == settingRepo.rainStyle
+                InterfaceStyle.Pixel.value -> item.style.variant == settingRepo.pixelStyle
+                else -> true
+            }
+        }
+        return if (installed) normalized else InterfaceStyle.Miuix.value
     }
 
     private fun fallbackUiState(): MainActivityUiState {

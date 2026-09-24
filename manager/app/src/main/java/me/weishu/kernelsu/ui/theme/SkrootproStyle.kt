@@ -2,7 +2,6 @@ package me.weishu.kernelsu.ui.theme
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import me.weishu.kernelsu.ui.InterfaceStyle
 import me.weishu.kernelsu.ui.LocalInterfaceStyle
 import me.weishu.kernelsu.ui.LocalSkrootproTopBarColor
@@ -16,6 +15,7 @@ import me.weishu.kernelsu.ui.component.pixel.pixelPalette
 import me.weishu.kernelsu.ui.component.rain.isRainInterfaceStyle
 import me.weishu.kernelsu.ui.component.rain.rainTopBarContainerColor
 import me.weishu.kernelsu.ui.component.rain.rainTopBarContentColor
+import me.weishu.kernelsu.ui.util.LocalInterfaceStyleTheme
 
 data class TopBarColors(
     val container: Color,
@@ -52,35 +52,10 @@ fun skrootproTopBarColors(defaultContainer: Color, defaultContent: Color): TopBa
     if (LocalInterfaceStyle.current == InterfaceStyle.Pixel.value) {
         val pixelStyle = LocalPixelStyle.current
         val dark = isInDarkTheme()
-        val palette = pixelPalette(pixelStyle, dark)
+        val palette = pixelPalette(pixelStyle, dark, LocalInterfaceStyleTheme.current)
         return TopBarColors(
             container = palette.surface.copy(alpha = 0.94f),
-            content = when (pixelStyle) {
-                PixelStyle.ClassicHandheld,
-                PixelStyle.NeonArcade,
-                PixelStyle.PastoralFields,
-                PixelStyle.StarVoyage,
-                PixelStyle.InkJade,
-                PixelStyle.CyberHacker,
-                PixelStyle.ThreeKingdoms,
-                PixelStyle.BianliangMarket,
-                PixelStyle.FishingHarbor,
-                PixelStyle.TribalJungle,
-                PixelStyle.LavaValley,
-                PixelStyle.DunhuangDesert,
-                PixelStyle.VikingSnowfield,
-                PixelStyle.JiangnanWatertown,
-                PixelStyle.CloudTown,
-                -> palette.primary
-
-                PixelStyle.RustWasteland -> if (dark) {
-                    lerp(palette.primary, palette.highlight, 0.20f)
-                } else {
-                    palette.primary
-                }
-
-                PixelStyle.OceanDepths -> defaultContent
-            },
+            content = palette.primary,
         )
     }
 

@@ -3,7 +3,6 @@ package me.weishu.kernelsu.ui.component.pixel
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.unit.dp
-import me.weishu.kernelsu.ui.component.decoration.PixelCardPattern
 import me.weishu.kernelsu.ui.component.decoration.pixelCardOverlayInset
 import me.weishu.kernelsu.ui.component.decoration.pixelCardTopDecorationHeight
 import me.weishu.kernelsu.ui.component.decoration.pixelCardTopDecorationScale
@@ -100,74 +99,14 @@ class PixelStyleTest {
     }
 
     @Test
-    fun everyInterfaceVariantUsesItsOwnDecoratedCardPattern() {
-        assertEquals(PixelCardPattern.Handheld, PixelStyle.ClassicHandheld.cardPattern())
-        assertEquals(PixelCardPattern.Arcade, PixelStyle.NeonArcade.cardPattern())
-        assertEquals(PixelCardPattern.Pastoral, PixelStyle.PastoralFields.cardPattern())
-        assertEquals(PixelCardPattern.StarVoyage, PixelStyle.StarVoyage.cardPattern())
-        assertEquals(PixelCardPattern.InkJade, PixelStyle.InkJade.cardPattern())
-        assertEquals(PixelCardPattern.Wasteland, PixelStyle.RustWasteland.cardPattern())
-        assertEquals(PixelCardPattern.Ocean, PixelStyle.OceanDepths.cardPattern())
-        assertEquals(PixelCardPattern.Cyber, PixelStyle.CyberHacker.cardPattern())
-        assertEquals(PixelCardPattern.ThreeKingdoms, PixelStyle.ThreeKingdoms.cardPattern())
-        assertEquals(PixelCardPattern.Bianliang, PixelStyle.BianliangMarket.cardPattern())
-        assertEquals(PixelCardPattern.FishingHarbor, PixelStyle.FishingHarbor.cardPattern())
-        assertEquals(PixelCardPattern.TribalJungle, PixelStyle.TribalJungle.cardPattern())
-        assertEquals(PixelCardPattern.LavaValley, PixelStyle.LavaValley.cardPattern())
-        assertEquals(PixelCardPattern.DunhuangDesert, PixelStyle.DunhuangDesert.cardPattern())
-        assertEquals(PixelCardPattern.VikingSnowfield, PixelStyle.VikingSnowfield.cardPattern())
-        assertEquals(PixelCardPattern.JiangnanWatertown, PixelStyle.JiangnanWatertown.cardPattern())
-        assertEquals(PixelCardPattern.CloudTown, PixelStyle.CloudTown.cardPattern())
-        assertEquals(PixelStyle.entries.size, PixelStyle.entries.map(PixelStyle::cardPattern).toSet().size)
-    }
-
-    @Test
-    fun everyInterfaceVariantHasItsOwnAnimatedCardScene() {
-        assertTrue(DEFAULT_PIXEL_CARD_MOTION_ENABLED)
-        assertEquals(
-            PixelStyle.entries.size,
-            PixelStyle.entries.map(PixelStyle::cardMotionScene).toSet().size,
-        )
-        assertEquals(PixelCardMotionScene.Handheld, PixelStyle.ClassicHandheld.cardMotionScene())
-        assertEquals(PixelCardMotionScene.Arcade, PixelStyle.NeonArcade.cardMotionScene())
-        assertEquals(PixelCardMotionScene.Pastoral, PixelStyle.PastoralFields.cardMotionScene())
-        assertEquals(PixelCardMotionScene.StarVoyage, PixelStyle.StarVoyage.cardMotionScene())
-        assertEquals(PixelCardMotionScene.InkJade, PixelStyle.InkJade.cardMotionScene())
-        assertEquals(PixelCardMotionScene.Wasteland, PixelStyle.RustWasteland.cardMotionScene())
-        assertEquals(PixelCardMotionScene.Ocean, PixelStyle.OceanDepths.cardMotionScene())
-        assertEquals(PixelCardMotionScene.Cyber, PixelStyle.CyberHacker.cardMotionScene())
-        assertEquals(PixelCardMotionScene.ThreeKingdoms, PixelStyle.ThreeKingdoms.cardMotionScene())
-        assertEquals(PixelCardMotionScene.Bianliang, PixelStyle.BianliangMarket.cardMotionScene())
-        assertEquals(PixelCardMotionScene.FishingHarbor, PixelStyle.FishingHarbor.cardMotionScene())
-        assertEquals(PixelCardMotionScene.TribalJungle, PixelStyle.TribalJungle.cardMotionScene())
-        assertEquals(PixelCardMotionScene.LavaValley, PixelStyle.LavaValley.cardMotionScene())
-        assertEquals(PixelCardMotionScene.DunhuangDesert, PixelStyle.DunhuangDesert.cardMotionScene())
-        assertEquals(PixelCardMotionScene.VikingSnowfield, PixelStyle.VikingSnowfield.cardMotionScene())
-        assertEquals(PixelCardMotionScene.JiangnanWatertown, PixelStyle.JiangnanWatertown.cardMotionScene())
-        assertEquals(PixelCardMotionScene.CloudTown, PixelStyle.CloudTown.cardMotionScene())
-    }
-
-    @Test
-    fun allVariantsKeepDistinctGlobalPalettes() {
-        listOf(false, true).forEach { dark ->
-            val palettes = PixelStyle.entries.map { pixelPalette(it, dark) }
-            assertEquals(PixelStyle.entries.size, palettes.map { it.background }.toSet().size)
-            assertEquals(PixelStyle.entries.size, palettes.map { it.surface }.toSet().size)
-            assertEquals(PixelStyle.entries.size, palettes.map { it.primary }.toSet().size)
-        }
-    }
-
-    @Test
-    fun cyberHackerKeepsItsDarkConsolePaletteInEveryThemeMode() {
-        assertEquals(
-            pixelPalette(PixelStyle.CyberHacker, false),
-            pixelPalette(PixelStyle.CyberHacker, true),
-        )
+    fun metadataFallbackKeepsEveryVariantAccentDistinct() {
+        val palettes = PixelStyle.entries.map { pixelPalette(it, dark = false) }
+        assertEquals(PixelStyle.entries.size, palettes.map { it.primary }.toSet().size)
     }
 
     @Test
     fun lightCardHighlightsRemainVisibleAgainstLightSurfaces() {
-        PixelStyle.entries.filterNot { it == PixelStyle.CyberHacker }.forEach { style ->
+        PixelStyle.entries.forEach { style ->
             val base = pixelPalette(style, dark = false)
             val card = pixelCardPaintPalette(style, dark = false)
             assertEquals(lerp(base.primary, base.highlight, 0.42f), card.highlight)
@@ -176,10 +115,6 @@ class PixelStyleTest {
         PixelStyle.entries.forEach { style ->
             assertEquals(pixelPalette(style, dark = true), pixelCardPaintPalette(style, dark = true))
         }
-        assertEquals(
-            pixelPalette(PixelStyle.CyberHacker, dark = false),
-            pixelCardPaintPalette(PixelStyle.CyberHacker, dark = false),
-        )
     }
 
     @Test

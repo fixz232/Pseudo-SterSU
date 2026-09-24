@@ -17,9 +17,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -180,7 +184,7 @@ internal fun CloudThemeDiscoverContent(
                 }
             }
             .sortedWith(
-                compareByDescending<CloudTheme> { filter == CloudThemeDiscoverFilter.Featured && it.featured }
+                compareByDescending<CloudTheme> { it.featured }
                     .thenByDescending(CloudTheme::publishedAt)
             )
             .toList()
@@ -189,28 +193,65 @@ internal fun CloudThemeDiscoverContent(
     val usageStatistics = remember(snapshot) {
         snapshot?.catalog?.calculateUsageStatistics()
     }
+    val highlightedTheme = visibleThemes.firstOrNull()?.takeIf {
+        filter == CloudThemeDiscoverFilter.All &&
+            query.isBlank() &&
+            categoryId == null &&
+            it.featured
+    }
+    val listedThemes = remember(visibleThemes, highlightedTheme) {
+        highlightedTheme?.let { highlighted ->
+            visibleThemes.filterNot { it.id == highlighted.id }
+        } ?: visibleThemes
+    }
+    val themeCard: @Composable (CloudTheme) -> Unit = { theme ->
+        CloudThemeCard(
+            theme = theme,
+            categoryName = snapshot?.catalog?.categoryName(theme.categoryId).orEmpty(),
+            record = localState.record(theme.id),
+            isActive = localState.isActive(theme.id),
+            favorite = localState.isFavorite(theme.id),
+            onFavorite = { favorite ->
+                scope.launch {
+                    localState = withContext(Dispatchers.IO) {
+                        repository.setFavorite(theme.id, favorite)
+                    }
+                }
+            },
+            onClick = { onOpenTheme(theme.id) },
+        )
+    }
 
-    LazyColumn(
+    LazyVerticalGrid(
         modifier = modifier.fillMaxSize(),
+        columns = GridCells.Adaptive(minSize = 320.dp),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item {
+        item(span = { GridItemSpan(maxLineSpan) }) {
             CloudThemeDiscoverHeader(
                 snapshot = snapshot,
                 refreshing = refreshing,
                 onRefresh = { refresh(true) },
             )
         }
-        usageStatistics?.let { statistics ->
-            item {
-                CloudThemeUsagePreview(
-                    statistics = statistics,
-                    onClick = onOpenRanking,
-                )
+        highlightedTheme?.let { theme ->
+            item(
+                key = "featured-${theme.id}",
+                span = { GridItemSpan(maxLineSpan) },
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(Modifier.widthIn(max = 720.dp).fillMaxWidth()) {
+                        themeCard(theme)
+                    }
+                }
             }
         }
-        item {
+        item(span = { GridItemSpan(maxLineSpan) }) {
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it.take(80) },
@@ -232,14 +273,14 @@ internal fun CloudThemeDiscoverContent(
                 },
             )
         }
-        item {
+        item(span = { GridItemSpan(maxLineSpan) }) {
             CloudThemeFilters(
                 selected = filter,
                 onSelected = { filter = it },
             )
         }
         snapshot?.catalog?.categories?.takeIf { it.isNotEmpty() }?.let { categories ->
-            item {
+            item(span = { GridItemSpan(maxLineSpan) }) {
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(end = 8.dp),
@@ -261,43 +302,39 @@ internal fun CloudThemeDiscoverContent(
                 }
             }
         }
+        usageStatistics?.let { statistics ->
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                CloudThemeUsagePreview(
+                    statistics = statistics,
+                    onClick = onOpenRanking,
+                )
+            }
+        }
 
         if (loading && snapshot == null) {
-            items(3) { CloudThemeLoadingCard() }
+            gridItems(listOf(Unit, Unit, Unit)) { CloudThemeLoadingCard() }
         } else if (snapshot == null) {
-            item {
+            item(span = { GridItemSpan(maxLineSpan) }) {
                 CloudThemeEmptyState(
                     error = true,
                     onRetry = { refresh(true) },
                 )
             }
-        } else if (visibleThemes.isEmpty()) {
-            item {
+        } else if (highlightedTheme == null && listedThemes.isEmpty()) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
                 CloudThemeEmptyState(
                     error = false,
                     onRetry = if (snapshot?.offline == true) ({ refresh(true) }) else null,
                 )
             }
         } else {
-            items(visibleThemes, key = CloudTheme::id) { theme ->
-                CloudThemeCard(
-                    theme = theme,
-                    categoryName = snapshot?.catalog?.categoryName(theme.categoryId).orEmpty(),
-                    record = localState.record(theme.id),
-                    isActive = localState.isActive(theme.id),
-                    favorite = localState.isFavorite(theme.id),
-                    onFavorite = { favorite ->
-                        scope.launch {
-                            localState = withContext(Dispatchers.IO) {
-                                repository.setFavorite(theme.id, favorite)
-                            }
-                        }
-                    },
-                    onClick = { onOpenTheme(theme.id) },
-                )
+            gridItems(listedThemes, key = CloudTheme::id) { theme ->
+                themeCard(theme)
             }
         }
-        item { Spacer(modifier = Modifier.height(18.dp)) }
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            Spacer(modifier = Modifier.height(18.dp))
+        }
     }
 }
 

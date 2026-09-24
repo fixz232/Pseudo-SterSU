@@ -1,0 +1,20 @@
+{
+  "schema": "io.github.fixz.apkesu.plugin",
+  "version": 1,
+  "id": "app-id-manager",
+  "name": "应用 ID 修改",
+  "summary": "查看、暂存、应用和恢复应用 SSAID。",
+  "description": "为选定应用管理 App ID，提供 XML 校验、备份、启动脚本暂存和重启后验证。",
+  "instructions": [
+    "先选择目标应用并读取当前 ID。",
+    "应用修改前确认备份存在，完成后按提示重启。"
+  ],
+  "slots": [
+    "superuser.app-id-manager"
+  ],
+  "minManagerVersionCode": 32800,
+  "minKsudVersionCode": 32800,
+  "downloadUrl": "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/packages/app-id-manager.ksplugin",
+  "sha256": "",
+  "sizeBytes": 0
+}

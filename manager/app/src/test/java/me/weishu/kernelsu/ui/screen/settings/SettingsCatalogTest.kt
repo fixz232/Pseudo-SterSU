@@ -1,6 +1,7 @@
 package me.weishu.kernelsu.ui.screen.settings
 
 import me.weishu.kernelsu.ui.InterfaceStyle
+import me.weishu.kernelsu.ui.util.ManagerPlugin
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -8,16 +9,18 @@ class SettingsCatalogTest {
     @Test
     fun toolboxCountTracksDynamicEntries() {
         val base = SettingsUiState(uiMode = InterfaceStyle.Material.value)
-        assertEquals(6, SettingsCatalog.visibleEntryCount(SettingsCategory.Toolbox, base))
+        assertEquals(1, SettingsCatalog.visibleEntryCount(SettingsCategory.Toolbox, base))
+        val installed = base.copy(installedPluginIds = ManagerPlugin.entries.map { it.id }.toSet())
+        assertEquals(7, SettingsCatalog.visibleEntryCount(SettingsCategory.Toolbox, installed))
         assertEquals(
-            7,
+            8,
             SettingsCatalog.visibleEntryCount(
                 SettingsCategory.Toolbox,
-                base.copy(graphicsRendererFeatureEnabled = true),
+                installed.copy(graphicsRendererFeatureEnabled = true),
             ),
         )
         assertEquals(
-            7,
+            2,
             SettingsCatalog.visibleEntryCount(
                 SettingsCategory.Toolbox,
                 base.copy(
@@ -35,12 +38,19 @@ class SettingsCatalogTest {
     @Test
     fun appearanceCountTracksInterfaceSpecificEntry() {
         val base = SettingsUiState(uiMode = InterfaceStyle.Material.value)
-        assertEquals(3, SettingsCatalog.visibleEntryCount(SettingsCategory.Appearance, base))
+        assertEquals(4, SettingsCatalog.visibleEntryCount(SettingsCategory.Appearance, base))
         assertEquals(
-            4,
+            5,
             SettingsCatalog.visibleEntryCount(
                 SettingsCategory.Appearance,
                 base.copy(uiMode = InterfaceStyle.Miuix.value),
+            ),
+        )
+        assertEquals(
+            5,
+            SettingsCatalog.visibleEntryCount(
+                SettingsCategory.Appearance,
+                base.copy(uiMode = InterfaceStyle.Pixel.value),
             ),
         )
     }

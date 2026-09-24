@@ -7,6 +7,7 @@ import me.weishu.kernelsu.ui.theme.CustomThemePreset
 import me.weishu.kernelsu.ui.theme.DeltaColorVariant
 import me.weishu.kernelsu.ui.theme.ThemeAppearanceDefaults
 import me.weishu.kernelsu.ui.UiMode
+import me.weishu.kernelsu.ui.InterfaceStyle
 import me.weishu.kernelsu.ui.theme.ThemePreset
 import me.weishu.kernelsu.ui.theme.ThemeSyncStrategy
 import me.weishu.kernelsu.ui.component.GlobalScrollEffect
@@ -24,6 +25,8 @@ import me.weishu.kernelsu.ui.component.rain.DEFAULT_RAIN_CARD_MOTION_ENABLED
 import me.weishu.kernelsu.ui.component.pixel.PixelStyle
 import me.weishu.kernelsu.ui.component.pixel.DEFAULT_PIXEL_CARD_MOTION_ENABLED
 import me.weishu.kernelsu.ui.util.CustomNavigationIconSet
+import me.weishu.kernelsu.ui.util.InstalledInterfaceStyle
+import me.weishu.kernelsu.ui.util.InterfaceStylePackage
 import me.weishu.kernelsu.ui.util.CustomPageBackgroundSet
 import me.weishu.kernelsu.ui.util.CustomPageBackgroundTarget
 import me.weishu.kernelsu.ui.util.CustomWallpaperCrop
@@ -38,6 +41,7 @@ import me.weishu.kernelsu.ui.util.DEFAULT_CUSTOM_WALLPAPER_OPACITY
 import me.weishu.kernelsu.ui.util.DEFAULT_CUSTOM_WALLPAPER_PASSTHROUGH_OPACITY
 import me.weishu.kernelsu.ui.util.LauncherIconOption
 import me.weishu.kernelsu.ui.util.MediaVisualSettings
+import me.weishu.kernelsu.ui.util.ManagerPlugin
 import me.weishu.kernelsu.ui.util.StartupAnimationSettings
 import me.weishu.kernelsu.stealth.DEFAULT_STEALTH_MODE_CODE
 
@@ -51,6 +55,8 @@ enum class UiDecorationSaveState {
 @Immutable
 data class SettingsUiState(
     val uiMode: String = UiMode.DEFAULT_VALUE,
+    val installedInterfaceStyles: List<InstalledInterfaceStyle> = emptyList(),
+    val installedPluginIds: Set<String> = emptySet(),
     val checkModuleUpdate: Boolean = true,
     val showVersionMismatchWarning: Boolean = true,
     val showGkiWarning: Boolean = true,
@@ -204,6 +210,28 @@ data class SettingsUiState(
     val useSoftReboot: Boolean = false,
 )
 
+internal fun SettingsUiState.hasPlugin(plugin: ManagerPlugin): Boolean =
+    plugin.id in installedPluginIds
+
+internal fun SettingsUiState.isInterfaceStyleActive(style: InterfaceStylePackage): Boolean {
+    if (style.engine != uiMode) return false
+    return when (style.engine) {
+        InterfaceStyle.Snow.value -> style.variant == seasonStyle
+        InterfaceStyle.Rain.value -> style.variant == rainStyle
+        InterfaceStyle.Pixel.value -> style.variant == pixelStyle
+        else -> true
+    }
+}
+
+internal fun SettingsUiState.interfaceStyleSelectedIndex(): Int {
+    val builtInIndex = InterfaceStyle.selectableEntries.indexOfFirst { style ->
+        style == InterfaceStyle.Alpha && uiMode == InterfaceStyle.Delta.value || style.value == uiMode
+    }
+    if (builtInIndex >= 0) return builtInIndex
+    val downloadedIndex = installedInterfaceStyles.indexOfFirst { isInterfaceStyleActive(it.style) }
+    return if (downloadedIndex >= 0) InterfaceStyle.selectableEntries.size + downloadedIndex else 0
+}
+
 @Immutable
 data class SettingsScreenActions(
     val onSetCheckModuleUpdate: (Boolean) -> Unit,
@@ -214,16 +242,15 @@ data class SettingsScreenActions(
     val onSetMiuixClassicHomeLayoutEnabled: (Boolean) -> Unit,
     val onSetGraphicsRendererFeatureEnabled: (Boolean) -> Unit,
     val onOpenTheme: () -> Unit,
+    val onOpenInterfaceStyleStore: () -> Unit,
     val onOpenThemeStore: () -> Unit,
+    val onOpenPluginStore: () -> Unit,
     val onOpenLanguage: () -> Unit,
     val onOpenDynamicManager: () -> Unit,
     val onSetDayNightMode: (Boolean) -> Unit,
     val onSetSwitchStyleIndex: (Int) -> Unit,
-    val onSetSeasonStyleIndex: (Int) -> Unit,
     val onSetSeasonCardMotionEnabled: (Boolean) -> Unit,
-    val onSetRainStyleIndex: (Int) -> Unit,
     val onSetRainCardMotionEnabled: (Boolean) -> Unit,
-    val onSetPixelStyleIndex: (Int) -> Unit,
     val onSetPixelCardMotionEnabled: (Boolean) -> Unit,
     val onSetGlobalSnowEnabled: (Boolean) -> Unit,
     val onSetGlobalSnowEffectIndex: (Int) -> Unit,
@@ -233,6 +260,7 @@ data class SettingsScreenActions(
     val onSetGlobalScrollEffectEnabled: (Boolean) -> Unit,
     val onSetGlobalScrollEffectIndex: (Int) -> Unit,
     val onSetUiModeIndex: (Int) -> Unit,
+    val onApplyInterfaceStylePackage: (InterfaceStylePackage) -> Unit,
     val onSetAlphaDeltaMode: (Boolean) -> Unit,
     val onOpenLauncherIcon: () -> Unit,
     val onEditHomeTitle: () -> Unit,

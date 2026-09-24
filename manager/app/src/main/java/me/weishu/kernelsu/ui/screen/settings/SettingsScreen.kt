@@ -10,12 +10,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -32,6 +34,7 @@ import me.weishu.kernelsu.ui.navigation3.Route
 import me.weishu.kernelsu.ui.util.CUSTOM_BACKGROUND_MIME_TYPES
 import me.weishu.kernelsu.ui.util.CUSTOM_WALLPAPER_URI_KEY
 import me.weishu.kernelsu.ui.util.KPATCH_NEXT_MODULE_ID
+import me.weishu.kernelsu.ui.util.INTERFACE_STYLE_RESULT_KEY
 import me.weishu.kernelsu.ui.util.isCustomVideoBackground
 import me.weishu.kernelsu.ui.util.persistCustomImageReference
 import me.weishu.kernelsu.ui.util.takePersistableImageReadPermission
@@ -46,6 +49,7 @@ fun SettingPager(
     bottomInnerPadding: Dp,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val resources = LocalResources.current
     val viewModel = viewModel<SettingsViewModel>()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val pageMode = remember { mutableStateOf(readSettingsPageMode(context)) }
@@ -57,6 +61,12 @@ fun SettingPager(
     LifecycleResumeEffect(Unit) {
         viewModel.refresh()
         onPauseOrDispose { }
+    }
+    LaunchedEffect(navigator) {
+        navigator.observeResult<String>(INTERFACE_STYLE_RESULT_KEY).collect {
+            viewModel.refresh()
+            navigator.clearResult(INTERFACE_STYLE_RESULT_KEY)
+        }
     }
 
     if (pageMode.value == SettingsPageMode.Categories) {
@@ -113,16 +123,17 @@ fun SettingPager(
         onSetMiuixClassicHomeLayoutEnabled = viewModel::setMiuixClassicHomeLayoutEnabled,
         onSetGraphicsRendererFeatureEnabled = viewModel::setGraphicsRendererFeatureEnabled,
         onOpenTheme = { navigator.push(Route.ColorPalette) },
+        onOpenInterfaceStyleStore = {
+            navigator.navigateForResult(Route.InterfaceStyleStore, INTERFACE_STYLE_RESULT_KEY)
+        },
         onOpenThemeStore = { navigator.push(Route.ThemeStore) },
+        onOpenPluginStore = { navigator.push(Route.PluginStore) },
         onOpenLanguage = { navigator.push(Route.LanguageSettings) },
         onOpenDynamicManager = { navigator.push(Route.DynamicManager) },
         onSetDayNightMode = viewModel::setDayNightMode,
         onSetSwitchStyleIndex = viewModel::setSwitchStyleIndex,
-        onSetSeasonStyleIndex = viewModel::setSeasonStyleIndex,
         onSetSeasonCardMotionEnabled = viewModel::setSeasonCardMotionEnabled,
-        onSetRainStyleIndex = viewModel::setRainStyleIndex,
         onSetRainCardMotionEnabled = viewModel::setRainCardMotionEnabled,
-        onSetPixelStyleIndex = viewModel::setPixelStyleIndex,
         onSetPixelCardMotionEnabled = viewModel::setPixelCardMotionEnabled,
         onSetGlobalSnowEnabled = viewModel::setGlobalSnowEnabled,
         onSetGlobalSnowEffectIndex = viewModel::setGlobalSnowEffectIndex,
@@ -137,6 +148,7 @@ fun SettingPager(
                 viewModel.setUiMode(style.value)
             }
         },
+        onApplyInterfaceStylePackage = viewModel::applyInterfaceStylePackage,
         onSetAlphaDeltaMode = { useDelta ->
             viewModel.setUiMode(
                 if (useDelta) InterfaceStyle.Delta.value else InterfaceStyle.Alpha.value
@@ -236,7 +248,7 @@ fun SettingPager(
             WebManagerService.openInBrowser(context).onFailure { error ->
                 Toast.makeText(
                     context,
-                    context.getString(R.string.web_manager_open_failed, error.message ?: "unknown error"),
+                    resources.getString(R.string.web_manager_open_failed, error.message ?: "unknown error"),
                     Toast.LENGTH_LONG,
                 ).show()
             }

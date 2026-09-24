@@ -25,7 +25,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -1062,170 +1061,96 @@ fun ModuleItem(
                     color = colorScheme.outline.copy(alpha = 0.5f)
                 )
 
-                Row {
-                    AnimatedVisibility(
-                        visible = module.enabled && !module.remove && !module.update,
-                        enter = fadeIn(),
-                        exit = fadeOut()
-                    ) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            if (module.hasActionScript) {
-                                Row(
-                                    modifier = Modifier
-                                        .heightIn(min = 35.dp)
-                                        .widthIn(min = 35.dp)
-                                        .clip(CircleShape)
-                                        .background(secondaryContainer)
-                                        .combinedClickable(
-                                            onClick = onExecuteAction,
-                                            onLongClick = { onAddActionShortcut(ShortcutType.Action) }
-                                        )
-                                        .padding(
-                                            start = if (!module.hasWebUi && !hasUpdate) 6.dp else 0.dp,
-                                            end = if (!module.hasWebUi && !hasUpdate) 8.dp else 0.dp,
-                                        ),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center
-                                ) {
-                                    Icon(
-                                        modifier = Modifier.size(24.dp),
-                                        imageVector = Icons.Rounded.PlayArrow,
-                                        tint = actionIconTint,
-                                        contentDescription = stringResource(R.string.action)
-                                    )
-                                    if (!module.hasWebUi && !hasUpdate) {
-                                        Text(
-                                            modifier = Modifier.padding(start = 3.dp, end = 4.dp),
-                                            text = stringResource(R.string.action),
-                                            color = actionIconTint,
-                                            fontWeight = FontWeight.Medium,
-                                            fontSize = 15.sp,
-                                        )
-                                    }
-                                }
-                            }
-                            if (module.hasWebUi) {
-                                Row(
-                                    modifier = Modifier
-                                        .heightIn(min = 35.dp)
-                                        .widthIn(min = 35.dp)
-                                        .clip(CircleShape)
-                                        .background(secondaryContainer)
-                                        .combinedClickable(
-                                            onClick = onOpenWebUi,
-                                            onLongClick = { onAddActionShortcut(ShortcutType.WebUI) }
-                                        )
-                                        .padding(horizontal = if (!module.hasActionScript && !hasUpdate) 10.dp else 0.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center
-                                ) {
-                                    Icon(
-                                        modifier = Modifier.size(22.dp),
-                                        imageVector = Icons.Rounded.Code,
-                                        tint = actionIconTint,
-                                        contentDescription = stringResource(R.string.open)
-                                    )
-                                    if (!module.hasActionScript && !hasUpdate) {
-                                        Text(
-                                            modifier = Modifier.padding(start = 4.dp, end = 2.dp),
-                                            text = stringResource(R.string.open),
-                                            color = actionIconTint,
-                                            fontWeight = FontWeight.Medium,
-                                            fontSize = 15.sp,
-                                        )
-                                    }
-                                }
+                val primaryAction = resolveModulePrimaryAction(module, hasUpdate)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    when (primaryAction) {
+                        ModulePrimaryAction.UndoUninstall -> IconButton(
+                            minHeight = 48.dp,
+                            minWidth = 48.dp,
+                            onClick = onUndoUninstall,
+                            backgroundColor = secondaryContainer,
+                        ) {
+                            Row(modifier = Modifier.padding(horizontal = 10.dp)) {
+                                Icon(
+                                    imageVector = MiuixIcons.Undo,
+                                    tint = actionIconTint,
+                                    contentDescription = null,
+                                )
+                                Text(
+                                    text = stringResource(R.string.undo),
+                                    color = actionIconTint,
+                                    modifier = Modifier.padding(start = 6.dp),
+                                )
                             }
                         }
-                    }
 
-                    Spacer(Modifier.weight(1f))
-
-                    AnimatedVisibility(
-                        visible = hasUpdate,
-                        enter = fadeIn(),
-                        exit = fadeOut()
-                    ) {
-                        IconButton(
-                            modifier = Modifier.padding(end = 8.dp),
-                            backgroundColor = updateBg,
-                            enabled = !module.remove,
-                            minHeight = 35.dp,
-                            minWidth = 35.dp,
+                        ModulePrimaryAction.Update -> IconButton(
+                            minHeight = 48.dp,
+                            minWidth = 48.dp,
                             onClick = onUpdate,
+                            backgroundColor = updateBg,
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(2.dp),
-                            ) {
+                            Row(modifier = Modifier.padding(horizontal = 10.dp)) {
                                 Icon(
-                                    modifier = Modifier.size(20.dp),
                                     imageVector = MiuixIcons.UploadCloud,
                                     tint = updateTint,
-                                    contentDescription = stringResource(R.string.module_update),
+                                    contentDescription = null,
                                 )
                                 Text(
-                                    modifier = Modifier.padding(start = 4.dp, end = 3.dp),
                                     text = stringResource(R.string.module_update),
                                     color = updateTint,
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 15.sp
+                                    modifier = Modifier.padding(start = 6.dp),
                                 )
                             }
                         }
-                    }
-                    IconButton(
-                        minHeight = 35.dp,
-                        minWidth = 35.dp,
-                        onClick = if (module.remove) onUndoUninstall else onUninstall,
-                        backgroundColor = if (module.remove) {
-                            secondaryContainer.copy(alpha = 0.8f)
-                        } else {
-                            secondaryContainer
-                        },
-                    ) {
-                        val animatedPadding by animateDpAsState(
-                            targetValue = if (!hasUpdate) 10.dp else 0.dp,
-                            animationSpec = tween(durationMillis = 300)
-                        )
-                        Row(
-                            modifier = Modifier.padding(horizontal = animatedPadding),
-                            verticalAlignment = Alignment.CenterVertically,
+
+                        ModulePrimaryAction.WebUi -> IconButton(
+                            minHeight = 48.dp,
+                            minWidth = 48.dp,
+                            onClick = onOpenWebUi,
+                            backgroundColor = secondaryContainer,
                         ) {
-                            Icon(
-                                modifier = Modifier.size(20.dp),
-                                imageVector = if (module.remove) {
-                                    MiuixIcons.Undo
-                                } else {
-                                    MiuixIcons.Delete
-                                },
-                                tint = actionIconTint,
-                                contentDescription = null
-                            )
-                            AnimatedVisibility(
-                                visible = !hasUpdate,
-                                enter = expandHorizontally(),
-                                exit = shrinkHorizontally()
-                            ) {
+                            Row(modifier = Modifier.padding(horizontal = 10.dp)) {
+                                Icon(Icons.Rounded.Code, contentDescription = null, tint = actionIconTint)
+                                Text("WebUI", color = actionIconTint, modifier = Modifier.padding(start = 6.dp))
+                            }
+                        }
+
+                        ModulePrimaryAction.Action -> IconButton(
+                            minHeight = 48.dp,
+                            minWidth = 48.dp,
+                            onClick = onExecuteAction,
+                            backgroundColor = secondaryContainer,
+                        ) {
+                            Row(modifier = Modifier.padding(horizontal = 10.dp)) {
+                                Icon(Icons.Rounded.PlayArrow, contentDescription = null, tint = actionIconTint)
                                 Text(
-                                    modifier = Modifier.padding(start = 4.dp, end = 3.dp),
-                                    text = stringResource(
-                                        if (module.remove) R.string.undo else R.string.uninstall
-                                    ),
+                                    text = stringResource(R.string.action),
                                     color = actionIconTint,
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 15.sp
+                                    modifier = Modifier.padding(start = 6.dp),
                                 )
                             }
                         }
+
+                        ModulePrimaryAction.None -> Spacer(modifier = Modifier.weight(1f))
                     }
-                    ModuleWallpaperMenuMiuix(
+                    Spacer(modifier = Modifier.widthIn(min = 8.dp))
+                    ModuleActionsMenuMiuix(
                         expanded = showWallpaperMenu,
+                        module = module,
+                        primaryAction = primaryAction,
                         hasWallpaper = wallpaperState.hasSelectedWallpaper,
                         canPlayCarousel = wallpaperState.canPlayCarousel,
                         carouselEnabled = wallpaperState.carouselEnabled,
                         onExpandedChange = { showWallpaperMenu = it },
+                        onOpenWebUi = onOpenWebUi,
+                        onExecuteAction = onExecuteAction,
+                        onAddActionShortcut = { onAddActionShortcut(ShortcutType.Action) },
+                        onAddWebUiShortcut = { onAddActionShortcut(ShortcutType.WebUI) },
                         onPickWallpaper = onEditWallpaper,
                         onCropWallpaper = { showWallpaperCrop = true },
                         onPreviewWallpaper = { showWallpaperPreview = true },
@@ -1239,6 +1164,7 @@ fun ModuleItem(
                             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                         },
                         onClearWallpaper = wallpaperState.onClearWallpaper,
+                        onUninstall = onUninstall,
                     )
                 }
             }
@@ -1292,24 +1218,34 @@ private fun MiuixModuleLoadError(
 }
 
 @Composable
-private fun ModuleWallpaperMenuMiuix(
+private fun ModuleActionsMenuMiuix(
     expanded: Boolean,
+    module: Module,
+    primaryAction: ModulePrimaryAction,
     hasWallpaper: Boolean,
     canPlayCarousel: Boolean,
     carouselEnabled: Boolean,
     onExpandedChange: (Boolean) -> Unit,
+    onOpenWebUi: () -> Unit,
+    onExecuteAction: () -> Unit,
+    onAddActionShortcut: () -> Unit,
+    onAddWebUiShortcut: () -> Unit,
     onPickWallpaper: () -> Unit,
     onCropWallpaper: () -> Unit,
     onPreviewWallpaper: () -> Unit,
     onToggleCarousel: () -> Unit,
     onSyncThemeStore: () -> Unit,
     onClearWallpaper: () -> Unit,
+    onUninstall: () -> Unit,
 ) {
-    val optionSize = when {
-        !hasWallpaper -> 1
-        canPlayCarousel -> 6
-        else -> 5
-    }
+    val canOpenModule = module.enabled && !module.remove && !module.update
+    val moduleActionCount =
+        (if (canOpenModule && module.hasWebUi && primaryAction != ModulePrimaryAction.WebUi) 1 else 0) +
+            (if (canOpenModule && module.hasActionScript && primaryAction != ModulePrimaryAction.Action) 1 else 0) +
+            (if (canOpenModule && module.hasActionScript) 1 else 0) +
+            (if (canOpenModule && module.hasWebUi) 1 else 0)
+    val wallpaperActionCount = if (!hasWallpaper) 1 else if (canPlayCarousel) 6 else 5
+    val optionSize = moduleActionCount + wallpaperActionCount + if (module.remove) 0 else 1
     val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     Box(
         modifier = Modifier.clickable(
@@ -1319,8 +1255,8 @@ private fun ModuleWallpaperMenuMiuix(
         )
     ) {
         IconButton(
-            minHeight = 35.dp,
-            minWidth = 35.dp,
+            minHeight = 48.dp,
+            minWidth = 48.dp,
             holdDownState = expanded,
             onClick = { onExpandedChange(true) },
         ) {
@@ -1328,7 +1264,7 @@ private fun ModuleWallpaperMenuMiuix(
                 modifier = Modifier.size(20.dp),
                 imageVector = MiuixIcons.MoreCircle,
                 tint = colorScheme.onSurface.copy(alpha = if (isInDarkTheme()) 0.7f else 0.9f),
-                contentDescription = stringResource(R.string.module_wallpaper_pick),
+                contentDescription = stringResource(R.string.module_more_actions),
             )
         }
         OverlayListPopup(
@@ -1338,18 +1274,66 @@ private fun ModuleWallpaperMenuMiuix(
             onDismissRequest = { onExpandedChange(false) },
             content = {
                 ListPopupColumn {
+                    var optionIndex = 0
+                    if (canOpenModule && module.hasWebUi && primaryAction != ModulePrimaryAction.WebUi) {
+                        DropdownImpl(
+                            text = "WebUI",
+                            optionSize = optionSize,
+                            isSelected = false,
+                            index = optionIndex++,
+                            onSelectedIndexChange = {
+                                onExpandedChange(false)
+                                onOpenWebUi()
+                            },
+                        )
+                    }
+                    if (canOpenModule && module.hasActionScript && primaryAction != ModulePrimaryAction.Action) {
+                        DropdownImpl(
+                            text = stringResource(R.string.action),
+                            optionSize = optionSize,
+                            isSelected = false,
+                            index = optionIndex++,
+                            onSelectedIndexChange = {
+                                onExpandedChange(false)
+                                onExecuteAction()
+                            },
+                        )
+                    }
+                    if (canOpenModule && module.hasActionScript) {
+                        DropdownImpl(
+                            text = stringResource(R.string.module_action_shortcut),
+                            optionSize = optionSize,
+                            isSelected = false,
+                            index = optionIndex++,
+                            onSelectedIndexChange = {
+                                onExpandedChange(false)
+                                onAddActionShortcut()
+                            },
+                        )
+                    }
+                    if (canOpenModule && module.hasWebUi) {
+                        DropdownImpl(
+                            text = stringResource(R.string.module_webui_shortcut),
+                            optionSize = optionSize,
+                            isSelected = false,
+                            index = optionIndex++,
+                            onSelectedIndexChange = {
+                                onExpandedChange(false)
+                                onAddWebUiShortcut()
+                            },
+                        )
+                    }
                     DropdownImpl(
                         text = stringResource(R.string.module_wallpaper_pick),
                         optionSize = optionSize,
                         isSelected = false,
-                        index = 0,
+                        index = optionIndex++,
                         onSelectedIndexChange = {
                             onExpandedChange(false)
                             onPickWallpaper()
                         },
                     )
                     if (hasWallpaper) {
-                        var optionIndex = 1
                         DropdownImpl(
                             text = stringResource(R.string.module_wallpaper_crop),
                             optionSize = optionSize,
@@ -1406,6 +1390,19 @@ private fun ModuleWallpaperMenuMiuix(
                             onSelectedIndexChange = {
                                 onExpandedChange(false)
                                 onClearWallpaper()
+                            },
+                        )
+                        optionIndex++
+                    }
+                    if (!module.remove) {
+                        DropdownImpl(
+                            text = stringResource(R.string.uninstall),
+                            optionSize = optionSize,
+                            isSelected = false,
+                            index = optionIndex,
+                            onSelectedIndexChange = {
+                                onExpandedChange(false)
+                                onUninstall()
                             },
                         )
                     }

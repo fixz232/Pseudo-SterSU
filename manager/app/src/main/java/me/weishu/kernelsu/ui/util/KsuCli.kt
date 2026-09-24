@@ -767,6 +767,25 @@ fun startNativeWebManager(): Boolean {
 fun setNativeWebManagerEnabled(enabled: Boolean): Boolean =
     execKsud("web-manager ${if (enabled) "enable" else "disable"}", newShell = true)
 
+internal fun isNativeWebManagerDisabledStatus(statusJson: String): Boolean = runCatching {
+    val status = JSONObject(statusJson)
+    status.optBoolean("supported") &&
+        !status.optBoolean("enabled", true) &&
+        !status.optBoolean("running", true)
+}.getOrDefault(false)
+
+/** Disables the persistent ksud service and confirms it is neither enabled nor running. */
+fun disableNativeWebManagerAndVerify(): Boolean {
+    if (shouldSkipUnsafeKsudCommand() || !setNativeWebManagerEnabled(false)) return false
+    return runCatching {
+        val status = ShellUtils.fastCmd(
+            getRootShell(),
+            "${shellQuote(getKsuDaemonPath())} web-manager status",
+        )
+        isNativeWebManagerDisabledStatus(status)
+    }.getOrDefault(false)
+}
+
 /** Returns the one-time signed-auth pairing URL, or null when ksud is too old/unavailable. */
 fun getNativeWebManagerUrl(): String? = runCatching {
     if (shouldSkipUnsafeKsudCommand()) return@runCatching null

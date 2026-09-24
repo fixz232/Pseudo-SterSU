@@ -62,6 +62,7 @@ fun PreInstallStyleSettingsScreen() {
     PreInstallStyleSettingsMiuix(
         uiState = uiState,
         onStyleSelected = onStyleSelected,
+        onPackageSelected = viewModel::applyInterfaceStylePackage,
         onBack = onBack,
     )
 }
@@ -70,6 +71,7 @@ fun PreInstallStyleSettingsScreen() {
 private fun PreInstallStyleSettingsMiuix(
     uiState: SettingsUiState,
     onStyleSelected: (Int) -> Unit,
+    onPackageSelected: (me.weishu.kernelsu.ui.util.InterfaceStylePackage) -> Unit,
     onBack: () -> Unit,
 ) {
     MiuixScaffold(
@@ -96,6 +98,7 @@ private fun PreInstallStyleSettingsMiuix(
         StyleSettingsContent(
             uiState = uiState,
             onStyleSelected = onStyleSelected,
+            onPackageSelected = onPackageSelected,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
@@ -109,20 +112,26 @@ private fun PreInstallStyleSettingsMiuix(
 private fun StyleSettingsContent(
     uiState: SettingsUiState,
     onStyleSelected: (Int) -> Unit,
+    onPackageSelected: (me.weishu.kernelsu.ui.util.InterfaceStylePackage) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val selectedIndex = InterfaceStyle.selectedIndex(uiState.uiMode)
+    val selectedIndex = uiState.interfaceStyleSelectedIndex()
+    val styleCount = InterfaceStyle.selectableEntries.size
 
     SegmentedColumn(
         modifier = modifier,
         title = stringResource(R.string.settings_ui_mode),
-        content = InterfaceStyle.selectableEntries.mapIndexed { index, style ->
+        content = (InterfaceStyle.selectableEntries.map { style -> stringResource(style.labelRes) } +
+            uiState.installedInterfaceStyles.map { it.style.name }).mapIndexed { index, label ->
             {
                 SegmentedRadioItem(
-                    title = stringResource(style.labelRes),
+                    title = label,
                     summary = if (index == selectedIndex) stringResource(R.string.settings_ui_mode_summary) else null,
                     selected = index == selectedIndex,
-                    onClick = { onStyleSelected(index) },
+                    onClick = {
+                        if (index < styleCount) onStyleSelected(index)
+                        else uiState.installedInterfaceStyles.getOrNull(index - styleCount)?.style?.let(onPackageSelected)
+                    },
                 )
             }
         },

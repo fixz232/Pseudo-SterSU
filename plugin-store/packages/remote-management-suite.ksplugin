@@ -1,0 +1,22 @@
+{
+  "schema": "io.github.fixz.apkesu.plugin",
+  "version": 1,
+  "id": "remote-management-suite",
+  "name": "网页管理器与隐身模式",
+  "summary": "本机网页管理器、PWA、签名鉴权和隐身模式配套套件。",
+  "description": "网页资源由 ksud 本机服务提供，默认只监听回环地址；隐身状态持久化在 /data/adb/ksu/，管理器退出后仍有效。网页管理器和隐身模式必须同时安装。",
+  "instructions": [
+    "首次使用先确认服务只绑定 127.0.0.1 并设置签名密钥。",
+    "开启隐身后只能通过网页密令或拨号密令关闭。",
+    "卸载前必须关闭隐身模式并停止网页服务。"
+  ],
+  "slots": [
+    "maintenance.web-manager",
+    "maintenance.stealth-mode"
+  ],
+  "minManagerVersionCode": 32800,
+  "minKsudVersionCode": 32800,
+  "downloadUrl": "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/packages/remote-management-suite.ksplugin",
+  "sha256": "",
+  "sizeBytes": 0
+}

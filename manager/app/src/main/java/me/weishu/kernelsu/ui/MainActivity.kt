@@ -234,8 +234,10 @@ import me.weishu.kernelsu.ui.screen.themestore.CloudThemeCreatorGuideScreen
 import me.weishu.kernelsu.ui.screen.themestore.CloudThemeDetailScreen
 import me.weishu.kernelsu.ui.screen.themestore.CloudThemeRankingScreen
 import me.weishu.kernelsu.ui.screen.themestore.ThemeStoreLibraryScreen
+import me.weishu.kernelsu.ui.screen.themestore.ThemeStoreMyScreen
 import me.weishu.kernelsu.ui.screen.themestore.AppFontScreen
 import me.weishu.kernelsu.ui.screen.themestore.ThemeStoreScreen
+import me.weishu.kernelsu.ui.screen.pluginstore.PluginStoreScreen
 import me.weishu.kernelsu.ui.screen.home.hasBlockingRootVersionMismatch
 import me.weishu.kernelsu.ui.theme.KernelSUTheme
 import me.weishu.kernelsu.ui.theme.resolveEffectiveDarkMode
@@ -255,10 +257,14 @@ import me.weishu.kernelsu.ui.util.readAppAudioSettings
 import me.weishu.kernelsu.ui.util.isAudioPlaybackAllowed
 import me.weishu.kernelsu.ui.util.KernelStatusEvents
 import me.weishu.kernelsu.ui.util.LocalCustomNavigationIcons
+import me.weishu.kernelsu.ui.util.LocalInterfaceStyleTheme
 import me.weishu.kernelsu.ui.util.LocalScrollAnimation
 import me.weishu.kernelsu.ui.util.LocalScrollAnimationEffect
+import me.weishu.kernelsu.ui.util.interfaceStyleTheme
 import me.weishu.kernelsu.ui.util.ManagerUpdateChecker
 import me.weishu.kernelsu.ui.util.ManagerUpdateInfo
+import me.weishu.kernelsu.ui.util.ManagerPlugin
+import me.weishu.kernelsu.ui.util.ManagerPluginRegistry
 import me.weishu.kernelsu.ui.util.ensureManagerRegistered
 import me.weishu.kernelsu.ui.util.getFileName
 import me.weishu.kernelsu.ui.util.getSuperuserCount
@@ -389,6 +395,19 @@ class MainActivity : ComponentActivity() {
                 requested = uiState.enableFloatingBottomBarBlur,
             )
             val selectedRainStyle = RainStyle.fromValue(uiState.rainStyle)
+            val selectedPixelStyle = PixelStyle.fromValue(uiState.pixelStyle)
+            val selectedExternalTheme = remember(
+                uiState.interfaceStyle,
+                uiState.rainStyle,
+                uiState.pixelStyle,
+            ) {
+                val variant = when (uiState.interfaceStyle) {
+                    InterfaceStyle.Rain.value -> uiState.rainStyle
+                    InterfaceStyle.Pixel.value -> uiState.pixelStyle
+                    else -> null
+                }
+                interfaceStyleTheme(applicationContext, uiState.interfaceStyle, variant)
+            }
             val rainInterfaceActive = uiState.interfaceStyle == InterfaceStyle.Rain.value
             val seasonInterfaceActive = uiState.interfaceStyle == InterfaceStyle.Snow.value
             val pixelInterfaceActive = uiState.interfaceStyle == InterfaceStyle.Pixel.value
@@ -401,16 +420,19 @@ class MainActivity : ComponentActivity() {
             val rainSceneProgress = rememberRainSceneProgress(
                 enabled = rainInterfaceActive,
                 style = selectedRainStyle,
+                theme = selectedExternalTheme,
             )
             val pixelCardMotionProgress = rememberPixelCardMotionProgress(
                 enabled = pixelInterfaceActive && uiState.pixelCardMotionEnabled,
+                theme = selectedExternalTheme,
             )
             val darkMode = resolveEffectiveDarkMode(
                 colorMode = appSettings.colorMode,
                 systemDark = isSystemInDarkTheme(),
                 interfaceStyle = uiState.interfaceStyle,
                 rainStyle = selectedRainStyle,
-                pixelStyle = PixelStyle.fromValue(uiState.pixelStyle),
+                pixelStyle = selectedPixelStyle,
+                interfaceTheme = selectedExternalTheme,
             )
             val selectedNightBackgroundEffect =
                 NightBackgroundEffect.fromValue(uiState.nightBackgroundEffect)
@@ -488,6 +510,7 @@ class MainActivity : ComponentActivity() {
                 LocalModuleTopBarAutoHide provides uiState.moduleTopBarAutoHideEnabled,
                 LocalUiMode provides uiMode,
                 LocalInterfaceStyle provides uiState.interfaceStyle,
+                LocalInterfaceStyleTheme provides selectedExternalTheme,
                 LocalSeasonStyle provides SeasonStyle.fromValue(uiState.seasonStyle),
                 LocalSeasonCardMotionEnabled provides (
                     seasonInterfaceActive && uiState.seasonCardMotionEnabled
@@ -499,7 +522,7 @@ class MainActivity : ComponentActivity() {
                     ),
                 LocalRainCardMotionProgress provides rainCardMotionProgress,
                 LocalRainSceneProgress provides rainSceneProgress,
-                LocalPixelStyle provides PixelStyle.fromValue(uiState.pixelStyle),
+                LocalPixelStyle provides selectedPixelStyle,
                 LocalPixelCardMotionEnabled provides (
                     pixelInterfaceActive && uiState.pixelCardMotionEnabled
                     ),
@@ -599,9 +622,9 @@ class MainActivity : ComponentActivity() {
                                 entry<Route.About> { AboutScreen() }
                                 entry<Route.Sulog> { SulogScreen() }
                                 entry<Route.SuperUserTools> { SuperUserToolsScreen() }
-                                entry<Route.AppIdManager> { AppIdManagerScreen() }
+                                entry<Route.AppIdManager> { PluginRouteGate(ManagerPlugin.AppIdManager) { AppIdManagerScreen() } }
                                 entry<Route.DynamicManager> { DynamicManagerScreen() }
-                                entry<Route.AppFreeze> { AppFreezeScreen() }
+                                entry<Route.AppFreeze> { PluginRouteGate(ManagerPlugin.AppFreeze) { AppFreezeScreen() } }
                                 entry<Route.ColorPalette> { ColorPaletteScreen() }
                                 entry<Route.LauncherIcon> { LauncherIconScreen() }
                                 entry<Route.NavigationIcons> { NavigationIconScreen() }
@@ -627,16 +650,24 @@ class MainActivity : ComponentActivity() {
                                 entry<Route.SusfsPathConfig> { SusfsPathConfigScreen() }
                                 entry<Route.SusfsGuide> { SusfsGuideScreen() }
                                 entry<Route.ForegroundToolProtection> { ForegroundToolProtectionScreen() }
-                                entry<Route.AiChat> { AiChatScreen() }
+                                entry<Route.AiChat> { PluginRouteGate(ManagerPlugin.AiChat) { AiChatScreen() } }
                                 entry<Route.AiModuleStudio> { AiModuleStudioScreen() }
-                                entry<Route.RescueProtection> { RescueProtectionScreen() }
-                                entry<Route.CpuSpoof> { CpuSpoofScreen() }
-                                entry<Route.DeviceIdentity> { DeviceIdentityScreen() }
-                                entry<Route.GraphicsRenderer> { GraphicsRendererScreen() }
+                                entry<Route.RescueProtection> { PluginRouteGate(ManagerPlugin.RescueProtection) { RescueProtectionScreen() } }
+                                entry<Route.CpuSpoof> { PluginRouteGate(ManagerPlugin.CpuSpoof) { CpuSpoofScreen() } }
+                                entry<Route.DeviceIdentity> { PluginRouteGate(ManagerPlugin.DeviceIdentity) { DeviceIdentityScreen() } }
+                                entry<Route.GraphicsRenderer> { PluginRouteGate(ManagerPlugin.GraphicsRenderer) { GraphicsRendererScreen() } }
                                 entry<Route.Kpm> { KpmScreen() }
-                                entry<Route.ImageTool> { ImageToolScreen() }
+                                entry<Route.ImageTool> { PluginRouteGate(ManagerPlugin.ImageTools) { ImageToolScreen() } }
                                 entry<Route.BuiltinMount> { BuiltinMountScreen() }
                                 entry<Route.ThemeStore> { ThemeStoreScreen() }
+                                entry<Route.PluginStore> { PluginStoreScreen() }
+                                entry<Route.InterfaceStyleStore> {
+                                    ThemeStoreScreen(
+                                        page = ThemeStorePage.Customize,
+                                        customizeSection = ThemeStoreCustomizeSection.Style,
+                                        returnToAppearance = true,
+                                    )
+                                }
                                 entry<Route.ThemeStoreAssets> {
                                     ThemeStoreScreen(
                                         page = ThemeStorePage.Customize,
@@ -650,8 +681,8 @@ class MainActivity : ComponentActivity() {
                                         customizeSection = ThemeStoreCustomizeSection.Atmosphere,
                                     )
                                 }
-                                entry<Route.ThemeStoreTransfer> { ThemeStoreScreen(ThemeStorePage.Library) }
-                                entry<Route.ThemeStoreMy> { ThemeStoreScreen(ThemeStorePage.My) }
+                                entry<Route.ThemeStoreTransfer> { ThemeStoreScreen(ThemeStorePage.My) }
+                                entry<Route.ThemeStoreMy> { ThemeStoreMyScreen() }
                                 entry<Route.ThemeStoreLibrary> { ThemeStoreLibraryScreen() }
                                 entry<Route.CloudThemeDetail> { key -> CloudThemeDetailScreen(key.themeId) }
                                 entry<Route.CloudThemeRanking> { CloudThemeRankingScreen() }
@@ -1730,6 +1761,24 @@ private fun ShortcutIntentHandler(
             }
 
             else -> return@LaunchedEffect
+        }
+    }
+}
+
+@Composable
+private fun PluginRouteGate(
+    plugin: ManagerPlugin,
+    content: @Composable () -> Unit,
+) {
+    val context = LocalContext.current
+    val navigator = LocalNavigator.current
+    val registry = remember { ManagerPluginRegistry(context) }
+    val installed = remember(plugin.id) { registry.contains(plugin.id) }
+    if (installed) {
+        content()
+    } else {
+        LaunchedEffect(plugin.id) {
+            navigator.replace(Route.PluginStore)
         }
     }
 }

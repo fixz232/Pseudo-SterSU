@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -124,6 +125,11 @@ fun SettingPagerSkrootpro(
                             onCheckedChange = onCheckedChange,
                         )
                     },
+                )
+                SkrootproActionRow(
+                    title = stringResource(R.string.interface_style_store_title),
+                    summary = stringResource(R.string.interface_style_store_summary),
+                    onClick = actions.onOpenInterfaceStyleStore,
                 )
                 SkrootproActionRow(
                     title = stringResource(R.string.theme_store),
@@ -438,6 +444,7 @@ private fun SkrootproStylePicker(
             .fillMaxWidth()
             .height(52.dp)
             .background(SkrootproColors.BarSurface, CircleShape)
+            .horizontalScroll(rememberScrollState())
             .padding(6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -446,7 +453,7 @@ private fun SkrootproStylePicker(
             val selected = InterfaceStyle.selectedIndex(uiState.uiMode) == index
             Box(
                 modifier = Modifier
-                    .weight(1f)
+                    .width(112.dp)
                     .fillMaxSize()
                     .background(
                         color = if (selected) SkrootproColors.Purple else Color.Transparent,
@@ -461,6 +468,29 @@ private fun SkrootproStylePicker(
                     fontSize = skrootproSp(14f, maxScale = 1.04f),
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                     maxLines = 1,
+                )
+            }
+        }
+        uiState.installedInterfaceStyles.forEach { installed ->
+            val selected = uiState.isInterfaceStyleActive(installed.style)
+            Box(
+                modifier = Modifier
+                    .width(132.dp)
+                    .fillMaxSize()
+                    .background(
+                        color = if (selected) SkrootproColors.Purple else Color.Transparent,
+                        shape = CircleShape,
+                    )
+                    .clickable { actions.onApplyInterfaceStylePackage(installed.style) },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = installed.style.name,
+                    color = if (selected) Color.White else SkrootproColors.Muted,
+                    fontSize = skrootproSp(14f, maxScale = 1.04f),
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }

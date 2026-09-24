@@ -1,12 +1,17 @@
 package me.weishu.kernelsu.ui.component.rain
 
 import androidx.compose.ui.graphics.Color
-import kotlin.random.Random
+import me.weishu.kernelsu.ui.util.InterfaceStyleChrome
+import me.weishu.kernelsu.ui.util.InterfaceStyleGlass
+import me.weishu.kernelsu.ui.util.InterfaceStylePalette
+import me.weishu.kernelsu.ui.util.InterfaceStyleScene
+import me.weishu.kernelsu.ui.util.InterfaceStyleTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.random.Random
 
 class RainStyleTest {
     @Test
@@ -36,63 +41,43 @@ class RainStyleTest {
     }
 
     @Test
-    fun modesHaveUniqueValuesAndKeyColors() {
+    fun modesHaveUniqueMetadata() {
         assertEquals(5, RainStyle.entries.size)
         assertEquals(RainStyle.entries.size, RainStyle.entries.map { it.value }.toSet().size)
         assertEquals(RainStyle.entries.size, RainStyle.entries.map { it.keyColor }.toSet().size)
-        RainStyle.entries.forEach { style ->
-            assertTrue(style.value.isNotBlank())
-            assertNotEquals(0, style.keyColor)
-        }
     }
 
     @Test
-    fun rainDensityAndSpeedIncreaseWithIntensity() {
-        val specs = listOf(
-            RainStyle.LightRain,
-            RainStyle.MediumRain,
-            RainStyle.HeavyRain,
-            RainStyle.Thunderstorm,
-        ).map(RainSceneSpec::forStyle)
-        specs.zipWithNext().forEach { (lighter, stronger) ->
-            assertTrue(stronger.dropCount > lighter.dropCount)
-            assertTrue(stronger.rippleCount > lighter.rippleCount)
-            assertTrue(stronger.cycleMillis < lighter.cycleMillis)
-            assertTrue(stronger.maxLengthDp > lighter.maxLengthDp)
-        }
+    fun sceneSpecComesFromDownloadedTheme() {
+        val theme = theme(primaryCount = 142, secondaryCount = 15, cycleMillis = 8_500)
+        val spec = RainSceneSpec.fromTheme(theme)
+
+        assertEquals(142, spec.dropCount)
+        assertEquals(15, spec.rippleCount)
+        assertEquals(8_500, spec.cycleMillis)
+        assertEquals(34f, spec.maxLengthDp)
     }
 
     @Test
-    fun requestedDayAndNightFoundationColorsArePreserved() {
-        val light = rainPalette(RainStyle.LightRain, dark = false)
-        assertEquals(Color(0xFF7395B8), light.backgroundTop)
-        assertEquals(Color(0xFFA1B8CF), light.backgroundBottom)
-        assertEquals(Color(0xFFB8C6D4), light.fog)
+    fun downloadedPaletteOverridesMetadataFallback() {
+        val theme = theme()
+        val palette = rainPalette(theme, RainStyle.LightRain, dark = false)
 
-        val night = rainPalette(RainStyle.LightRain, dark = true)
-        assertEquals(Color(0xFF2C3B4E), night.backgroundTop)
-        assertEquals(Color(0xFF19222D), night.backgroundBottom)
+        assertEquals(Color(0xFF102030), palette.backgroundTop)
+        assertEquals(Color(0xFF203040), palette.backgroundBottom)
+        assertEquals(Color(0xFF607080), palette.content)
+        assertNotEquals(rainPalette(RainStyle.LightRain, false), palette)
     }
 
     @Test
-    fun heavyModesForceReadableDarkSurfaces() {
-        assertFalse(forceRainDarkTheme(RainStyle.LightRain))
-        assertFalse(forceRainDarkTheme(RainStyle.MediumRain))
-        assertTrue(forceRainDarkTheme(RainStyle.HeavyRain))
-        assertTrue(forceRainDarkTheme(RainStyle.Thunderstorm))
-        assertFalse(forceRainDarkTheme(RainStyle.AfterRain))
-        assertEquals(
-            rainPalette(RainStyle.HeavyRain, dark = false),
-            rainPalette(RainStyle.HeavyRain, dark = true),
-        )
-    }
+    fun forcedDarkAndLightningArePackageControlled() {
+        val theme = theme(forceDark = true, lightning = true)
 
-    @Test
-    fun lightningRequiresNightAnimationsAndThunderstorm() {
-        assertTrue(isRainLightningEnabled(RainStyle.Thunderstorm, dark = true, animationsEnabled = true))
-        assertFalse(isRainLightningEnabled(RainStyle.Thunderstorm, dark = false, animationsEnabled = true))
-        assertFalse(isRainLightningEnabled(RainStyle.Thunderstorm, dark = true, animationsEnabled = false))
-        assertFalse(isRainLightningEnabled(RainStyle.HeavyRain, dark = true, animationsEnabled = true))
+        assertTrue(forceRainDarkTheme(RainStyle.LightRain, theme))
+        assertTrue(isRainLightningEnabled(theme, dark = true, animationsEnabled = true))
+        assertFalse(isRainLightningEnabled(theme, dark = false, animationsEnabled = true))
+        assertFalse(isRainLightningEnabled(theme, dark = true, animationsEnabled = false))
+        assertFalse(forceRainDarkTheme(RainStyle.LightRain, null))
     }
 
     @Test
@@ -114,10 +99,59 @@ class RainStyleTest {
     }
 
     @Test
-    fun afterRainFadesRainWithoutHidingWetReflections() {
-        assertEquals(1f, afterRainRainAlpha(RainStyle.AfterRain, 0f), 0.001f)
-        assertEquals(0.59f, afterRainRainAlpha(RainStyle.AfterRain, 0.5f), 0.001f)
-        assertEquals(0.18f, afterRainRainAlpha(RainStyle.AfterRain, 1f), 0.001f)
-        assertEquals(1f, afterRainRainAlpha(RainStyle.LightRain, 1f), 0.001f)
+    fun clearOnCycleFadesRainWithoutHidingWetReflections() {
+        assertEquals(1f, rainCycleAlpha(true, 0f), 0.001f)
+        assertEquals(0.59f, rainCycleAlpha(true, 0.5f), 0.001f)
+        assertEquals(0.18f, rainCycleAlpha(true, 1f), 0.001f)
+        assertEquals(1f, rainCycleAlpha(false, 1f), 0.001f)
+    }
+
+    private fun theme(
+        forceDark: Boolean = false,
+        lightning: Boolean = false,
+        primaryCount: Int = 68,
+        secondaryCount: Int = 6,
+        cycleMillis: Int = 15_000,
+    ): InterfaceStyleTheme {
+        val light = InterfaceStylePalette(
+            background = 0xFF102030,
+            backgroundAlt = 0xFF203040,
+            surface = 0xFF304050,
+            surfaceAlt = 0xFF405060,
+            primary = 0xFF506070,
+            secondary = 0xFF708090,
+            outline = 0xFF8090A0,
+            highlight = 0xFFFFFFFF,
+            shadow = 0xFF000000,
+            muted = 0xFF90A0B0,
+            content = 0xFF607080,
+        )
+        return InterfaceStyleTheme(
+            engine = "rain",
+            variant = RainStyle.LightRain.value,
+            accent = 0xFF5E84A6,
+            forceDark = forceDark,
+            lightPalette = light,
+            darkPalette = light.copy(background = 0xFF010203),
+            scene = InterfaceStyleScene(
+                cycleMillis = cycleMillis,
+                primaryCount = primaryCount,
+                secondaryCount = secondaryCount,
+                speed = 1f,
+                angle = 0.2f,
+                minLengthDp = 18f,
+                maxLengthDp = 34f,
+                minStrokeDp = 0.5f,
+                maxStrokeDp = 1.1f,
+                minAlpha = 0.2f,
+                maxAlpha = 0.54f,
+                gridDp = 18f,
+                clearOnCycle = false,
+                lightning = lightning,
+                motifs = emptyList(),
+            ),
+            chrome = InterfaceStyleChrome(0.76f, 0.6f, 14f, 1.5f, 0.62f, 0.62f),
+            glass = InterfaceStyleGlass(0.7f, 12f, 0.55f, false, 0f, 0f, 0f),
+        )
     }
 }

@@ -123,6 +123,9 @@ fun SettingPagerMaterial(
                 .padding(top = 4.dp),
         ) {
             MaterialSettingsSection(SettingsCategory.Appearance) {
+                val interfaceStyleOptions = InterfaceStyle.selectableEntries.map {
+                    stringResource(it.labelRes)
+                } + uiState.installedInterfaceStyles.map { it.style.name }
                 SegmentedColumn(
                     content = listOf(
                         {
@@ -130,9 +133,18 @@ fun SettingPagerMaterial(
                                 icon = Icons.Rounded.Dashboard,
                                 title = stringResource(R.string.settings_ui_mode),
                                 summary = stringResource(R.string.settings_ui_mode_summary),
-                                items = InterfaceStyle.selectableEntries.map { stringResource(it.labelRes) },
-                                selectedIndex = InterfaceStyle.selectedIndex(uiState.uiMode),
-                                onItemSelected = actions.onSetUiModeIndex,
+                                items = interfaceStyleOptions,
+                                selectedIndex = uiState.interfaceStyleSelectedIndex(),
+                                onItemSelected = { index ->
+                                    if (index < InterfaceStyle.selectableEntries.size) {
+                                        actions.onSetUiModeIndex(index)
+                                    } else {
+                                        uiState.installedInterfaceStyles
+                                            .getOrNull(index - InterfaceStyle.selectableEntries.size)
+                                            ?.style
+                                            ?.let(actions.onApplyInterfaceStylePackage)
+                                    }
+                                },
                             )
                         },
                         {
@@ -150,6 +162,14 @@ fun SettingPagerMaterial(
                                 summary = stringResource(R.string.settings_theme_summary),
                                 icon = Icons.Filled.Palette,
                                 onClick = actions.onOpenTheme,
+                            )
+                        },
+                        {
+                            MaterialSettingsLink(
+                                title = stringResource(R.string.interface_style_store_title),
+                                summary = stringResource(R.string.interface_style_store_summary),
+                                icon = Icons.Rounded.Storefront,
+                                onClick = actions.onOpenInterfaceStyleStore,
                             )
                         },
                         {

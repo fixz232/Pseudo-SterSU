@@ -1,7 +1,6 @@
 package me.weishu.kernelsu.ui.component.snow
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -38,7 +37,6 @@ class SeasonStyleTest {
         assertEquals(SeasonStyle.entries.size, SeasonStyle.entries.map { it.keyColor }.toSet().size)
         SeasonStyle.entries.forEach { season ->
             assertTrue(season.value.isNotBlank())
-            assertNotEquals(0, season.wallpaperRes)
         }
     }
 

@@ -17,6 +17,8 @@ import me.weishu.kernelsu.ui.component.pixel.PixelStyle
 import me.weishu.kernelsu.ui.component.rain.LocalRainStyle
 import me.weishu.kernelsu.ui.component.rain.RainStyle
 import me.weishu.kernelsu.ui.component.rain.forceRainDarkTheme
+import me.weishu.kernelsu.ui.util.InterfaceStyleTheme
+import me.weishu.kernelsu.ui.util.LocalInterfaceStyleTheme
 import me.weishu.kernelsu.ui.util.AppFontState
 import me.weishu.kernelsu.ui.util.readAppFontState
 
@@ -168,13 +170,13 @@ fun KernelSUTheme(
 fun isInDarkTheme(): Boolean {
     if (
         LocalInterfaceStyle.current == InterfaceStyle.Rain.value &&
-        forceRainDarkTheme(LocalRainStyle.current)
+        forceRainDarkTheme(LocalRainStyle.current, LocalInterfaceStyleTheme.current)
     ) {
         return true
     }
     if (
         LocalInterfaceStyle.current == InterfaceStyle.Pixel.value &&
-        LocalPixelStyle.current == PixelStyle.CyberHacker
+        LocalInterfaceStyleTheme.current?.forceDark == true
     ) {
         return true
     }
@@ -189,9 +191,14 @@ fun isInterfaceForcedDark(
     interfaceStyle: String,
     rainStyle: RainStyle,
     pixelStyle: PixelStyle,
+    interfaceTheme: InterfaceStyleTheme? = null,
 ): Boolean {
-    return interfaceStyle == InterfaceStyle.Rain.value && forceRainDarkTheme(rainStyle) ||
-        interfaceStyle == InterfaceStyle.Pixel.value && pixelStyle == PixelStyle.CyberHacker
+    return when (interfaceStyle) {
+        InterfaceStyle.Rain.value -> forceRainDarkTheme(rainStyle, interfaceTheme)
+        InterfaceStyle.Pixel.value -> interfaceTheme?.engine == InterfaceStyle.Pixel.value &&
+            interfaceTheme.variant == pixelStyle.value && interfaceTheme.forceDark
+        else -> false
+    }
 }
 
 fun resolveEffectiveDarkMode(
@@ -200,8 +207,9 @@ fun resolveEffectiveDarkMode(
     interfaceStyle: String,
     rainStyle: RainStyle,
     pixelStyle: PixelStyle,
+    interfaceTheme: InterfaceStyleTheme? = null,
 ): Boolean {
-    return isInterfaceForcedDark(interfaceStyle, rainStyle, pixelStyle) ||
+    return isInterfaceForcedDark(interfaceStyle, rainStyle, pixelStyle, interfaceTheme) ||
         colorMode.isDark || colorMode.isSystem && systemDark
 }
 

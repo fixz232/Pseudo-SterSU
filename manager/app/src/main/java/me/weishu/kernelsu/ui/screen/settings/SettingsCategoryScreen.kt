@@ -3,6 +3,9 @@ package me.weishu.kernelsu.ui.screen.settings
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -76,6 +79,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -86,6 +90,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -101,9 +106,6 @@ import me.weishu.kernelsu.ui.InterfaceStyle
 import me.weishu.kernelsu.ui.component.StyledSwitch
 import me.weishu.kernelsu.ui.component.ApkeSecondaryScaffold
 import me.weishu.kernelsu.ui.component.ApkeUiTokens
-import me.weishu.kernelsu.ui.component.pixel.PixelStyle
-import me.weishu.kernelsu.ui.component.rain.RainStyle
-import me.weishu.kernelsu.ui.component.snow.SeasonStyle
 import me.weishu.kernelsu.ui.component.dialog.rememberLoadingDialog
 import me.weishu.kernelsu.ui.component.miuix.SendLogDialog
 import me.weishu.kernelsu.ui.component.uninstalldialog.UninstallDialog
@@ -113,6 +115,8 @@ import me.weishu.kernelsu.ui.theme.LocalImmersiveBackgroundActive
 import me.weishu.kernelsu.ui.theme.immersiveScrolledTopBarColor
 import me.weishu.kernelsu.ui.theme.immersiveSurfaceColor
 import me.weishu.kernelsu.ui.util.KPATCH_NEXT_MODULE_ID
+import me.weishu.kernelsu.ui.util.INTERFACE_STYLE_RESULT_KEY
+import me.weishu.kernelsu.ui.util.ManagerPlugin
 import me.weishu.kernelsu.ui.viewmodel.SettingsViewModel
 import me.weishu.kernelsu.ui.webui.WebUIActivity
 import me.weishu.kernelsu.ui.webmanager.WebManagerService
@@ -124,13 +128,24 @@ fun SettingsCategoryScreen(routeValue: String) {
     val viewModel = viewModel<SettingsViewModel>()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val resources = LocalResources.current
     val onBack = dropUnlessResumed { navigator.pop() }
     var showHomeTitleDialog by rememberSaveable { mutableStateOf(false) }
     var showSendLogDialog by rememberSaveable { mutableStateOf(false) }
     var showUninstallDialog by rememberSaveable { mutableStateOf(false) }
     var showStealthModeDialog by rememberSaveable { mutableStateOf(false) }
     var stealthModeDialogEnablesMode by rememberSaveable { mutableStateOf(false) }
+    var highlightedInterfaceStyleId by rememberSaveable { mutableStateOf<String?>(null) }
     val loadingDialog = rememberLoadingDialog()
+    LaunchedEffect(category, navigator) {
+        if (category == SettingsCategory.Appearance) {
+            navigator.observeResult<String>(INTERFACE_STYLE_RESULT_KEY).collect { styleId ->
+                highlightedInterfaceStyleId = styleId
+                viewModel.refresh()
+                navigator.clearResult(INTERFACE_STYLE_RESULT_KEY)
+            }
+        }
+    }
     LifecycleResumeEffect(category.routeValue) {
         viewModel.refresh()
         onPauseOrDispose { }
@@ -144,23 +159,35 @@ fun SettingsCategoryScreen(routeValue: String) {
             SettingsCategory.Appearance -> AppearanceSettingsContent(
                 uiState = uiState,
                 onSetUiMode = { selectedIndex ->
-                    val selected = InterfaceStyle.fromIndex(selectedIndex)
-                    if (selected != InterfaceStyle.Alpha || uiState.uiMode != InterfaceStyle.Delta.value) {
-                        viewModel.setUiMode(selected.value)
+                    if (selectedIndex < InterfaceStyle.selectableEntries.size) {
+                        val selected = InterfaceStyle.fromIndex(selectedIndex)
+                        if (selected != InterfaceStyle.Alpha || uiState.uiMode != InterfaceStyle.Delta.value) {
+                            viewModel.setUiMode(selected.value)
+                        }
+                    } else {
+                        uiState.installedInterfaceStyles
+                            .getOrNull(selectedIndex - InterfaceStyle.selectableEntries.size)
+                            ?.style
+                            ?.let(viewModel::applyInterfaceStylePackage)
                     }
                 },
                 onSetAlphaDeltaMode = { useDelta ->
                     viewModel.setUiMode(if (useDelta) InterfaceStyle.Delta.value else InterfaceStyle.Alpha.value)
                 },
                 onSetMiuixClassicHomeLayout = viewModel::setMiuixClassicHomeLayoutEnabled,
-                onSetSeasonStyle = viewModel::setSeasonStyleIndex,
                 onSetSeasonCardMotion = viewModel::setSeasonCardMotionEnabled,
-                onSetRainStyle = viewModel::setRainStyleIndex,
                 onSetRainCardMotion = viewModel::setRainCardMotionEnabled,
                 onSetDayNightMode = viewModel::setDayNightMode,
-                onSetPixelStyle = viewModel::setPixelStyleIndex,
                 onSetPixelCardMotion = viewModel::setPixelCardMotionEnabled,
-                onOpen = navigator::push,
+                onApplyInterfaceStylePackage = viewModel::applyInterfaceStylePackage,
+                highlightedInterfaceStyleId = highlightedInterfaceStyleId,
+                onOpen = { route ->
+                    if (route == Route.InterfaceStyleStore) {
+                        navigator.navigateForResult(route, INTERFACE_STYLE_RESULT_KEY)
+                    } else {
+                        navigator.push(route)
+                    }
+                },
             )
             SettingsCategory.HomeAndManager -> HomeManagerSettingsContent(
                 uiState = uiState,
@@ -227,7 +254,7 @@ fun SettingsCategoryScreen(routeValue: String) {
                     WebManagerService.openInBrowser(context).onFailure { error ->
                         Toast.makeText(
                             context,
-                            context.getString(R.string.web_manager_open_failed, error.message ?: "unknown error"),
+                            resources.getString(R.string.web_manager_open_failed, error.message ?: "unknown error"),
                             Toast.LENGTH_LONG,
                         ).show()
                     }
@@ -312,13 +339,12 @@ private fun AppearanceSettingsContent(
     onSetUiMode: (Int) -> Unit,
     onSetAlphaDeltaMode: (Boolean) -> Unit,
     onSetMiuixClassicHomeLayout: (Boolean) -> Unit,
-    onSetSeasonStyle: (Int) -> Unit,
     onSetSeasonCardMotion: (Boolean) -> Unit,
-    onSetRainStyle: (Int) -> Unit,
     onSetRainCardMotion: (Boolean) -> Unit,
     onSetDayNightMode: (Boolean) -> Unit,
-    onSetPixelStyle: (Int) -> Unit,
     onSetPixelCardMotion: (Boolean) -> Unit,
+    onApplyInterfaceStylePackage: (me.weishu.kernelsu.ui.util.InterfaceStylePackage) -> Unit,
+    highlightedInterfaceStyleId: String?,
     onOpen: (Route) -> Unit,
 ) {
     val styles = InterfaceStyle.selectableEntries
@@ -327,8 +353,9 @@ private fun AppearanceSettingsContent(
             title = stringResource(R.string.settings_ui_mode),
             summary = stringResource(R.string.settings_ui_mode_summary),
             icon = Icons.Rounded.Dashboard,
-            options = styles.map { stringResource(it.labelRes) },
-            selectedIndex = InterfaceStyle.selectedIndex(uiState.uiMode),
+            options = styles.map { stringResource(it.labelRes) } +
+                uiState.installedInterfaceStyles.map { it.style.name },
+            selectedIndex = uiState.interfaceStyleSelectedIndex(),
             onSelected = onSetUiMode,
         )
         if (uiState.uiMode == InterfaceStyle.Miuix.value) {
@@ -355,17 +382,37 @@ private fun AppearanceSettingsContent(
                 onSelected = { onSetAlphaDeltaMode(it == 1) },
             )
         }
-        if (uiState.uiMode == InterfaceStyle.Snow.value) {
+        uiState.installedInterfaceStyles.forEach { installed ->
+            val bringIntoViewRequester = remember(installed.style.id) { BringIntoViewRequester() }
+            val highlighted = installed.style.id == highlightedInterfaceStyleId
+            LaunchedEffect(highlighted) {
+                if (highlighted) bringIntoViewRequester.bringIntoView()
+            }
             SettingsDivider()
-            val selected = SeasonStyle.fromValue(uiState.seasonStyle)
-            SettingsChoiceRow(
-                title = stringResource(R.string.settings_season_style),
-                summary = stringResource(selected.summaryRes),
+            val applied = installed.style.engine == uiState.uiMode && when (installed.style.engine) {
+                InterfaceStyle.Snow.value -> installed.style.variant == uiState.seasonStyle
+                InterfaceStyle.Rain.value -> installed.style.variant == uiState.rainStyle
+                InterfaceStyle.Pixel.value -> installed.style.variant == uiState.pixelStyle
+                else -> true
+            }
+            SettingsActionRow(
+                title = installed.style.name,
+                summary = installed.style.summary.ifBlank { installed.style.engine },
                 icon = Icons.Rounded.Palette,
-                options = SeasonStyle.entries.map { stringResource(it.labelRes) },
-                selectedIndex = SeasonStyle.selectedIndex(uiState.seasonStyle),
-                onSelected = onSetSeasonStyle,
+                trailingText = if (applied) stringResource(R.string.theme_store_applied) else null,
+                highlighted = highlighted,
+                modifier = Modifier.bringIntoViewRequester(bringIntoViewRequester),
+                onClick = { onApplyInterfaceStylePackage(installed.style) },
             )
+        }
+        SettingsDivider()
+        SettingsActionRow(
+            title = stringResource(R.string.interface_style_store_title),
+            summary = stringResource(R.string.interface_style_store_summary),
+            icon = Icons.Rounded.Storefront,
+            onClick = { onOpen(Route.InterfaceStyleStore) },
+        )
+        if (uiState.uiMode == InterfaceStyle.Snow.value) {
             SettingsDivider()
             SettingsSwitchRow(
                 title = stringResource(R.string.settings_season_card_motion),
@@ -377,16 +424,6 @@ private fun AppearanceSettingsContent(
         }
         if (uiState.uiMode == InterfaceStyle.Rain.value) {
             SettingsDivider()
-            val selected = RainStyle.fromValue(uiState.rainStyle)
-            SettingsChoiceRow(
-                title = stringResource(R.string.settings_rain_style),
-                summary = stringResource(selected.summaryRes),
-                icon = Icons.Rounded.Palette,
-                options = RainStyle.entries.map { stringResource(it.labelRes) },
-                selectedIndex = RainStyle.selectedIndex(uiState.rainStyle),
-                onSelected = onSetRainStyle,
-            )
-            SettingsDivider()
             SettingsSwitchRow(
                 title = stringResource(R.string.settings_rain_card_motion),
                 summary = stringResource(R.string.settings_rain_card_motion_summary),
@@ -396,16 +433,6 @@ private fun AppearanceSettingsContent(
             )
         }
         if (uiState.uiMode == InterfaceStyle.Pixel.value) {
-            SettingsDivider()
-            val selected = PixelStyle.fromValue(uiState.pixelStyle)
-            SettingsChoiceRow(
-                title = stringResource(R.string.settings_pixel_style),
-                summary = stringResource(selected.summaryRes),
-                icon = Icons.Rounded.Palette,
-                options = PixelStyle.entries.map { stringResource(it.labelRes) },
-                selectedIndex = PixelStyle.selectedIndex(uiState.pixelStyle),
-                onSelected = onSetPixelStyle,
-            )
             SettingsDivider()
             SettingsSwitchRow(
                 title = stringResource(R.string.settings_pixel_card_motion),
@@ -680,44 +707,56 @@ private fun ToolboxSettingsContent(
     onOpen: (Route) -> Unit,
     onSetGraphicsRendererEnabled: (Boolean) -> Unit,
 ) {
-    SettingsGroup(stringResource(R.string.settings_toolbox_group_recovery)) {
+    SettingsGroup(stringResource(R.string.plugin_store_title)) {
         SettingsActionRow(
+            title = stringResource(R.string.plugin_store_title),
+            summary = stringResource(R.string.plugin_store_security_notice),
+            icon = Icons.Rounded.Storefront,
+            onClick = { onOpen(Route.PluginStore) },
+        )
+    }
+    if (uiState.hasPlugin(ManagerPlugin.RescueProtection) || uiState.hasPlugin(ManagerPlugin.ImageTools)) {
+    SettingsGroup(stringResource(R.string.settings_toolbox_group_recovery)) {
+        if (uiState.hasPlugin(ManagerPlugin.RescueProtection)) SettingsActionRow(
             title = stringResource(R.string.rescue_protection),
             summary = stringResource(R.string.rescue_protection_summary),
             icon = Icons.Rounded.Security,
             onClick = { onOpen(Route.RescueProtection) },
         )
-        SettingsDivider()
-        SettingsActionRow(
+        if (uiState.hasPlugin(ManagerPlugin.RescueProtection) && uiState.hasPlugin(ManagerPlugin.ImageTools)) SettingsDivider()
+        if (uiState.hasPlugin(ManagerPlugin.ImageTools)) SettingsActionRow(
             title = stringResource(R.string.image_tool_title),
             summary = stringResource(R.string.image_tool_settings_summary),
             icon = Icons.Rounded.ImageSearch,
             onClick = { onOpen(Route.ImageTool) },
         )
     }
+    }
+    if (uiState.hasPlugin(ManagerPlugin.CpuSpoof) || uiState.hasPlugin(ManagerPlugin.DeviceIdentity) ||
+        uiState.hasPlugin(ManagerPlugin.GraphicsRenderer) || uiState.isKpmSettingsEntryVisible) {
     SettingsGroup(stringResource(R.string.settings_toolbox_group_system_identity)) {
-        SettingsActionRow(
+        if (uiState.hasPlugin(ManagerPlugin.CpuSpoof)) SettingsActionRow(
             title = stringResource(R.string.settings_cpu_spoof),
             summary = stringResource(R.string.settings_cpu_spoof_summary),
             icon = Icons.Rounded.DeveloperMode,
             onClick = { onOpen(Route.CpuSpoof) },
         )
-        SettingsDivider()
-        SettingsActionRow(
+        if (uiState.hasPlugin(ManagerPlugin.CpuSpoof) && uiState.hasPlugin(ManagerPlugin.DeviceIdentity)) SettingsDivider()
+        if (uiState.hasPlugin(ManagerPlugin.DeviceIdentity)) SettingsActionRow(
             title = stringResource(R.string.settings_device_identity),
             summary = stringResource(R.string.settings_device_identity_summary),
             icon = Icons.Rounded.Badge,
             onClick = { onOpen(Route.DeviceIdentity) },
         )
-        SettingsDivider()
-        SettingsSwitchRow(
+        if (uiState.hasPlugin(ManagerPlugin.GraphicsRenderer)) SettingsDivider()
+        if (uiState.hasPlugin(ManagerPlugin.GraphicsRenderer)) SettingsSwitchRow(
             title = stringResource(R.string.settings_graphics_renderer_tool),
             summary = stringResource(R.string.settings_graphics_renderer_tool_summary),
             icon = Icons.Rounded.Tune,
             checked = uiState.graphicsRendererFeatureEnabled,
             onCheckedChange = onSetGraphicsRendererEnabled,
         )
-        if (uiState.graphicsRendererFeatureEnabled) {
+        if (uiState.hasPlugin(ManagerPlugin.GraphicsRenderer) && uiState.graphicsRendererFeatureEnabled) {
             SettingsDivider()
             SettingsActionRow(
                 title = stringResource(R.string.settings_graphics_renderer),
@@ -736,6 +775,8 @@ private fun ToolboxSettingsContent(
             )
         }
     }
+    }
+    if (uiState.hasPlugin(ManagerPlugin.AiChat)) {
     SettingsGroup(stringResource(R.string.settings_toolbox_group_creative)) {
         SettingsActionRow(
             title = stringResource(R.string.settings_ai_chat),
@@ -743,6 +784,7 @@ private fun ToolboxSettingsContent(
             icon = Icons.Rounded.AutoFixHigh,
             onClick = { onOpen(Route.AiChat) },
         )
+    }
     }
 }
 
@@ -820,7 +862,7 @@ private fun AppMaintenanceSettingsContent(
             onCheckedChange = onSetAutoJailbreak,
         )
     }
-    SettingsGroup(stringResource(R.string.settings_group_web_manager)) {
+    if (uiState.hasPlugin(ManagerPlugin.RemoteManagementSuite)) SettingsGroup(stringResource(R.string.settings_group_web_manager)) {
         SettingsSwitchRow(
             title = stringResource(R.string.web_manager_auto_start),
             summary = stringResource(R.string.web_manager_auto_start_summary),
@@ -914,6 +956,8 @@ private fun SettingsActionRow(
     enabled: Boolean = true,
     destructive: Boolean = false,
     trailingText: String? = null,
+    highlighted: Boolean = false,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     val accent = when {
@@ -922,8 +966,12 @@ private fun SettingsActionRow(
         else -> MaterialTheme.colorScheme.primary
     }
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
+            .background(
+                if (highlighted) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+                else Color.Transparent,
+            )
             .clickable(enabled = enabled, onClick = onClick)
             .heightIn(min = 60.dp)
             .padding(horizontal = 12.dp, vertical = 8.dp),

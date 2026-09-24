@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -101,7 +102,11 @@ import java.text.DateFormat
 import java.util.Date
 
 @Composable
-fun ThemeStoreLibraryScreen() {
+fun ThemeStoreLibraryScreen(
+    modifier: Modifier = Modifier,
+    embedded: Boolean = false,
+    headerContent: (@Composable ColumnScope.(busy: Boolean) -> Unit)? = null,
+) {
     val context = LocalContext.current
     val resources = LocalResources.current
     val navigator = LocalNavigator.current
@@ -221,7 +226,8 @@ fun ThemeStoreLibraryScreen() {
         ThemeStoreMyContent(
             themes = themes,
             busy = busy,
-            modifier = Modifier.padding(paddingValues),
+            modifier = modifier.padding(paddingValues),
+            headerContent = headerContent,
             onSaveCurrent = { showSaveDialog = true },
             onImport = {
                 importLauncher.launch(
@@ -239,7 +245,9 @@ fun ThemeStoreLibraryScreen() {
     }
     val onBack = dropUnlessResumed { navigator.pop() }
 
-    if (LocalInterfaceStyle.current == InterfaceStyle.Skrootpro.value) {
+    if (embedded) {
+        content(PaddingValues())
+    } else if (LocalInterfaceStyle.current == InterfaceStyle.Skrootpro.value) {
         SkrootproScreen(
             title = stringResource(R.string.theme_store_my_library_title),
             bottomInnerPadding = 0.dp,
@@ -402,6 +410,7 @@ private fun ThemeStoreMyContent(
     themes: List<ThemeLibraryEntry>,
     busy: Boolean,
     modifier: Modifier = Modifier,
+    headerContent: (@Composable ColumnScope.(busy: Boolean) -> Unit)?,
     onSaveCurrent: () -> Unit,
     onImport: () -> Unit,
     onApply: (ThemeLibraryEntry) -> Unit,
@@ -414,6 +423,14 @@ private fun ThemeStoreMyContent(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        headerContent?.let { header ->
+            item {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    content = { header(busy) },
+                )
+            }
+        }
         item {
             ThemeLibraryActionPanel(
                 themeCount = themes.size,

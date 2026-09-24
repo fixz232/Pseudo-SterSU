@@ -133,6 +133,12 @@ fun SettingPagerAlpha(
                     },
                 )
                 AlphaActionRow(
+                    title = stringResource(R.string.interface_style_store_title),
+                    summary = stringResource(R.string.interface_style_store_summary),
+                    icon = Icons.Rounded.Storefront,
+                    onClick = actions.onOpenInterfaceStyleStore,
+                )
+                AlphaActionRow(
                     title = stringResource(R.string.theme_store),
                     summary = stringResource(R.string.theme_store_settings_summary),
                     icon = Icons.Rounded.Storefront,
@@ -682,6 +688,27 @@ private fun AlphaStylePicker(
                         selected -> AlphaColors.OnAccent
                         else -> AlphaColors.Muted
                     },
+                    fontSize = alphaSp(13f, maxScale = 1.0f),
+                    fontWeight = alphaStrongWeight(),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        uiState.installedInterfaceStyles.forEach { installed ->
+            val selected = uiState.isInterfaceStyleActive(installed.style)
+            Row(
+                modifier = Modifier
+                    .height(if (snow) 36.dp else 34.dp)
+                    .clip(AlphaShapes.Control)
+                    .background(if (selected) AlphaColors.Accent else AlphaColors.SurfaceStrong)
+                    .clickable { actions.onApplyInterfaceStylePackage(installed.style) }
+                    .padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = installed.style.name,
+                    color = if (selected) AlphaColors.OnAccent else AlphaColors.Muted,
                     fontSize = alphaSp(13f, maxScale = 1.0f),
                     fontWeight = alphaStrongWeight(),
                     maxLines = 1,

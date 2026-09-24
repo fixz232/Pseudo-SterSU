@@ -8,7 +8,7 @@ use std::{
     ffi::CString,
     fs::{self, File, OpenOptions},
     io::{self, Write},
-    os::fd::{AsRawFd, FromRawFd},
+    os::fd::{AsRawFd, FromRawFd, RawFd},
     path::{Component, Path, PathBuf},
     process::Command,
     thread,
@@ -1529,27 +1529,9 @@ impl PackageChangeMonitor {
     }
 
     fn wait_for_change(&self, timeout_ms: i32) -> io::Result<bool> {
-        let mut poll_fd = libc::pollfd {
-            fd: self.file.as_raw_fd(),
-            events: libc::POLLIN,
-            revents: 0,
-        };
-        let result = unsafe { libc::poll(&raw mut poll_fd, 1, timeout_ms) };
-        if result < 0 {
-            let error = io::Error::last_os_error();
-            return if error.kind() == io::ErrorKind::Interrupted {
-                Ok(false)
-            } else {
-                Err(error)
-            };
-        }
-        if result == 0 {
-            return Ok(false);
-        }
-        if poll_fd.revents & (libc::POLLERR | libc::POLLHUP | libc::POLLNVAL) != 0 {
-            return Err(io::Error::other("inotify poll descriptor became invalid"));
-        }
-        self.read_relevant_events()
+        wait_for_relevant_inotify_event(self.file.as_raw_fd(), timeout_ms, || {
+            self.read_relevant_events()
+        })
     }
 
     fn read_relevant_events(&self) -> io::Result<bool> {
@@ -1656,27 +1638,9 @@ impl LateTargetChangeMonitor {
     }
 
     fn wait_for_change(&self, timeout_ms: i32) -> io::Result<bool> {
-        let mut poll_fd = libc::pollfd {
-            fd: self.file.as_raw_fd(),
-            events: libc::POLLIN,
-            revents: 0,
-        };
-        let result = unsafe { libc::poll(&raw mut poll_fd, 1, timeout_ms) };
-        if result < 0 {
-            let error = io::Error::last_os_error();
-            return if error.kind() == io::ErrorKind::Interrupted {
-                Ok(false)
-            } else {
-                Err(error)
-            };
-        }
-        if result == 0 {
-            return Ok(false);
-        }
-        if poll_fd.revents & (libc::POLLERR | libc::POLLHUP | libc::POLLNVAL) != 0 {
-            return Err(io::Error::other("inotify poll descriptor became invalid"));
-        }
-        self.read_relevant_events()
+        wait_for_relevant_inotify_event(self.file.as_raw_fd(), timeout_ms, || {
+            self.read_relevant_events()
+        })
     }
 
     fn read_relevant_events(&self) -> io::Result<bool> {
@@ -1736,6 +1700,56 @@ impl LateTargetChangeMonitor {
             offset = name_end;
         }
         false
+    }
+}
+
+fn wait_for_relevant_inotify_event(
+    fd: RawFd,
+    timeout_ms: i32,
+    mut read_relevant_events: impl FnMut() -> io::Result<bool>,
+) -> io::Result<bool> {
+    // Directory watches also receive events from operation.lock and runtime
+    // state files. Drain those without restarting the outer reconcile loop.
+    let deadline =
+        (timeout_ms >= 0).then(|| Instant::now() + Duration::from_millis(timeout_ms as u64));
+
+    loop {
+        let remaining_ms = deadline.map_or(-1, |deadline| {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                0
+            } else {
+                remaining
+                    .as_millis()
+                    .saturating_add(1)
+                    .min(i32::MAX as u128) as i32
+            }
+        });
+        let mut poll_fd = libc::pollfd {
+            fd,
+            events: libc::POLLIN,
+            revents: 0,
+        };
+        let result = unsafe { libc::poll(&raw mut poll_fd, 1, remaining_ms) };
+        if result < 0 {
+            let error = io::Error::last_os_error();
+            if error.kind() == io::ErrorKind::Interrupted {
+                continue;
+            }
+            return Err(error);
+        }
+        if result == 0 {
+            return Ok(false);
+        }
+        if poll_fd.revents & (libc::POLLERR | libc::POLLHUP | libc::POLLNVAL) != 0 {
+            return Err(io::Error::other("inotify poll descriptor became invalid"));
+        }
+        if read_relevant_events()? {
+            return Ok(true);
+        }
+        if timeout_ms == 0 {
+            return Ok(false);
+        }
     }
 }
 
@@ -3356,6 +3370,7 @@ mod tests {
     use std::{
         collections::{BTreeMap, BTreeSet},
         fs,
+        time::{Duration, Instant},
     };
 
     use super::{
@@ -3596,6 +3611,22 @@ mod tests {
                 .wait_for_change(1_000)
                 .expect("read target event")
         );
+    }
+
+    #[test]
+    fn late_target_monitor_ignores_unrelated_directory_events_until_timeout() {
+        let temp = tempfile::tempdir().expect("create temp directory");
+        let target = temp.path().join("expected-target");
+        let config = PathmaskConfig {
+            target_paths: vec![target.to_string_lossy().into_owned()],
+            ..PathmaskConfig::default()
+        };
+        let monitor = LateTargetChangeMonitor::new(&config).expect("watch target parent");
+
+        fs::write(temp.path().join("operation.lock"), b"").expect("create unrelated file");
+        let started = Instant::now();
+        assert!(!monitor.wait_for_change(100).expect("wait for target event"));
+        assert!(started.elapsed() >= Duration::from_millis(50));
     }
 
     #[test]

@@ -4,6 +4,7 @@ import android.content.Context
 import me.weishu.kernelsu.Natives
 import me.weishu.kernelsu.ksuApp
 import me.weishu.kernelsu.ui.theme.ThemePreset
+import me.weishu.kernelsu.ui.util.InterfaceStylePackage
 import me.weishu.kernelsu.ui.theme.CustomThemePreset
 import me.weishu.kernelsu.ui.theme.ThemeSyncStrategy
 import me.weishu.kernelsu.ui.component.NightBackgroundEffect
@@ -177,6 +178,7 @@ interface SettingsRepository {
 
     /** Switches style and its shared appearance values in one preferences transaction. */
     fun applyInterfaceStyle(mode: String, preset: ThemePreset?, preservedColorMode: Int)
+    fun applyInterfaceStylePackage(style: InterfaceStylePackage)
     fun applyThemePreset(preset: ThemePreset)
     fun saveCustomThemePreset(name: String): CustomThemePreset?
     fun applyCustomThemePreset(presetId: String): Boolean

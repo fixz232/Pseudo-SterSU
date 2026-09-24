@@ -112,16 +112,7 @@ import me.weishu.kernelsu.ui.component.liquid.globalLiquidGlassButton
 import me.weishu.kernelsu.ui.component.liquid.globalLiquidGlassSurface
 import me.weishu.kernelsu.ui.component.liquid.FrostedGlassCardStyle
 import me.weishu.kernelsu.ui.component.liquid.isLiquidGlassTheme
-import me.weishu.kernelsu.ui.component.pixel.PixelBianliangMotto
-import me.weishu.kernelsu.ui.component.pixel.PixelCloudTownMotto
-import me.weishu.kernelsu.ui.component.pixel.PixelDunhuangMotto
-import me.weishu.kernelsu.ui.component.pixel.PixelFishingHarborMotto
-import me.weishu.kernelsu.ui.component.pixel.PixelJiangnanMotto
-import me.weishu.kernelsu.ui.component.pixel.PixelLavaValleyMotto
-import me.weishu.kernelsu.ui.component.pixel.PixelOceanMotto
-import me.weishu.kernelsu.ui.component.pixel.PixelThreeKingdomsMotto
-import me.weishu.kernelsu.ui.component.pixel.PixelTribalJungleMotto
-import me.weishu.kernelsu.ui.component.pixel.PixelVikingMotto
+import me.weishu.kernelsu.ui.component.pixel.PixelMotto
 import me.weishu.kernelsu.ui.component.pixel.pixelAwareMiuixCardCornerRadius
 import me.weishu.kernelsu.ui.component.snow.SeasonMotto
 import me.weishu.kernelsu.ui.component.rain.RainMotto
@@ -245,52 +236,7 @@ fun HomePagerMiuix(
                                 .fillMaxWidth(0.76f)
                                 .widthIn(max = 300.dp),
                         )
-                        PixelOceanMotto(
-                            modifier = Modifier
-                                .fillMaxWidth(0.76f)
-                                .widthIn(max = 300.dp),
-                        )
-                        PixelThreeKingdomsMotto(
-                            modifier = Modifier
-                                .fillMaxWidth(0.76f)
-                                .widthIn(max = 300.dp),
-                        )
-                        PixelBianliangMotto(
-                            modifier = Modifier
-                                .fillMaxWidth(0.76f)
-                                .widthIn(max = 300.dp),
-                        )
-                        PixelFishingHarborMotto(
-                            modifier = Modifier
-                                .fillMaxWidth(0.76f)
-                                .widthIn(max = 300.dp),
-                        )
-                        PixelTribalJungleMotto(
-                            modifier = Modifier
-                                .fillMaxWidth(0.76f)
-                                .widthIn(max = 300.dp),
-                        )
-                        PixelLavaValleyMotto(
-                            modifier = Modifier
-                                .fillMaxWidth(0.76f)
-                                .widthIn(max = 300.dp),
-                        )
-                        PixelDunhuangMotto(
-                            modifier = Modifier
-                                .fillMaxWidth(0.76f)
-                                .widthIn(max = 300.dp),
-                        )
-                        PixelVikingMotto(
-                            modifier = Modifier
-                                .fillMaxWidth(0.76f)
-                                .widthIn(max = 300.dp),
-                        )
-                        PixelJiangnanMotto(
-                            modifier = Modifier
-                                .fillMaxWidth(0.76f)
-                                .widthIn(max = 300.dp),
-                        )
-                        PixelCloudTownMotto(
+                        PixelMotto(
                             modifier = Modifier
                                 .fillMaxWidth(0.76f)
                                 .widthIn(max = 300.dp),

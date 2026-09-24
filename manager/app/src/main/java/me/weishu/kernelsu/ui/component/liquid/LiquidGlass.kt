@@ -22,6 +22,8 @@ import me.weishu.kernelsu.ui.InterfaceStyle
 import me.weishu.kernelsu.ui.LocalInterfaceStyle
 import me.weishu.kernelsu.ui.theme.LocalBlurIntensity
 import me.weishu.kernelsu.ui.theme.isInDarkTheme
+import me.weishu.kernelsu.ui.util.InterfaceStylePalette
+import me.weishu.kernelsu.ui.util.LocalInterfaceStyleTheme
 import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
 import top.yukonga.miuix.kmp.blur.Backdrop
 import top.yukonga.miuix.kmp.blur.blur
@@ -68,7 +70,10 @@ fun isLiquidGlassTheme(): Boolean {
 @ReadOnlyComposable
 fun liquidGlassBackdropColor(): Color {
     return if (isLiquidGlassTheme()) {
-        if (isInDarkTheme()) FrostedGlassTokens.DarkBackground else FrostedGlassTokens.Background
+        val theme = LocalInterfaceStyleTheme.current
+        val palette = theme?.let { if (isInDarkTheme() || it.forceDark) it.darkPalette else it.lightPalette }
+        palette?.let { Color(it.background) }
+            ?: if (isInDarkTheme()) FrostedGlassTokens.DarkBackground else FrostedGlassTokens.Background
     } else {
         MiuixTheme.colorScheme.surface
     }
@@ -77,7 +82,10 @@ fun liquidGlassBackdropColor(): Color {
 @Composable
 @ReadOnlyComposable
 fun liquidGlassSurfaceColor(): Color {
-    return if (isInDarkTheme()) FrostedGlassTokens.DarkSurface else FrostedGlassTokens.Surface
+    val theme = LocalInterfaceStyleTheme.current
+    val palette = theme?.let { if (isInDarkTheme() || it.forceDark) it.darkPalette else it.lightPalette }
+    return palette?.let { Color(it.surface) }
+        ?: if (isInDarkTheme()) FrostedGlassTokens.DarkSurface else FrostedGlassTokens.Surface
 }
 
 fun Modifier.liquidGlassSurface(
@@ -93,18 +101,26 @@ fun Modifier.liquidGlassSurface(
     strokeAlpha: Float = 0.70f,
     darkMode: Boolean = false,
     cardStyle: FrostedGlassCardStyle = FrostedGlassCardStyle.Mist,
+    themePalette: InterfaceStylePalette? = null,
 ): Modifier {
     val boundedAlpha = surfaceAlpha.coerceIn(0f, 1f)
     val glassBase = surfaceColor.copy(alpha = boundedAlpha)
-    val sheen = if (darkMode) FrostedGlassTokens.DarkSurfaceTint else FrostedGlassTokens.SurfaceTint
-    val frost = if (darkMode) FrostedGlassTokens.DarkFrost else FrostedGlassTokens.Frost
-    val stroke = if (darkMode) FrostedGlassTokens.DarkStroke else FrostedGlassTokens.Stroke
-    val subtleStroke = if (darkMode) FrostedGlassTokens.DarkSubtleStroke else FrostedGlassTokens.SubtleStroke
-    val shadow = if (darkMode) FrostedGlassTokens.DarkShadow else FrostedGlassTokens.Shadow
+    val sheen = themePalette?.let { Color(it.surfaceAlt) }
+        ?: if (darkMode) FrostedGlassTokens.DarkSurfaceTint else FrostedGlassTokens.SurfaceTint
+    val frost = themePalette?.let { Color(it.muted) }
+        ?: if (darkMode) FrostedGlassTokens.DarkFrost else FrostedGlassTokens.Frost
+    val stroke = themePalette?.let { Color(it.highlight) }
+        ?: if (darkMode) FrostedGlassTokens.DarkStroke else FrostedGlassTokens.Stroke
+    val subtleStroke = themePalette?.let { Color(it.outline) }
+        ?: if (darkMode) FrostedGlassTokens.DarkSubtleStroke else FrostedGlassTokens.SubtleStroke
+    val shadow = themePalette?.let { Color(it.shadow) }
+        ?: if (darkMode) FrostedGlassTokens.DarkShadow else FrostedGlassTokens.Shadow
     val styleTint = when (cardStyle) {
         FrostedGlassCardStyle.Mist -> frost
-        FrostedGlassCardStyle.Ice -> if (darkMode) FrostedGlassTokens.DarkIce else FrostedGlassTokens.Ice
-        FrostedGlassCardStyle.Pearl -> if (darkMode) FrostedGlassTokens.DarkPearl else FrostedGlassTokens.Pearl
+        FrostedGlassCardStyle.Ice -> themePalette?.let { Color(it.primary) }
+            ?: if (darkMode) FrostedGlassTokens.DarkIce else FrostedGlassTokens.Ice
+        FrostedGlassCardStyle.Pearl -> themePalette?.let { Color(it.secondary) }
+            ?: if (darkMode) FrostedGlassTokens.DarkPearl else FrostedGlassTokens.Pearl
     }
     val frostSheen = Brush.verticalGradient(
         listOf(
@@ -220,26 +236,30 @@ fun Modifier.globalLiquidGlassSurface(
     if (!isLiquidGlassTheme()) return this
     val blurIntensity = LocalBlurIntensity.current
     val darkMode = isInDarkTheme()
+    val interfaceTheme = LocalInterfaceStyleTheme.current?.takeIf { it.engine == InterfaceStyle.LiquidGlass.value }
+    val glass = interfaceTheme?.glass
+    val themePalette = interfaceTheme?.let { if (darkMode || it.forceDark) it.darkPalette else it.lightPalette }
     val resolvedSurfaceColor = if (surfaceColor == Color.Unspecified) {
         liquidGlassSurfaceColor()
     } else {
         surfaceColor
     }
-    val scaledBlurRadius = blurRadius * blurIntensity
+    val scaledBlurRadius = (glass?.blurDp?.dp ?: blurRadius) * blurIntensity
     val effectiveBlurRadius = if (scaledBlurRadius < 12.dp) 12.dp else scaledBlurRadius
     return liquidGlassSurface(
         backdrop = LocalLiquidGlassBackdrop.current,
         shape = shape,
         surfaceColor = resolvedSurfaceColor,
-        surfaceAlpha = surfaceAlpha,
+        surfaceAlpha = glass?.surfaceAlpha ?: surfaceAlpha,
         blurRadius = effectiveBlurRadius,
-        enableRefraction = enableRefraction,
-        refractionHeight = refractionHeight,
-        refractionAmount = refractionAmount,
-        chromaticAberration = chromaticAberration,
-        strokeAlpha = strokeAlpha,
+        enableRefraction = glass?.refraction ?: enableRefraction,
+        refractionHeight = glass?.refractionHeightDp?.dp ?: refractionHeight,
+        refractionAmount = glass?.refractionAmountDp?.dp ?: refractionAmount,
+        chromaticAberration = glass?.chromaticAberration ?: chromaticAberration,
+        strokeAlpha = glass?.strokeAlpha ?: strokeAlpha,
         darkMode = darkMode,
         cardStyle = cardStyle,
+        themePalette = themePalette,
     )
 }
 

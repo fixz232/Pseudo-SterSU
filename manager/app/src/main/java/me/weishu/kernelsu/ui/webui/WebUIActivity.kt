@@ -103,6 +103,8 @@ import me.weishu.kernelsu.ui.util.sanitizeCustomWallpaperPassthroughOpacity
 import me.weishu.kernelsu.ui.util.readMediaVisualSettings
 import me.weishu.kernelsu.ui.util.LocalScrollAnimation
 import me.weishu.kernelsu.ui.util.LocalScrollAnimationEffect
+import me.weishu.kernelsu.ui.util.LocalInterfaceStyleTheme
+import me.weishu.kernelsu.ui.util.interfaceStyleTheme
 import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
 
 @SuppressLint("SetJavaScriptEnabled")
@@ -131,12 +133,21 @@ class WebUIActivity : ComponentActivity() {
             val localColorMode = appSettings.colorMode.value
             val rainStyle = RainStyle.fromValue(visualEffectsState.rainStyle)
             val pixelStyle = PixelStyle.fromValue(visualEffectsState.pixelStyle)
+            val externalTheme = remember(uiModeValue, visualEffectsState.rainStyle, visualEffectsState.pixelStyle) {
+                val variant = when (uiModeValue) {
+                    InterfaceStyle.Rain.value -> visualEffectsState.rainStyle
+                    InterfaceStyle.Pixel.value -> visualEffectsState.pixelStyle
+                    else -> null
+                }
+                interfaceStyleTheme(context, uiModeValue, variant)
+            }
             val darkMode = resolveEffectiveDarkMode(
                 colorMode = appSettings.colorMode,
                 systemDark = isSystemInDarkTheme(),
                 interfaceStyle = uiModeValue,
                 rainStyle = rainStyle,
                 pixelStyle = pixelStyle,
+                interfaceTheme = externalTheme,
             )
             val selectedNightEffect = NightBackgroundEffect.fromValue(visualEffectsState.nightBackgroundEffect)
 
@@ -162,6 +173,7 @@ class WebUIActivity : ComponentActivity() {
             CompositionLocalProvider(
                 LocalUiMode provides uiMode,
                 LocalInterfaceStyle provides uiModeValue,
+                LocalInterfaceStyleTheme provides externalTheme,
                 LocalColorMode provides localColorMode,
                 LocalSwitchStyle provides SwitchStyle.fromValue(visualEffectsState.switchStyle),
                 LocalSeasonStyle provides SeasonStyle.fromValue(visualEffectsState.seasonStyle),
