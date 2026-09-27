@@ -21,7 +21,7 @@ object ManagerUpdateChecker {
     private const val RELEASE_API_URL = "https://api.github.com/repos/fixz232/ApkeSU/releases/latest"
     private const val APK_MIME_TYPE = "application/vnd.android.package-archive"
     private const val PREF_CHECK_UPDATE = "check_update"
-    private val apkNamePattern = Regex("""^ApkeSU_(.+)_(\d+)(?:-[^.]+)?\.apk$""", RegexOption.IGNORE_CASE)
+    private val apkNamePattern = Regex("""^(?:SterSU|ApkeSU)_(.+)_(\d+)(?:-[^.]+)?\.apk$""", RegexOption.IGNORE_CASE)
     private val trailingVersionCodePattern = Regex("""_(\d+)(?:-[^.]+)?\.apk$""", RegexOption.IGNORE_CASE)
     private val releaseVersionCodePattern = Regex("""(?im)^\s*versionCode\s*[:=]\s*(\d+)\s*$""")
     private val forceUpdatePattern = Regex("""(?im)^\s*(forceUpdate|force_update|mandatoryUpdate|mandatory_update)\s*[:=]\s*(true|1|yes|on)\s*$""")

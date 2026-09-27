@@ -206,7 +206,7 @@
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         const message = data.error && data.error.message;
-        if (response.status === 401) showAuthGate('签名验证失败', message || '请从 ApkeSU 重新打开并配对此浏览器。', true);
+        if (response.status === 401) showAuthGate('签名验证失败', message || '请从 SterSU 重新打开并配对此浏览器。', true);
         throw new Error(message || `请求失败 (${response.status})`);
       }
       return data;
@@ -260,12 +260,12 @@
         return true;
       }
       if (!status.paired) {
-        showAuthGate('需要首次配对', '请从 ApkeSU 软件管理器的“网页管理器”入口打开本页面。', true);
+        showAuthGate('需要首次配对', '请从 SterSU 软件管理器的“网页管理器”入口打开本页面。', true);
         return false;
       }
       if (!credential || credential.keyId !== status.keyId || !credential.privateKey) {
         await clearStoredCredential().catch(() => {});
-        showAuthGate('此浏览器未获授权', '签名密钥不存在或已被撤销，请从 ApkeSU 重新打开网页管理器完成配对。', true);
+        showAuthGate('此浏览器未获授权', '签名密钥不存在或已被撤销，请从 SterSU 重新打开网页管理器完成配对。', true);
         return false;
       }
       authCredential = credential;
@@ -478,11 +478,11 @@
     const state = kernelStateOf(status);
     const messages = [];
     if (!state.available) {
-      messages.push('ApkeSU 内核驱动未连接，超级用户与模块操作可能不可用。请检查内核安装状态。');
+      messages.push('SterSU 内核驱动未连接，超级用户与模块操作可能不可用。请检查内核安装状态。');
       return messages;
     }
     if (state.tone === 'warn') {
-      messages.push(`管理器版本 (${String(userspace.versionCode || '').trim()}) 与 ApkeSU 驱动版本 (${kernel.version}) 不匹配。`);
+      messages.push(`管理器版本 (${String(userspace.versionCode || '').trim()}) 与 SterSU 驱动版本 (${kernel.version}) 不匹配。`);
     }
     if (state.mode === 'gki') {
       messages.push('自 v3.0.0 起 GKI 工作模式将仅用于测试环境，我们不建议用于日常使用，也不再提供镜像文件');
@@ -592,7 +592,7 @@
     extraTag.classList.toggle('alert', runtime.lateLoad);
     $('kernel-sub').textContent = runtime.available
       ? `已安装版本：${kernel.version}${kernel.uapiVersion ? `-${kernel.uapiVersion}` : ''}`
-      : `内核 ${kernel.release || '未知'} · 无法连接 ApkeSU`;
+      : `内核 ${kernel.release || '未知'} · 无法连接 SterSU`;
     document.querySelectorAll('[data-tools-label]').forEach((label) => {
       label.textContent = kernel.nativeKpm ? 'KPM' : '工具';
     });
@@ -1958,7 +1958,7 @@
     }
     const webuiButton = event.target.closest('[data-webui]');
     if (webuiButton) {
-      notify('为防止模块网页窃取管理签名，请在 ApkeSU 软件管理器内打开模块 WebUI', true, 6000);
+      notify('为防止模块网页窃取管理签名，请在 SterSU 软件管理器内打开模块 WebUI', true, 6000);
       return;
     }
     const moduleButton = event.target.closest('[data-module]');

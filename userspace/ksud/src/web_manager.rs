@@ -925,7 +925,7 @@ fn route_authenticated(request: &Request, path: &str, context: &ServerContext) -
         _ if request.method == "GET" && path.starts_with("/webui/") => Response::error(
             403,
             "module_webui_isolated",
-            "为防止模块网页继承管理权限，请在 ApkeSU 软件管理器内打开模块 WebUI",
+            "为防止模块网页继承管理权限，请在 SterSU 软件管理器内打开模块 WebUI",
         ),
         _ => Response::error(404, "not_found", "没有这个接口"),
     }
@@ -2827,7 +2827,12 @@ fn broadcast_stealth_state(enabled: bool) {
     } else {
         STEALTH_MODE_DISABLED_ACTION
     };
-    for package_name in ["io.github.fixz.apkesu", "io.github.fixz.apkesu.dev"] {
+    for package_name in [
+        "io.github.fixz.stersu",
+        "io.github.fixz.stersu.dev",
+        "io.github.fixz.apkesu",
+        "io.github.fixz.apkesu.dev",
+    ] {
         let receiver = format!("{package_name}/me.weishu.kernelsu.stealth.StealthModeSyncReceiver");
         match Command::new("/system/bin/am")
             .args([
@@ -2851,7 +2856,12 @@ fn broadcast_stealth_state(enabled: bool) {
 }
 
 fn broadcast_manager_settings_changed() {
-    for package_name in ["io.github.fixz.apkesu", "io.github.fixz.apkesu.dev"] {
+    for package_name in [
+        "io.github.fixz.stersu",
+        "io.github.fixz.stersu.dev",
+        "io.github.fixz.apkesu",
+        "io.github.fixz.apkesu.dev",
+    ] {
         let receiver = format!(
             "{package_name}/me.weishu.kernelsu.ui.webmanager.ManagerAppSettingsSyncReceiver"
         );
@@ -3344,10 +3354,10 @@ mod tests {
     fn manager_settings_are_strict_and_canonical() {
         let mut settings = default_manager_app_settings();
         settings["showGkiWarning"] = json!(false);
-        settings["customHomeTitle"] = json!(" ApkeSU ");
+        settings["customHomeTitle"] = json!(" SterSU ");
         let normalized = normalize_manager_app_settings(&settings).unwrap();
         assert_eq!(normalized["showGkiWarning"], json!(false));
-        assert_eq!(normalized["customHomeTitle"], json!("ApkeSU"));
+        assert_eq!(normalized["customHomeTitle"], json!("SterSU"));
 
         settings["language"] = json!("de");
         assert!(normalize_manager_app_settings(&settings).is_err());

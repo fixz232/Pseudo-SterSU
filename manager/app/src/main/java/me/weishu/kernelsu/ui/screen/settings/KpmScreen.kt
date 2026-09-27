@@ -1635,7 +1635,7 @@ private fun KpmCheckRow(
 }
 
 private fun copyKpmToCache(context: android.content.Context, uri: Uri): File {
-    val target = File.createTempFile("apkesu-kpm-", ".kpm", context.cacheDir)
+    val target = File.createTempFile("SterSU-kpm-", ".kpm", context.cacheDir)
     try {
         val input = context.contentResolver.openInputStream(uri)
             ?: error(context.getString(R.string.kpm_file_open_failed))

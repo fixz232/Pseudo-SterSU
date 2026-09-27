@@ -358,7 +358,7 @@ pub fn uninstall(package_name: &str) -> Result<()> {
         module::prune_modules()?;
     }
 
-    println!("- Removing ApkeSU service extensions..");
+    println!("- Removing SterSU service extensions..");
     cleanup_apkesu_uninstall_artifacts()?;
 
     // The stock-image backup is stored in WORKING_DIR, so remove it only after restore succeeds.

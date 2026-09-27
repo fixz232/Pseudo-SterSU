@@ -83,7 +83,7 @@ import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.TopAppBar as MiuixTopAppBar
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-private const val IMAGE_TOOL_OUTPUT_DIR = "/sdcard/Download/ApkeSU-images"
+private const val IMAGE_TOOL_OUTPUT_DIR = "/sdcard/Download/SterSU-images"
 private const val IMAGE_TOOL_GRID_COLUMNS = 3
 private const val TAG = "ImageToolScreen"
 

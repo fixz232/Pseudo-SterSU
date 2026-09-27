@@ -302,7 +302,7 @@ jobs:
             -A "$SIGN_KEY_ALIAS" \
             -P "$SIGN_KEYSTORE_PASSWORD" \
             -S "$SIGN_KEY_PASSWORD" \
-            --manager-package io.github.fixz.apkesu \
+            --manager-package io.github.fixz.stersu \
             --strip
 
       - name: Verify production Manager identity

@@ -753,7 +753,7 @@ internal class AiChatViewModel : ViewModel() {
         const val MAX_MODEL_CHARS = 256
         const val MAX_SYSTEM_PROMPT_CHARS = 16_000
         const val MAX_CUSTOM_HEADERS_CHARS = 8_000
-        const val MODULE_REPORT_NAME = "apkesu-module-report.md"
+        const val MODULE_REPORT_NAME = "SterSU-module-report.md"
     }
 }
 

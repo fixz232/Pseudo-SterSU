@@ -306,7 +306,7 @@ private fun AlphaFollowCard(actions: HomeActions) {
                 onClick = { actions.onOpenUrl("https://github.com/tiann/KernelSU") },
             )
             AlphaFollowRow(
-                name = "@ApkeSU",
+                name = "@SterSU",
                 onClick = { actions.onOpenUrl("https://github.com/fixz232/ApkeSU.git") },
             )
         }

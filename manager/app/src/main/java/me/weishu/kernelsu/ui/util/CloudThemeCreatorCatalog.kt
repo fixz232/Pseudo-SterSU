@@ -198,7 +198,7 @@ internal fun canonicalCloudThemePackageFileName(displayName: String): String {
                 else -> append(character)
             }
         }
-    }.trim().trimEnd('.').take(140).ifBlank { "apkesu-cloud-theme" }
+    }.trim().trimEnd('.').take(140).ifBlank { "SterSU-cloud-theme" }
     return "$safeBaseName.$THEME_STORE_FILE_EXTENSION"
 }
 

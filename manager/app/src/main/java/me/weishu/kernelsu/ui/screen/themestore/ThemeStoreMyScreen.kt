@@ -779,7 +779,7 @@ private fun formatThemeLibraryDate(timestamp: Long): String {
 }
 
 private fun ThemeLibraryEntry.safeFileName(): String {
-    return name.replace(Regex("[\\\\/:*?\"<>|]"), "_").trim().ifBlank { "apkesu-theme" }
+    return name.replace(Regex("[\\\\/:*?\"<>|]"), "_").trim().ifBlank { "SterSU-theme" }
 }
 
 private fun ThemeLibraryOperationResult.failureMessage(fallback: String): String {

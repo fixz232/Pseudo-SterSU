@@ -1179,7 +1179,7 @@ private fun HomeCardWallpaperPagePreviewDialog(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     Text(
-                        text = "ApkeSU",
+                        text = "SterSU",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface,

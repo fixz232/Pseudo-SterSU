@@ -11,8 +11,18 @@ class ThemeStoreNavigationTest {
                 ThemeStorePage.Overview,
                 ThemeStorePage.Customize,
                 ThemeStorePage.My,
+                ThemeStorePage.Plugins,
             ),
             ThemeStorePage.entries,
+        )
+        assertEquals(
+            listOf(
+                ThemeStorePage.Overview,
+                ThemeStorePage.Customize,
+                ThemeStorePage.Plugins,
+                ThemeStorePage.My,
+            ),
+            themeStoreNavigationPages,
         )
     }
 }

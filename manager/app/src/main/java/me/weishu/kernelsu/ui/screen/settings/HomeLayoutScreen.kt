@@ -585,7 +585,7 @@ fun HomeLayoutScreen() {
                     modifier = Modifier.weight(1f),
                     enabled = !saving,
                     onClick = {
-                        layoutExportPicker.launch("apkesu-home-layout.json")
+                        layoutExportPicker.launch("SterSU-home-layout.json")
                     },
                 ) {
                     Text(stringResource(R.string.home_layout_export))

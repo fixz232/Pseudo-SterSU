@@ -405,13 +405,6 @@ private fun AppearanceSettingsContent(
                 onClick = { onApplyInterfaceStylePackage(installed.style) },
             )
         }
-        SettingsDivider()
-        SettingsActionRow(
-            title = stringResource(R.string.interface_style_store_title),
-            summary = stringResource(R.string.interface_style_store_summary),
-            icon = Icons.Rounded.Storefront,
-            onClick = { onOpen(Route.InterfaceStyleStore) },
-        )
         if (uiState.uiMode == InterfaceStyle.Snow.value) {
             SettingsDivider()
             SettingsSwitchRow(
@@ -453,8 +446,8 @@ private fun AppearanceSettingsContent(
     }
     SettingsGroup(stringResource(R.string.settings_group_theme_resources)) {
         SettingsActionRow(
-            title = stringResource(R.string.theme_store),
-            summary = stringResource(R.string.theme_store_settings_summary),
+            title = stringResource(R.string.store_title),
+            summary = stringResource(R.string.store_summary),
             icon = Icons.Rounded.Storefront,
             onClick = { onOpen(Route.ThemeStore) },
         )
@@ -698,12 +691,12 @@ private fun ToolboxSettingsContent(
     onOpen: (Route) -> Unit,
     onSetGraphicsRendererEnabled: (Boolean) -> Unit,
 ) {
-    SettingsGroup(stringResource(R.string.plugin_store_title)) {
+    SettingsGroup(stringResource(R.string.store_title)) {
         SettingsActionRow(
-            title = stringResource(R.string.plugin_store_title),
-            summary = stringResource(R.string.plugin_store_security_notice),
+            title = stringResource(R.string.store_title),
+            summary = stringResource(R.string.store_summary),
             icon = Icons.Rounded.Storefront,
-            onClick = { onOpen(Route.PluginStore) },
+            onClick = { onOpen(Route.ThemeStore) },
         )
     }
     if (uiState.hasPlugin(ManagerPlugin.RescueProtection) || uiState.hasPlugin(ManagerPlugin.ImageTools)) {

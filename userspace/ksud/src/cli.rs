@@ -43,7 +43,7 @@ enum Commands {
         command: Kpm,
     },
 
-    /// Manage ApkeSU Hide
+    /// Manage SterSU Hide
     EpkesuHide {
         #[command(subcommand)]
         command: EpkesuHide,
@@ -631,16 +631,16 @@ enum KpatchNext {
 
 #[derive(clap::Subcommand, Debug)]
 enum EpkesuHide {
-    /// Print ApkeSU Hide status as JSON
+    /// Print SterSU Hide status as JSON
     Status,
 
-    /// Enable ApkeSU Hide and apply it now
+    /// Enable SterSU Hide and apply it now
     Enable,
 
-    /// Disable ApkeSU Hide
+    /// Disable SterSU Hide
     Disable,
 
-    /// Apply ApkeSU Hide property changes now
+    /// Apply SterSU Hide property changes now
     Apply,
 }
 

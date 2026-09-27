@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 
 
-EXPECTED_PACKAGE = "io.github.fixz.apkesu"
+EXPECTED_PACKAGE = "io.github.fixz.stersu"
 EXPECTED_CERT_SIZE = "0x02e8"
 EXPECTED_CERT_SHA256 = "1c89980c03432844cfe195dab90bfaecbcd987d19309da648014164be78007d1"
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -87,7 +87,7 @@ def main() -> int:
     cert_hash = identity["KSU_EXPECTED_HASH"]
     version_code = version.get("versionCode", "")
 
-    require(package == EXPECTED_PACKAGE, f"unexpected ApkeSU package: {package}")
+    require(package == EXPECTED_PACKAGE, f"unexpected SterSU package: {package}")
     require(SIZE_RE.fullmatch(cert_size) is not None, f"invalid certificate size: {cert_size}")
     require(SHA256_RE.fullmatch(cert_hash) is not None, f"invalid certificate SHA-256: {cert_hash}")
     require(cert_size == EXPECTED_CERT_SIZE, f"unexpected ApkeSU certificate size: {cert_size}")
@@ -104,7 +104,7 @@ def main() -> int:
         verify_module(args.module, identity)
 
     print(
-        "verified ApkeSU kernel identity: "
+        "verified SterSU kernel identity: "
         f"version={version_code} package={package} size={cert_size} sha256={cert_hash}"
     )
     return 0

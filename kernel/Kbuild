@@ -212,7 +212,11 @@ $(info -- KernelSU Manager identity: $(KSU_MANAGER_IDENTITY))
 endif
 
 ifndef KSU_MANAGER_PACKAGE
-KSU_MANAGER_PACKAGE := io.github.fixz.apkesu
+KSU_MANAGER_PACKAGE := io.github.fixz.stersu
+endif
+
+ifndef KSU_MANAGER_PACKAGE_LEGACY
+KSU_MANAGER_PACKAGE_LEGACY := io.github.fixz.apkesu
 endif
 
 ifndef KSU_EXPECTED_SIZE
@@ -226,6 +230,11 @@ endif
 ifdef KSU_MANAGER_PACKAGE
 ccflags-y += -DKSU_MANAGER_PACKAGE=\"$(KSU_MANAGER_PACKAGE)\"
 $(info -- KernelSU Manager package name: $(KSU_MANAGER_PACKAGE))
+endif
+
+ifdef KSU_MANAGER_PACKAGE_LEGACY
+ccflags-y += -DKSU_MANAGER_PACKAGE_LEGACY=\"$(KSU_MANAGER_PACKAGE_LEGACY)\"
+$(info -- KernelSU legacy Manager package name: $(KSU_MANAGER_PACKAGE_LEGACY))
 endif
 
 $(info -- KernelSU Manager signature size: $(KSU_EXPECTED_SIZE))

@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "ApkeSU 网页管理器",
-  "short_name": "ApkeSU Web",
-  "description": "由 ksud 直接提供的 KernelSU 管理器",
+  "name": "SterSU 网页管理器",
+  "short_name": "SterSU Web",
+  "description": "由 ksud 直接提供的 SterSU 管理器",
   "lang": "zh-CN",
   "start_url": "/?source=pwa",
   "scope": "/",

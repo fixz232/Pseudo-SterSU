@@ -9,6 +9,7 @@ import org.junit.Test
 class ForegroundToolProtectionTest {
     @Test
     fun packageValidationRejectsShellInputAndMalformedNames() {
+        assertTrue(isValidForegroundToolPackage("io.github.fixz.stersu"))
         assertTrue(isValidForegroundToolPackage("io.github.fixz.apkesu"))
         assertTrue(isValidForegroundToolPackage("github.ColdAsSunny.Kernel"))
         assertFalse(isValidForegroundToolPackage("apkesu"))

@@ -874,6 +874,6 @@ private fun foregroundToolFailureText(failure: ForegroundToolFailure): String = 
 private fun copyForegroundToolLog(context: Context, lines: List<String>) {
     if (lines.isEmpty()) return
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
-    clipboard.setPrimaryClip(ClipData.newPlainText("ApkeSU foreground tool protection", lines.joinToString("\n")))
+    clipboard.setPrimaryClip(ClipData.newPlainText("SterSU foreground tool protection", lines.joinToString("\n")))
     Toast.makeText(context, R.string.foreground_tool_log_copied, Toast.LENGTH_SHORT).show()
 }

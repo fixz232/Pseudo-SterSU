@@ -14,6 +14,7 @@ import java.io.File
 import java.net.URI
 import java.security.KeyFactory
 import java.security.MessageDigest
+import java.security.NoSuchAlgorithmException
 import java.security.Signature
 import java.security.spec.X509EncodedKeySpec
 import java.util.Base64
@@ -102,6 +103,24 @@ data class ManagerPluginCatalogSnapshot(
 enum class PluginCatalogSource { Network, Cache, Bundled }
 
 enum class PluginDownloadRoute { Direct, Accelerator }
+
+/** Why an installed declarative plugin cannot be exposed to the current runtime. */
+internal enum class ManagerPluginCompatibilityIssue {
+    None,
+    ManagerTooOld,
+    KsudMissing,
+    KsudVersionUnavailable,
+    KsudTooOld,
+}
+
+internal data class ManagerPluginCompatibility(
+    val issue: ManagerPluginCompatibilityIssue,
+    val managerVersionCode: Int,
+    val ksudVersionCode: Int?,
+) {
+    val isCompatible: Boolean
+        get() = issue == ManagerPluginCompatibilityIssue.None
+}
 
 data class PluginDownloadProgress(
     val downloaded: Long,
@@ -264,7 +283,10 @@ class ManagerPluginCatalogRepository(
     private val catalogCache = File(directory, CATALOG_CACHE_NAME)
     private val signatureCache = File(directory, SIGNATURE_CACHE_NAME)
 
-    suspend fun fetch(forceNetwork: Boolean = false): ManagerPluginCatalogSnapshot = withContext(Dispatchers.IO) {
+    suspend fun fetch(
+        forceNetwork: Boolean = false,
+        route: PluginDownloadRoute = PluginDownloadRoute.Accelerator,
+    ): ManagerPluginCatalogSnapshot = withContext(Dispatchers.IO) {
         val cached = readCatalog(catalogCache, signatureCache)
         val cachedIsStale = cached?.let { isPluginCatalogStale(it.generatedAt) } ?: false
         if (!forceNetwork && cached != null) {
@@ -277,13 +299,31 @@ class ManagerPluginCatalogRepository(
         }
         try {
             val catalogUrl = validatePluginUrl(DEFAULT_CATALOG_URL)
-            val catalogBytes = download(catalogUrl, MAX_CATALOG_BYTES, "application/json")
-            val signatureBytes = download("$catalogUrl.sig", MAX_SIGNATURE_BYTES, "text/plain")
-            verifyCatalogSignature(catalogBytes, signatureBytes)
-            val catalog = parseManagerPluginCatalog(catalogBytes.toString(Charsets.UTF_8))
-            atomicWrite(catalogCache, catalogBytes)
-            atomicWrite(signatureCache, signatureBytes)
-            ManagerPluginCatalogSnapshot(catalog, PluginCatalogSource.Network, offline = false)
+            var failure: Throwable? = null
+            for ((candidateCatalogUrl, candidateSignatureUrl) in
+                resolvePluginCatalogUrls(catalogUrl, route)) {
+                try {
+                    // Keep the catalog and its signature on the same route. A
+                    // proxy can return a different revision or fail one file;
+                    // mixing routes would make valid pairs look invalid.
+                    val catalogBytes = download(candidateCatalogUrl, MAX_CATALOG_BYTES, "application/json")
+                    val signatureBytes = download(candidateSignatureUrl, MAX_SIGNATURE_BYTES, "text/plain")
+                    verifyCatalogSignature(catalogBytes, signatureBytes)
+                    val catalog = parseManagerPluginCatalog(catalogBytes.toString(Charsets.UTF_8))
+                    atomicWrite(catalogCache, catalogBytes)
+                    atomicWrite(signatureCache, signatureBytes)
+                    return@withContext ManagerPluginCatalogSnapshot(
+                        catalog,
+                        PluginCatalogSource.Network,
+                        offline = false,
+                    )
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Throwable) {
+                    failure = error
+                }
+            }
+            throw failure ?: IllegalStateException("Plugin catalog download failed")
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Throwable) {
@@ -320,7 +360,7 @@ class ManagerPluginCatalogRepository(
     private fun readBundledCatalog(): ManagerPluginCatalog {
         val catalog = appContext.assets.open(CATALOG_ASSET).use { it.readLimited(MAX_CATALOG_BYTES) }
         val signature = appContext.assets.open(SIGNATURE_ASSET).use { it.readLimited(MAX_SIGNATURE_BYTES) }
-        verifyCatalogSignature(catalog, signature)
+        verifyBundledCatalogSignature(catalog, signature)
         return parseManagerPluginCatalog(catalog.toString(Charsets.UTF_8))
     }
 
@@ -441,7 +481,64 @@ internal fun isPluginCatalogStale(generatedAt: Long, now: Long = System.currentT
 internal fun hasPluginUpdate(
     installed: InstalledManagerPlugin?,
     catalogEntry: ManagerPluginPackage,
-): Boolean = installed != null && catalogEntry.version > installed.plugin.version
+): Boolean {
+    val installedPlugin = installed?.plugin ?: return false
+    return catalogEntry.version > installedPlugin.version ||
+        (catalogEntry.version == installedPlugin.version &&
+            !catalogEntry.sha256.equals(installedPlugin.sha256, ignoreCase = true))
+}
+
+internal fun checkManagerPluginCompatibility(
+    plugin: ManagerPluginPackage,
+    managerVersionCode: Int = BuildConfig.VERSION_CODE,
+    ksudStatus: InstalledKsudStatus,
+): ManagerPluginCompatibility {
+    if (managerVersionCode < plugin.minManagerVersionCode) {
+        return ManagerPluginCompatibility(
+            issue = ManagerPluginCompatibilityIssue.ManagerTooOld,
+            managerVersionCode = managerVersionCode,
+            ksudVersionCode = ksudStatus.versionCode,
+        )
+    }
+    if (!ksudStatus.present) {
+        return ManagerPluginCompatibility(
+            issue = ManagerPluginCompatibilityIssue.KsudMissing,
+            managerVersionCode = managerVersionCode,
+            ksudVersionCode = ksudStatus.versionCode,
+        )
+    }
+    val ksudVersion = ksudStatus.versionCode ?: return ManagerPluginCompatibility(
+        issue = ManagerPluginCompatibilityIssue.KsudVersionUnavailable,
+        managerVersionCode = managerVersionCode,
+        ksudVersionCode = null,
+    )
+    if (ksudVersion < plugin.minKsudVersionCode) {
+        return ManagerPluginCompatibility(
+            issue = ManagerPluginCompatibilityIssue.KsudTooOld,
+            managerVersionCode = managerVersionCode,
+            ksudVersionCode = ksudVersion,
+        )
+    }
+    return ManagerPluginCompatibility(
+        issue = ManagerPluginCompatibilityIssue.None,
+        managerVersionCode = managerVersionCode,
+        ksudVersionCode = ksudVersion,
+    )
+}
+
+internal fun InstalledManagerPlugin.isCompatibleWith(
+    managerVersionCode: Int = BuildConfig.VERSION_CODE,
+    ksudStatus: InstalledKsudStatus,
+): Boolean = checkManagerPluginCompatibility(plugin, managerVersionCode, ksudStatus).isCompatible
+
+internal fun resolveCompatiblePluginIds(
+    installed: Iterable<InstalledManagerPlugin>,
+    managerVersionCode: Int = BuildConfig.VERSION_CODE,
+    ksudStatus: InstalledKsudStatus,
+): Set<String> = installed
+    .asSequence()
+    .filter { it.isCompatibleWith(managerVersionCode, ksudStatus) }
+    .mapTo(linkedSetOf()) { it.plugin.id }
 
 internal enum class PluginRemovalResult { Removed, NotInstalled, RequiresStealthDisabled, RemoteManagementStopFailed }
 
@@ -559,6 +656,26 @@ internal fun resolvePluginDownloadUrls(raw: String, route: PluginDownloadRoute):
     }
 }
 
+internal fun resolvePluginCatalogUrls(
+    raw: String,
+    route: PluginDownloadRoute,
+): List<Pair<String, String>> = resolvePluginDownloadUrls(raw, route).map { catalogUrl ->
+    catalogUrl to siblingPluginSignatureUrl(catalogUrl)
+}
+
+private fun siblingPluginSignatureUrl(catalogUrl: String): String {
+    val queryStart = catalogUrl.indexOf('?').takeIf { it >= 0 } ?: catalogUrl.length
+    val base = catalogUrl.substring(0, queryStart)
+    val query = catalogUrl.substring(queryStart)
+    val slash = base.lastIndexOf('/')
+    require(slash >= 0 && slash < base.lastIndex) { "Plugin catalog URL has no filename" }
+    val filename = base.substring(slash + 1)
+    require(filename.endsWith(".json", ignoreCase = true)) {
+        "Plugin catalog URL must point to JSON"
+    }
+    return base.substring(0, slash + 1) + filename.dropLast(".json".length) + ".sig" + query
+}
+
 private fun isAllowedPluginHost(host: String): Boolean {
     val normalized = host.lowercase(Locale.ROOT)
     return normalized in ALLOWED_GITHUB_HOSTS || normalized == ACCELERATOR_HOST
@@ -573,6 +690,16 @@ private fun verifyCatalogSignature(catalog: ByteArray, signatureText: ByteArray)
     verifier.initVerify(publicKey)
     verifier.update(catalog)
     require(verifier.verify(signatureBytes)) { "Plugin catalog signature verification failed" }
+}
+
+private fun verifyBundledCatalogSignature(catalog: ByteArray, signature: ByteArray) {
+    try {
+        verifyCatalogSignature(catalog, signature)
+    } catch (_: NoSuchAlgorithmException) {
+        // Bundled assets are protected by the signed APK. Some vendor
+        // images omit the Ed25519 provider, so keep the local catalog
+        // usable without weakening verification for downloaded catalogs.
+    }
 }
 
 private fun java.io.InputStream.readLimited(

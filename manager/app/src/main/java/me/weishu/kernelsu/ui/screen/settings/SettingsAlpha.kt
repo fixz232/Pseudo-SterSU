@@ -133,14 +133,8 @@ fun SettingPagerAlpha(
                     },
                 )
                 AlphaActionRow(
-                    title = stringResource(R.string.interface_style_store_title),
-                    summary = stringResource(R.string.interface_style_store_summary),
-                    icon = Icons.Rounded.Storefront,
-                    onClick = actions.onOpenInterfaceStyleStore,
-                )
-                AlphaActionRow(
-                    title = stringResource(R.string.theme_store),
-                    summary = stringResource(R.string.theme_store_settings_summary),
+                    title = stringResource(R.string.store_title),
+                    summary = stringResource(R.string.store_summary),
                     icon = Icons.Rounded.Storefront,
                     onClick = actions.onOpenThemeStore,
                 )

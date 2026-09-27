@@ -416,7 +416,7 @@ pub fn refresh_and_enable() -> Result<()> {
 }
 
 pub fn print_diagnostics() {
-    println!("=== ApkeSU rescue diagnostic ===");
+    println!("=== SterSU rescue diagnostic ===");
     println!("generatedAt={}", Local::now().to_rfc3339());
     println!("=== status ===");
     print_status();
@@ -749,7 +749,7 @@ fn read_restore_pending_boot() -> Option<RestorePendingBoot> {
         });
     }
 
-    // Older ApkeSU builds used a plain lock file.  Treat the first boot seen
+    // Older SterSU builds used a plain lock file.  Treat the first boot seen
     // after migration as the validation boot, rather than as the boot that
     // armed the restore.  Otherwise a failed restore would get one extra
     // reboot before it could be recovered.

@@ -1,11 +1,11 @@
 'use strict';
 
-const CACHE_NAME = 'apkesu-web-shell-v13';
+const CACHE_NAME = 'stersu-web-shell-v14';
 const SHELL = [
   '/',
   '/index.html',
-  '/style.css?v=13',
-  '/app.js?v=13',
+  '/style.css?v=14',
+  '/app.js?v=14',
   '/manifest.webmanifest',
   '/pwa-icon.svg',
   '/pwa-icon-192.png',

@@ -52,7 +52,7 @@ class CloudThemeCreatorCatalogTest {
             canonicalCloudThemePackageFileName("my.theme.unrestricted-format"),
         )
         assertEquals(
-            "apkesu-cloud-theme.kstheme",
+            "SterSU-cloud-theme.kstheme",
             canonicalCloudThemePackageFileName(".unknown"),
         )
     }

@@ -403,7 +403,7 @@ fun SusfsPathConfigScreen() {
                                 onClick = {
                                     showActionMenu = false
                                     pendingExport = buildSusfsBackupJson(draft)
-                                    exportLauncher.launch("apkesu-susfs-backup.json")
+                                    exportLauncher.launch("SterSU-susfs-backup.json")
                                 },
                             )
                             DropdownMenuItem(
@@ -416,7 +416,7 @@ fun SusfsPathConfigScreen() {
                                         exportingDiagnostics = true
                                         pendingDiagnostics = getSusfsDiagnostics()
                                         exportingDiagnostics = false
-                                        diagnosticLauncher.launch("apkesu-susfs-diagnostics.txt")
+                                        diagnosticLauncher.launch("SterSU-susfs-diagnostics.txt")
                                     }
                                 },
                             )

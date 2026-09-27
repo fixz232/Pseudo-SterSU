@@ -380,14 +380,8 @@ fun SettingPagerMiuix(
                             onCheckedChange = actions.onSetDayNightMode,
                         )
                         CategorizedMiuixActionRow(
-                            title = stringResource(R.string.interface_style_store_title),
-                            summary = stringResource(R.string.interface_style_store_summary),
-                            icon = Icons.Rounded.Storefront,
-                            onClick = actions.onOpenInterfaceStyleStore,
-                        )
-                        CategorizedMiuixActionRow(
-                            title = stringResource(id = R.string.theme_store),
-                            summary = stringResource(id = R.string.theme_store_settings_summary),
+                            title = stringResource(R.string.store_title),
+                            summary = stringResource(R.string.store_summary),
                             icon = Icons.Rounded.Storefront,
                             onClick = actions.onOpenThemeStore,
                         )
@@ -664,10 +658,10 @@ fun SettingPagerMiuix(
                             onExpandedChange = { updateCategory(SettingsCategory.Toolbox, it) },
                         ) {
                             CategorizedMiuixActionRow(
-                                title = stringResource(R.string.plugin_store_title),
-                                summary = stringResource(R.string.plugin_store_security_notice),
+                                title = stringResource(R.string.store_title),
+                                summary = stringResource(R.string.store_summary),
                                 icon = Icons.Rounded.Storefront,
-                                onClick = actions.onOpenPluginStore,
+                                onClick = actions.onOpenThemeStore,
                             )
                             if (uiState.hasPlugin(ManagerPlugin.RescueProtection)) CategorizedMiuixActionRow(
                                 title = stringResource(id = R.string.rescue_protection),

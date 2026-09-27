@@ -12,7 +12,7 @@ private const val WEB_MANAGER_PAGE_HEAD: String = """<!doctype html>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f5f6f8">
 <meta name="color-scheme" content="light dark">
-<title>ApkeSU（web）</title>
+<title>SterSU（web）</title>
 <style>
 :root{color-scheme:light dark;--bg:#f5f6f8;--card:#fff;--card-2:#f0f2f5;--ink:#161a1f;--muted:#6b7480;--line:#e3e6ea;--accent:#2f6df6;--accent-ink:#fff;--accent-soft:#e8efff;--ok:#12855a;--ok-soft:#e4f6ec;--warn:#b26a00;--warn-soft:#fff3e0;--danger:#c0392b;--danger-soft:#fdecea;--radius:14px}
 @media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#101215;--card:#191c21;--card-2:#20242a;--ink:#e7eaee;--muted:#9aa4b0;--line:#2a2f36;--accent:#7aa2ff;--accent-ink:#0d1017;--accent-soft:#232f4d;--ok:#5bd39a;--ok-soft:#17352a;--warn:#f0b866;--warn-soft:#3a2e18;--danger:#ff8f80;--danger-soft:#3c2320}}
@@ -251,8 +251,8 @@ private const val WEB_MANAGER_PAGE_MARKUP: String = """
 <body>
 <header class="topbar">
   <div class="topbar-inner">
-    <div class="logo" aria-hidden="true">A</div>
-    <div class="brand"><b>ApkeSU（web）</b><span id="brandSub">本机控制台 · 仅回环访问</span></div>
+    <div class="logo" aria-hidden="true">S</div>
+    <div class="brand"><b>SterSU（web）</b><span id="brandSub">本机控制台 · 仅回环访问</span></div>
     <span id="statusPill" class="pill">读取中</span>
     <button id="susfsShortcut" class="top-action hidden" type="button" title="打开 GKI SUSFS 管理" aria-label="打开 GKI SUSFS 管理"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5.5 5.7v5.8c0 4.2 2.6 7.7 6.5 9.5 3.9-1.8 6.5-5.3 6.5-9.5V5.7L12 3Z"/><path d="M9.2 12.1 11 14l3.9-4.2"/></svg><span>SUSFS</span></button>
     <button id="rebootMenu" class="iconbtn" type="button" title="重启菜单" aria-label="打开重启菜单"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8v8.4"/><path d="M6.4 6.4a8 8 0 1 0 11.2 0"/></svg></button>
@@ -399,7 +399,7 @@ private const val WEB_MANAGER_PAGE_MARKUP: String = """
       <div id="kpmExcludeList" class="list" style="padding:12px 14px"></div>
     </div>
 
-    <p class="sub" style="margin-top:12px">KPM 使用 KernelPatch 区段 ABI；ApkeSU 负责受信任导入、策略、救砖恢复与 su 日志集成。请勿导入来源不明的内核代码。</p>
+    <p class="sub" style="margin-top:12px">KPM 使用 KernelPatch 区段 ABI；SterSU 负责受信任导入、策略、救砖恢复与 su 日志集成。请勿导入来源不明的内核代码。</p>
   </section>
 
   <section id="view-settings" class="view hidden">
@@ -449,10 +449,10 @@ private const val WEB_MANAGER_PAGE_MARKUP: String = """
       <div class="card">
         <div class="row"><div class="row-main"><div class="row-title">语言</div><div class="row-detail">选择整个应用使用的界面语言</div></div><select id="languageSelect" aria-label="软件管理器语言"><option value="">读取中</option></select></div>
         <div class="row"><div class="row-main"><div class="row-title">检查模块更新</div><div class="row-detail">自动检查已安装模块是否有可用更新</div></div><input id="managerCheckModuleUpdate" type="checkbox" data-manager-setting="checkModuleUpdate" aria-label="检查模块更新"></div>
-        <div class="row"><div class="row-main"><div class="row-title">版本不匹配警告</div><div class="row-detail">管理器与 ApkeSU 驱动版本不匹配时显示警告</div></div><input id="managerVersionWarning" type="checkbox" data-manager-setting="showVersionMismatchWarning" aria-label="版本不匹配警告"></div>
+        <div class="row"><div class="row-main"><div class="row-title">版本不匹配警告</div><div class="row-detail">管理器与 SterSU 驱动版本不匹配时显示警告</div></div><input id="managerVersionWarning" type="checkbox" data-manager-setting="showVersionMismatchWarning" aria-label="版本不匹配警告"></div>
         <div class="row"><div class="row-main"><div class="row-title">显示 GKI 测试提示</div><div class="row-detail">在首页显示 GKI 工作模式仅建议测试使用的提醒</div></div><input id="managerGkiWarning" type="checkbox" data-manager-setting="showGkiWarning" aria-label="显示 GKI 测试提示"></div>
         <div class="row"><div class="row-main"><div class="row-title">显示支持开发卡片</div><div class="row-detail">在主页显示支持开发卡片</div></div><input id="managerSupportCard" type="checkbox" data-manager-setting="showHomeSupportCard" aria-label="显示支持开发卡片"></div>
-        <div class="row"><div class="row-main"><div class="row-title">显示了解 ApkeSU 卡片</div><div class="row-detail">在主页显示了解 ApkeSU 卡片</div></div><input id="managerLearnCard" type="checkbox" data-manager-setting="showHomeLearnCard" aria-label="显示了解 ApkeSU 卡片"></div>
+        <div class="row"><div class="row-main"><div class="row-title">显示了解 SterSU 卡片</div><div class="row-detail">在主页显示了解 SterSU 卡片</div></div><input id="managerLearnCard" type="checkbox" data-manager-setting="showHomeLearnCard" aria-label="显示了解 SterSU 卡片"></div>
         <div class="row"><div class="row-main"><div class="row-title">动态管理器</div><div class="row-detail" id="dynamicManagerDetail">读取中</div></div><button class="btn small" type="button" id="dynamicManagerOpen">管理</button></div>
         <div class="row"><div class="row-main"><div class="row-title">自定义主页顶部名称</div><div class="row-detail" id="managerHomeTitleDetail">当前跟随默认名称</div></div><button class="btn small" type="button" id="managerHomeTitleEdit">修改</button></div>
       </div>
@@ -804,7 +804,7 @@ private const val WEB_MANAGER_PAGE_SCRIPT_HEAD: String = """<script>
     /* KPM / SUSFS：接口返回空串表示内核没有，整行隐藏 */
     setInfoRow("infoKpmRow", data.kpm);
     setInfoRow("infoSusfsRow", data.susfs);
-    el("infoManager").textContent = "ApkeSU " + (device.managerVersionName || "-") +
+    el("infoManager").textContent = "SterSU " + (device.managerVersionName || "-") +
       "（" + (device.managerVersionCode || "-") + "） · 接口 v" + (data.apiVersion || "-") +
       (data.stale ? " · 状态来自缓存" : "");
     if (data.port) el("infoAddress").textContent = "127.0.0.1:" + data.port;
@@ -2652,7 +2652,7 @@ private const val WEB_MANAGER_PAGE_SCRIPT_TAIL: String = """
   }
 
   function openWebUi(id) {
-    notify("为防止模块网页继承管理令牌，请在 ApkeSU 软件管理器内打开模块 WebUI", true);
+    notify("为防止模块网页继承管理令牌，请在 SterSU 软件管理器内打开模块 WebUI", true);
     record("已拦截网页管理器中的模块 WebUI：" + id, true);
   }
 
@@ -3307,7 +3307,7 @@ internal const val WEB_MANAGER_WEBUI_ERROR_PAGE: String = """
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>模块 WebUI 无法打开 · ApkeSU</title>
+<title>模块 WebUI 无法打开 · SterSU</title>
 <style>
 :root{color-scheme:light dark;--bg:#f5f6f8;--card:#fff;--ink:#161a1f;--muted:#6b7480;--line:#e3e6ea;--danger:#c0392b;--danger-soft:#fdecea}
 @media(prefers-color-scheme:dark){:root{--bg:#101215;--card:#191c21;--ink:#e7eaee;--muted:#9aa4b0;--line:#2a2f36;--danger:#ff8f80;--danger-soft:#3c2320}}
@@ -3346,7 +3346,7 @@ internal const val WEB_MANAGER_TOKEN_PAGE: String = """
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>访问令牌已失效 · ApkeSU（web）</title>
+<title>访问令牌已失效 · SterSU（web）</title>
 <style>
 :root{color-scheme:light dark;--bg:#f5f6f8;--card:#fff;--ink:#161a1f;--muted:#6b7480;--line:#e3e6ea;--danger:#c0392b;--danger-soft:#fdecea}
 @media(prefers-color-scheme:dark){:root{--bg:#101215;--card:#191c21;--ink:#e7eaee;--muted:#9aa4b0;--line:#2a2f36;--danger:#ff8f80;--danger-soft:#3c2320}}
@@ -3361,7 +3361,7 @@ p{margin:0;color:var(--muted);font-size:13.5px}
 <div class="card">
 <div class="mark" aria-hidden="true">!</div>
 <h1>访问令牌已失效</h1>
-<p>网页管理器每次运行都会生成新的访问令牌。请在 ApkeSU 管理器中重新打开「网页管理器」，或重新复制访问地址。</p>
+<p>网页管理器每次运行都会生成新的访问令牌。请在 SterSU 管理器中重新打开「网页管理器」，或重新复制访问地址。</p>
 </div>
 </body>
 </html>

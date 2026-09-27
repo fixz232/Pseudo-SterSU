@@ -309,7 +309,7 @@ fun RescueProtectionScreen() {
             diagnosticExportText = getRescueDiagnostics().ifBlank {
                 logs.ifBlank { status.log }
             }
-            diagnosticExportLauncher.launch("apkesu-rescue-diagnostics.txt")
+            diagnosticExportLauncher.launch("SterSU-rescue-diagnostics.txt")
         }
     }
 

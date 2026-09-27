@@ -5,21 +5,21 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta id="pwa-theme-color" name="theme-color" content="#f5f5f7">
   <meta name="color-scheme" content="light dark">
-  <meta name="application-name" content="ApkeSU Web">
+  <meta name="application-name" content="SterSU Web">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta id="apple-status-bar-style" name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/pwa-icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/pwa-icon-192.png">
-  <title>ApkeSU</title>
-  <link rel="stylesheet" href="/style.css?v=13">
+  <title>SterSU</title>
+  <link rel="stylesheet" href="/style.css?v=14">
 </head>
 <body data-current-view="home">
   <section id="auth-gate" class="auth-gate" aria-live="polite">
     <div class="auth-card">
-      <div class="auth-mark" aria-hidden="true">A</div>
-      <p class="auth-kicker">ApkeSU 安全访问</p>
+      <div class="auth-mark" aria-hidden="true">S</div>
+      <p class="auth-kicker">SterSU 安全访问</p>
       <h1 id="auth-title">正在验证设备签名</h1>
       <p id="auth-detail" class="auth-detail">网页管理操作需要本浏览器持有的 P-256 私钥签名。</p>
       <div class="auth-proof">
@@ -28,12 +28,12 @@
         <span>管理令牌不再放入 URL</span>
       </div>
       <button id="auth-retry" class="btn primary hidden" type="button">重新验证</button>
-      <p class="auth-help">首次使用或密钥失效时，请从 ApkeSU 的“网页管理器”入口重新打开并完成一次性配对。</p>
+      <p class="auth-help">首次使用或密钥失效时，请从 SterSU 的“网页管理器”入口重新打开并完成一次性配对。</p>
     </div>
   </section>
   <header class="topbar">
     <div class="topbar-inner">
-      <div class="brand"><b>ApkeSU</b></div>
+      <div class="brand"><b>SterSU</b></div>
       <span id="status-pill" class="pill hidden" aria-hidden="true"></span>
       <span id="brand-sub" class="hidden" aria-hidden="true"></span>
       <button id="susfs-shortcut-button" class="top-action hidden" type="button" title="打开 SUSFS 管理" aria-label="打开 GKI SUSFS 管理">
@@ -113,12 +113,12 @@
       <div class="card link-card">
         <a class="home-link" href="https://patreon.com/weishu" target="_blank" rel="noopener noreferrer">
           <span class="link-icon" aria-hidden="true">♥</span>
-          <span class="link-copy"><b>支持开发</b><small>ApkeSU 将保持免费开源，向开发者捐赠以表示支持</small></span>
+          <span class="link-copy"><b>支持开发</b><small>SterSU 将保持免费开源，向开发者捐赠以表示支持</small></span>
           <span class="chevron" aria-hidden="true">›</span>
         </a>
         <a class="home-link" href="https://github.com/fixz232/ApkeSU.git" target="_blank" rel="noopener noreferrer">
           <span class="link-icon" aria-hidden="true">i</span>
-          <span class="link-copy"><b>了解 ApkeSU</b><small>了解安装步骤与模块开发指南</small></span>
+          <span class="link-copy"><b>了解 SterSU</b><small>了解安装步骤与模块开发指南</small></span>
           <span class="chevron" aria-hidden="true">›</span>
         </a>
       </div>
@@ -245,10 +245,10 @@
         <div class="card">
           <div class="row"><div class="row-main"><div class="row-title">语言</div><div class="row-detail">选择整个应用使用的界面语言</div></div><select id="manager-language" data-manager-setting="language" aria-label="软件管理器语言"><option value="zh-CN">简体中文</option><option value="en">English</option><option value="fr">Français</option><option value="ru">Русский</option><option value="ja">日本語</option><option value="ko">한국어</option><option value="es">Español</option></select></div>
           <div class="row"><div class="row-main"><div class="row-title">检查模块更新</div><div class="row-detail">自动检查已安装模块是否有可用更新</div></div><label class="toggle"><input id="manager-check-module-update" type="checkbox" data-manager-setting="checkModuleUpdate" aria-label="检查模块更新"><span></span></label></div>
-          <div class="row"><div class="row-main"><div class="row-title">版本不匹配警告</div><div class="row-detail">管理器与 ApkeSU 驱动版本不匹配时显示警告</div></div><label class="toggle"><input id="manager-version-warning" type="checkbox" data-manager-setting="showVersionMismatchWarning" aria-label="版本不匹配警告"><span></span></label></div>
+          <div class="row"><div class="row-main"><div class="row-title">版本不匹配警告</div><div class="row-detail">管理器与 SterSU 驱动版本不匹配时显示警告</div></div><label class="toggle"><input id="manager-version-warning" type="checkbox" data-manager-setting="showVersionMismatchWarning" aria-label="版本不匹配警告"><span></span></label></div>
           <div class="row"><div class="row-main"><div class="row-title">显示 GKI 测试提示</div><div class="row-detail">在首页显示 GKI 工作模式仅建议测试使用的提醒</div></div><label class="toggle"><input id="manager-gki-warning" type="checkbox" data-manager-setting="showGkiWarning" aria-label="显示 GKI 测试提示"><span></span></label></div>
           <div class="row"><div class="row-main"><div class="row-title">显示支持开发卡片</div><div class="row-detail">在主页显示支持开发卡片</div></div><label class="toggle"><input id="manager-support-card" type="checkbox" data-manager-setting="showHomeSupportCard" aria-label="显示支持开发卡片"><span></span></label></div>
-          <div class="row"><div class="row-main"><div class="row-title">显示了解 ApkeSU 卡片</div><div class="row-detail">在主页显示了解 ApkeSU 卡片</div></div><label class="toggle"><input id="manager-learn-card" type="checkbox" data-manager-setting="showHomeLearnCard" aria-label="显示了解 ApkeSU 卡片"><span></span></label></div>
+          <div class="row"><div class="row-main"><div class="row-title">显示了解 SterSU 卡片</div><div class="row-detail">在主页显示了解 SterSU 卡片</div></div><label class="toggle"><input id="manager-learn-card" type="checkbox" data-manager-setting="showHomeLearnCard" aria-label="显示了解 SterSU 卡片"><span></span></label></div>
           <div class="row"><div class="row-main"><div class="row-title">动态管理器</div><div id="dynamic-manager-detail" class="row-detail">读取中</div></div><button id="dynamic-manager-open" class="btn small" type="button">管理</button></div>
           <div class="row"><div class="row-main"><div class="row-title">自定义主页顶部名称</div><div id="manager-home-title-detail" class="row-detail">当前跟随默认名称</div></div><button id="manager-home-title-edit" class="btn small" type="button">修改</button></div>
         </div>
@@ -302,6 +302,6 @@
     </div>
   </div>
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
-  <script src="/app.js?v=13"></script>
+  <script src="/app.js?v=14"></script>
 </body>
 </html>

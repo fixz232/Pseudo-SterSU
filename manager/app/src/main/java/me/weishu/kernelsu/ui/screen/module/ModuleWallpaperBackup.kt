@@ -746,7 +746,7 @@ private fun extractAndValidateBackup(context: Context, source: Uri): ExtractedBa
 
         val manifest = manifestBytes?.toString(Charsets.UTF_8)?.let(::JSONObject)
             ?: throw IOException("Backup manifest is missing")
-        require(manifest.optString("kind") == BACKUP_KIND) { "This is not an ApkeSU module wallpaper backup" }
+        require(manifest.optString("kind") == BACKUP_KIND) { "This is not a SterSU module wallpaper backup" }
         val backupVersion = manifest.optInt("version", -1)
         require(backupVersion in 1..BACKUP_VERSION) { "Unsupported module wallpaper backup version" }
         val sourceModuleId = manifest.optString("sourceModuleId").trim()

@@ -68,10 +68,11 @@ mod android {
 }
 
 #[allow(unused)]
-pub const DEFAULT_MANAGER_PACKAGE: &str = "io.github.fixz.apkesu";
+pub const DEFAULT_MANAGER_PACKAGE: &str = "io.github.fixz.stersu";
+pub const LEGACY_MANAGER_PACKAGE: &str = "io.github.fixz.apkesu";
 
 #[cfg(target_os = "android")]
-pub const TRUSTED_MANAGER_PACKAGES: &[&str] = &[DEFAULT_MANAGER_PACKAGE];
+pub const TRUSTED_MANAGER_PACKAGES: &[&str] = &[DEFAULT_MANAGER_PACKAGE, LEGACY_MANAGER_PACKAGE];
 
 #[cfg(target_os = "android")]
 pub fn is_trusted_manager_package(package_name: &str) -> bool {

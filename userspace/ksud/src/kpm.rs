@@ -1458,7 +1458,7 @@ fn recover_native_previous_boot() -> Result<()> {
 }
 
 /// Synchronize enabled KPM images to the KPatch-Next service directory before
-/// enabling the backend. The canonical manifests remain under ApkeSU so the
+/// enabling the backend. The canonical manifests remain under SterSU so the
 /// Manager keeps one source of truth.
 fn migrate_to_kpatch_next_inner() -> Result<()> {
     ensure!(

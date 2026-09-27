@@ -100,7 +100,7 @@ class WebManagerService : Service() {
                         startupThread = null
                     }
                 }
-            }, "ApkeSU-WebManager-Startup").apply {
+            }, "SterSU-WebManager-Startup").apply {
                 isDaemon = true
                 start()
             }
@@ -145,7 +145,7 @@ class WebManagerService : Service() {
     }
 
     companion object {
-        private const val TAG = "ApkeSU-WebManager"
+        private const val TAG = "SterSU-WebManager"
         private const val CHANNEL_ID = "web_manager"
         private const val NOTIFICATION_ID = 10240
 

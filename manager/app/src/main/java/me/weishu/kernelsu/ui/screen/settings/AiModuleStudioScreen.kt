@@ -1894,6 +1894,6 @@ private fun templateTitle(template: AiModuleTemplate): String = when (template) 
 
 private fun copyToClipboard(context: Context, text: String) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-    clipboard.setPrimaryClip(ClipData.newPlainText("ApkeSU AI", text))
+    clipboard.setPrimaryClip(ClipData.newPlainText("SterSU AI", text))
     Toast.makeText(context, context.getString(R.string.ai_chat_copied), Toast.LENGTH_SHORT).show()
 }

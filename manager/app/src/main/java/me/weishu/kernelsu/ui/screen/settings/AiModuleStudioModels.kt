@@ -34,11 +34,11 @@ internal enum class AiModuleAiMode {
 @Immutable
 internal data class AiModuleTemplateMetadata(
     val moduleId: String = "apkesu_module",
-    val name: String = "ApkeSU Module",
+    val name: String = "SterSU Module",
     val version: String = "1.0.0",
     val versionCode: String = "1",
     val author: String = "Your Name",
-    val description: String = "A module created with ApkeSU AI Module Studio.",
+    val description: String = "A module created with SterSU AI Module Studio.",
 )
 
 @Immutable
@@ -545,7 +545,7 @@ internal fun writeAiModuleZip(project: AiModuleStudioProject, output: OutputStre
     require(validation.canExport) { "Module project has validation errors" }
     ZipOutputStream(BufferedOutputStream(output), Charsets.UTF_8).use { zip ->
         zip.setLevel(6)
-        zip.setComment("Created by ApkeSU AI Module Studio")
+        zip.setComment("Created by SterSU AI Module Studio")
         project.files
             .sortedWith(compareBy<AiModuleStudioFile> { if (it.path == MODULE_PROP_PATH) 0 else 1 }.thenBy { it.path })
             .forEach { file ->
@@ -685,7 +685,7 @@ private fun buildCustomizeScript(
     appendLine("ui_print $printableName")
     appendLine("ui_print \"- Module ID: \$MODID\"")
     appendLine()
-    appendLine("# customize.sh is sourced by the ApkeSU/KernelSU installer.")
+    appendLine("# customize.sh is sourced by the SterSU/KernelSU installer.")
     appendLine("# Add installation-time checks below. Use abort \"message\" to stop safely.")
     if (template == AiModuleTemplate.Complete) {
         appendLine()
@@ -702,7 +702,7 @@ private fun buildReadme(metadata: AiModuleTemplateMetadata): String = """
 
     ## Compatibility
 
-    - ApkeSU / KernelSU modern module installer
+    - SterSU / KernelSU modern module installer
     - Android API and device requirements should be documented here
 
     ## Safety
@@ -831,7 +831,7 @@ private val ACTION_TEMPLATE = """
     #!/system/bin/sh
     MODDIR=${'$'}{0%/*}
 
-    echo "ApkeSU module action"
+    echo "SterSU module action"
     # Add an explicit, user-triggered action below.
 """.trimIndent() + "\n"
 

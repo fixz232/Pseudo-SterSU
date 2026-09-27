@@ -39,7 +39,7 @@ public class BootCompletedReceiver extends BroadcastReceiver {
             } finally {
                 pendingResult.finish();
             }
-        }, "ApkeSU-Magica-Boot");
+        }, "SterSU-Magica-Boot");
         worker.start();
     }
 }

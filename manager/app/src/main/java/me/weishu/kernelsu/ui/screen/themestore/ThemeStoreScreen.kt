@@ -59,6 +59,7 @@ import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
@@ -142,10 +143,18 @@ import top.yukonga.miuix.kmp.basic.TopAppBar as MiuixTopAppBar
 import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
 
 enum class ThemeStorePage(@StringRes val titleRes: Int) {
-    Overview(R.string.theme_store),
+    Overview(R.string.store_title),
     Customize(R.string.theme_store_customize_title),
     My(R.string.theme_store_my_library_title),
+    Plugins(R.string.store_tab_plugins),
 }
+
+internal val themeStoreNavigationPages = listOf(
+    ThemeStorePage.Overview,
+    ThemeStorePage.Customize,
+    ThemeStorePage.Plugins,
+    ThemeStorePage.My,
+)
 
 enum class ThemeStoreCustomizeSection(@StringRes val titleRes: Int) {
     Style(R.string.theme_store_customize_style),
@@ -158,6 +167,7 @@ fun ThemeStoreScreen(
     page: ThemeStorePage = ThemeStorePage.Overview,
     customizeSection: ThemeStoreCustomizeSection = ThemeStoreCustomizeSection.Style,
     returnToAppearance: Boolean = false,
+    interfaceStyleStore: Boolean = false,
 ) {
     val context = LocalContext.current
     val navigator = LocalNavigator.current
@@ -277,13 +287,13 @@ fun ThemeStoreScreen(
         onOpenUiDecorationLibrary = dropUnlessResumed { navigator.push(Route.UiDecorationLibrary) },
         onOpenVisualEffects = dropUnlessResumed { navigator.push(Route.VisualEffects) },
         onOpenProfile = dropUnlessResumed { navigator.push(Route.ThemeStoreMy) },
-        onOpenInterfaceStyles = dropUnlessResumed { navigator.push(Route.InterfaceStyleStore) },
+        onOpenInterfaceStyles = dropUnlessResumed { navigator.push(Route.StoreInterfaceStyles) },
         onOpenBackgroundSettings = dropUnlessResumed { navigator.push(Route.Backgrounds) },
         onOpenSoundEffects = dropUnlessResumed { navigator.push(Route.SoundEffects) },
         onOpenStartupAnimation = dropUnlessResumed { navigator.push(Route.StartupAnimation) },
         onExport = {
             transferReport = null
-            exportLauncher.launch("apkesu-theme.$THEME_STORE_FILE_EXTENSION")
+            exportLauncher.launch("SterSU-theme.$THEME_STORE_FILE_EXTENSION")
         },
         onImport = {
             transferReport = null
@@ -293,60 +303,96 @@ fun ThemeStoreScreen(
         },
     )
 
+    val onInterfaceStyleInstalled: (String) -> Unit = { id ->
+        downloadedStyleCount = InterfaceStyleRegistry(context).list().size
+        if (returnToAppearance) {
+            navigator.setResult(INTERFACE_STYLE_RESULT_KEY, id)
+        }
+    }
+    val onSelectedPage: (ThemeStorePage) -> Unit = { selected ->
+        if (selected == ThemeStorePage.Plugins) {
+            navigator.push(Route.PluginStore)
+        } else {
+            if (selected == ThemeStorePage.My) refresh()
+            selectedPageIndex = selected.ordinal
+        }
+    }
     val content: @Composable () -> Unit = {
-        pageStateHolder.SaveableStateProvider(selectedPage.name) {
-            when (selectedPage) {
-                ThemeStorePage.Overview -> ThemeStoreOverviewContent(
-                    actions = actions,
-                    modifier = Modifier.fillMaxSize(),
-                )
+        if (interfaceStyleStore) {
+            ThemeStorePageColumn(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .widthIn(max = 840.dp)
+                    .fillMaxWidth(),
+            ) {
+                InterfaceStyleStoreContent(onInstalled = onInterfaceStyleInstalled)
+            }
+        } else {
+            pageStateHolder.SaveableStateProvider(selectedPage.name) {
+                when (selectedPage) {
+                    ThemeStorePage.Overview -> ThemeStoreOverviewContent(
+                        actions = actions,
+                        modifier = Modifier.fillMaxSize(),
+                    )
 
-                ThemeStorePage.Customize -> ThemeStoreCustomizeContent(
-                    summary = summary,
-                    actions = actions,
-                    initialSection = customizeSection,
-                    onInterfaceStyleInstalled = { id ->
-                        downloadedStyleCount = InterfaceStyleRegistry(context).list().size
-                        if (returnToAppearance) {
-                            navigator.setResult(INTERFACE_STYLE_RESULT_KEY, id)
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .widthIn(max = 840.dp)
-                        .fillMaxWidth(),
-                )
+                    ThemeStorePage.Customize -> ThemeStoreCustomizeContent(
+                        summary = summary,
+                        actions = actions,
+                        initialSection = customizeSection,
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .widthIn(max = 840.dp)
+                            .fillMaxWidth(),
+                    )
 
-                ThemeStorePage.My -> ThemeStoreLibraryScreen(
-                    embedded = true,
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .widthIn(max = 840.dp)
-                        .fillMaxWidth(),
-                    headerContent = { libraryBusy ->
-                        ThemeStoreCurrentThemeStatus(summary)
+                    ThemeStorePage.Plugins -> ThemeStorePageColumn(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .widthIn(max = 840.dp)
+                            .fillMaxWidth(),
+                    ) {
                         ThemeStoreDestinationItem(
-                            title = stringResource(R.string.interface_style_store_title),
-                            summary = stringResource(R.string.interface_style_store_summary),
-                            status = stringResource(
-                                R.string.theme_store_downloaded_style_count,
-                                downloadedStyleCount,
-                            ),
-                            icon = Icons.Rounded.Palette,
-                            onClick = actions.onOpenInterfaceStyles,
+                            title = stringResource(R.string.store_tab_plugins),
+                            summary = stringResource(R.string.store_summary),
+                            status = stringResource(R.string.store_tab_plugins),
+                            icon = Icons.Rounded.Extension,
+                            onClick = { navigator.replace(Route.PluginStore) },
                         )
-                        ThemeStoreTransferPanel(summary, busy || libraryBusy, actions)
-                        ThemeStoreNotice(stringResource(R.string.theme_store_import_replaces_notice))
-                        transferReport?.let { ThemeStoreTransferReportCard(it) }
-                    },
-                )
+                    }
+
+                    ThemeStorePage.My -> ThemeStoreLibraryScreen(
+                        embedded = true,
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .widthIn(max = 840.dp)
+                            .fillMaxWidth(),
+                        headerContent = { libraryBusy ->
+                            ThemeStoreCurrentThemeStatus(summary)
+                            ThemeStoreDestinationItem(
+                                title = stringResource(R.string.interface_style_store_title),
+                                summary = stringResource(R.string.interface_style_store_summary),
+                                status = stringResource(
+                                    R.string.theme_store_downloaded_style_count,
+                                    downloadedStyleCount,
+                                ),
+                                icon = Icons.Rounded.Palette,
+                                onClick = actions.onOpenInterfaceStyles,
+                            )
+                            ThemeStoreTransferPanel(summary, busy || libraryBusy, actions)
+                            ThemeStoreNotice(stringResource(R.string.theme_store_import_replaces_notice))
+                            transferReport?.let { ThemeStoreTransferReportCard(it) }
+                        },
+                    )
+                }
             }
         }
     }
 
     if (LocalInterfaceStyle.current == InterfaceStyle.Skrootpro.value) {
         SkrootproScreen(
-            title = stringResource(selectedPage.titleRes),
+            title = stringResource(
+                if (interfaceStyleStore) R.string.interface_style_store_title else selectedPage.titleRes,
+            ),
             showAdd = selectedPage == ThemeStorePage.My,
             actionIcon = Icons.Rounded.Person,
             actionContentDescription = stringResource(R.string.theme_store_my_title),
@@ -355,10 +401,8 @@ fun ThemeStoreScreen(
         ) { paddingValues ->
             ThemeStoreResponsiveLayout(
                 selectedPage = selectedPage,
-                onSelected = {
-                    if (it == ThemeStorePage.My) refresh()
-                    selectedPageIndex = it.ordinal
-                },
+                onSelected = onSelectedPage,
+                showNavigation = !interfaceStyleStore,
                 showBackButton = true,
                 modifier = Modifier
                     .fillMaxSize()
@@ -376,7 +420,9 @@ fun ThemeStoreScreen(
                 .only(WindowInsetsSides.Horizontal),
             topBar = {
                 MiuixTopAppBar(
-                    title = stringResource(selectedPage.titleRes),
+                    title = stringResource(
+                        if (interfaceStyleStore) R.string.interface_style_store_title else selectedPage.titleRes,
+                    ),
                     color = Color.Transparent,
                     titleColor = themeStoreTextColor(),
                     navigationIcon = {
@@ -404,10 +450,8 @@ fun ThemeStoreScreen(
             content = { paddingValues ->
                 ThemeStoreResponsiveLayout(
                     selectedPage = selectedPage,
-                    onSelected = {
-                        if (it == ThemeStorePage.My) refresh()
-                        selectedPageIndex = it.ordinal
-                    },
+                    onSelected = onSelectedPage,
+                    showNavigation = !interfaceStyleStore,
                     showBackButton = false,
                     modifier = Modifier
                         .fillMaxSize()
@@ -460,14 +504,22 @@ fun ThemeStoreScreen(
 private fun ThemeStoreResponsiveLayout(
     selectedPage: ThemeStorePage,
     onSelected: (ThemeStorePage) -> Unit,
+    showNavigation: Boolean = true,
     showBackButton: Boolean,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-        val useNavigationRail = maxWidth >= 720.dp
-        if (useNavigationRail) {
+        val useNavigationRail = showNavigation && maxWidth >= 720.dp
+        if (!showNavigation) {
+            ThemeStoreContentFrame(
+                showBackButton = showBackButton,
+                onBack = onBack,
+                modifier = Modifier.fillMaxSize(),
+                content = content,
+            )
+        } else if (useNavigationRail) {
             Row(modifier = Modifier.fillMaxSize()) {
                 ThemeStoreNavigationRail(
                     selectedPage = selectedPage,
@@ -526,7 +578,7 @@ private fun ThemeStoreContentFrame(
 }
 
 @Composable
-private fun ThemeStoreNavigationBar(
+internal fun ThemeStoreNavigationBar(
     selectedPage: ThemeStorePage,
     onSelected: (ThemeStorePage) -> Unit,
     modifier: Modifier = Modifier,
@@ -540,7 +592,7 @@ private fun ThemeStoreNavigationBar(
             .selectableGroup(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ThemeStorePage.entries.forEach { destination ->
+        themeStoreNavigationPages.forEach { destination ->
             val selected = selectedPage == destination
             val icon = themeStorePageIcon(destination)
             val label = themeStorePageLabel(destination)
@@ -587,7 +639,7 @@ private fun ThemeStoreNavigationBar(
 }
 
 @Composable
-private fun ThemeStoreNavigationRail(
+internal fun ThemeStoreNavigationRail(
     selectedPage: ThemeStorePage,
     onSelected: (ThemeStorePage) -> Unit,
     modifier: Modifier = Modifier,
@@ -603,7 +655,7 @@ private fun ThemeStoreNavigationRail(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        ThemeStorePage.entries.forEach { destination ->
+        themeStoreNavigationPages.forEach { destination ->
             val selected = selectedPage == destination
             Column(
                 modifier = Modifier
@@ -642,15 +694,17 @@ private fun ThemeStoreNavigationRail(
 private fun themeStorePageIcon(page: ThemeStorePage): ImageVector = when (page) {
     ThemeStorePage.Overview -> Icons.Rounded.Explore
     ThemeStorePage.Customize -> Icons.Rounded.AutoFixHigh
+    ThemeStorePage.Plugins -> Icons.Rounded.Extension
     ThemeStorePage.My -> Icons.Rounded.SaveAlt
 }
 
 @Composable
 private fun themeStorePageLabel(page: ThemeStorePage): String = stringResource(
     when (page) {
-        ThemeStorePage.Overview -> R.string.cloud_theme_tab_discover
-        ThemeStorePage.Customize -> R.string.theme_store_tab_customize
-        ThemeStorePage.My -> R.string.theme_store_my_library_title
+        ThemeStorePage.Overview -> R.string.store_tab_discover
+        ThemeStorePage.Customize -> R.string.store_tab_customize
+        ThemeStorePage.Plugins -> R.string.store_tab_plugins
+        ThemeStorePage.My -> R.string.store_tab_library
     }
 )
 
@@ -662,6 +716,7 @@ private fun ThemeStoreOverviewContent(
     CloudThemeDiscoverContent(
         onOpenTheme = actions.onOpenCloudTheme,
         onOpenRanking = actions.onOpenCloudThemeRanking,
+        onOpenInterfaceStyles = actions.onOpenInterfaceStyles,
         modifier = modifier,
     )
 }
@@ -671,7 +726,6 @@ private fun ThemeStoreCustomizeContent(
     summary: ThemeStoreSummary,
     actions: ThemeStoreActions,
     initialSection: ThemeStoreCustomizeSection,
-    onInterfaceStyleInstalled: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var selectedSection by rememberSaveable(initialSection) {
@@ -687,7 +741,6 @@ private fun ThemeStoreCustomizeContent(
             ThemeStoreCustomizeSection.Style -> ThemeStoreStyleItems(
                 summary = summary,
                 actions = actions,
-                onInterfaceStyleInstalled = onInterfaceStyleInstalled,
             )
             ThemeStoreCustomizeSection.Assets -> ThemeStoreAssetItems(summary, actions)
             ThemeStoreCustomizeSection.Atmosphere -> ThemeStoreAtmosphereItems(summary, actions)
@@ -824,10 +877,15 @@ private fun ThemeStoreSettingsDivider() {
 private fun ColumnScope.ThemeStoreStyleItems(
     summary: ThemeStoreSummary,
     actions: ThemeStoreActions,
-    onInterfaceStyleInstalled: (String) -> Unit,
 ) {
     ThemeStoreSectionHeader(stringResource(R.string.interface_style_store_title))
-    InterfaceStyleStoreContent(onInstalled = onInterfaceStyleInstalled)
+    ThemeStoreDestinationItem(
+        title = stringResource(R.string.interface_style_store_title),
+        summary = stringResource(R.string.interface_style_store_summary),
+        status = stringResource(R.string.theme_store_open_editor),
+        icon = Icons.Rounded.Palette,
+        onClick = actions.onOpenInterfaceStyles,
+    )
     ThemeStoreSettingsGroup {
         ThemeStoreDestinationRow(
             title = stringResource(R.string.theme_store_monet_title),
@@ -1327,7 +1385,7 @@ private fun ThemeStoreDestinationRow(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 72.dp)
-            .clickable(onClick = onClick)
+            .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -1561,14 +1619,13 @@ private fun ThemeStoreNotice(text: String) {
 @Composable
 private fun ThemeStoreBackButton(onClick: () -> Unit) {
     val palette = themeStorePalette()
-    Box(
+    IconButton(
+        onClick = onClick,
         modifier = Modifier
             .padding(start = 16.dp, top = 14.dp)
             .size(48.dp)
             .clip(CircleShape)
-            .background(palette.navigationSurface)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
+            .background(palette.navigationSurface),
     ) {
         Icon(
             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,

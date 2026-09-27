@@ -3887,7 +3887,7 @@ fun flashModule(
     onStderr: (String) -> Unit
 ): FlashResult {
     if (!install()) {
-        val error = "Failed to install the ApkeSU daemon"
+        val error = "Failed to install the SterSU daemon"
         onStderr(error)
         return FlashResult(1, error, false)
     }
@@ -3999,7 +3999,7 @@ private suspend fun patchNativeKpmFile(
 ): FlashResult = withContext(Dispatchers.IO) {
     val output = preparePatchedImageOutput(
         ksuApp.cacheDir,
-        "apkesu_gki_kpm_${System.currentTimeMillis()}.img",
+        "stersu_gki_kpm_${System.currentTimeMillis()}.img",
     )
     try {
         val command = nativeKpmPatchCommand(input.absolutePath, output.absolutePath)
@@ -4092,7 +4092,7 @@ suspend fun installBoot(
 
         if (bootFile != null) {
             val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.US).format(Date())
-            val outputName = "apkesu_patched_$timestamp.img"
+            val outputName = "stersu_patched_$timestamp.img"
             val outputFile = preparePatchedImageOutput(ksuApp.cacheDir, outputName)
             patchedOutput = outputFile
             cmd += " -o ${shellQuote(ksuApp.cacheDir.absolutePath)}"
@@ -4108,7 +4108,7 @@ suspend fun installBoot(
             // persistent daemon first so the next boot keeps the APK-bundled
             // ksud/version instead of an older /data/adb/ksud copy.
             if (!install()) {
-                val error = "Failed to install the ApkeSU daemon before direct install"
+                val error = "Failed to install the SterSU daemon before direct install"
                 onStderr(error)
                 return FlashResult(1, error, false)
             }
@@ -4148,7 +4148,7 @@ suspend fun installBoot(
         }
 
         if (bootFile != null && rootAvailable() && !install()) {
-            onStderr("Warning: patched successfully, but failed to refresh the ApkeSU daemon")
+            onStderr("Warning: patched successfully, but failed to refresh the SterSU daemon")
         }
 
         FlashResult(result, bootUri == null)
@@ -4249,7 +4249,7 @@ suspend fun downloadBoot(
         cmd += " --partition ${shellQuote(partition)}"
 
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.US).format(Date())
-        val outputName = "apkesu_patched_$timestamp.img"
+        val outputName = "stersu_patched_$timestamp.img"
         patchedOutput = preparePatchedImageOutput(ksuApp.cacheDir, outputName)
         cmd += " -o ${shellQuote(ksuApp.cacheDir.absolutePath)} --out-name ${shellQuote(outputName)}"
 
@@ -4371,7 +4371,7 @@ fun flashAnyKernelZip(
     onStderr: (String) -> Unit
 ): FlashResult {
     if (!install()) {
-        val error = "Failed to install the ApkeSU daemon before AnyKernel flash"
+        val error = "Failed to install the SterSU daemon before AnyKernel flash"
         onStderr(error)
         return FlashResult(1, error, false)
     }
@@ -4487,6 +4487,9 @@ fun apkeSuRootAvailable(): Boolean {
                 .exec()
             val suVersion = versionOutput.joinToString("\n")
             if (suVersion.contains("KernelSU", ignoreCase = true) ||
+                suVersion.contains("SterSU", ignoreCase = true) ||
+                // Keep recognizing the legacy daemon while an old kernel/userspace
+                // pair is being migrated to the SterSU package identity.
                 suVersion.contains("ApkeSU", ignoreCase = true)
             ) {
                 return@withNewRootShell true

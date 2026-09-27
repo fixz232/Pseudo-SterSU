@@ -37,10 +37,12 @@ internal object SettingsCatalog {
         entry("pixel_motion", SettingsCategory.Appearance, R.string.settings_pixel_card_motion, R.string.settings_pixel_card_motion_summary) {
             it.uiMode == InterfaceStyle.Pixel.value
         },
-        entry("interface_style_store", SettingsCategory.Appearance, R.string.interface_style_store_title, R.string.interface_style_store_summary),
+        // Kept as a searchable compatibility alias; the visible action is the unified Store entry below.
+        entry("interface_style_store", SettingsCategory.Appearance, R.string.store_title, R.string.store_summary),
         entry("day_night", SettingsCategory.Appearance, R.string.settings_day_night_switch, R.string.settings_day_night_switch_summary),
-        entry("theme_store", SettingsCategory.Appearance, R.string.theme_store, R.string.theme_store_settings_summary),
-        entry("plugin_store", SettingsCategory.Toolbox, R.string.plugin_store_title, R.string.plugin_store_security_notice),
+        entry("theme_store", SettingsCategory.Appearance, R.string.store_title, R.string.store_summary),
+        // Kept for category counts and older settings search indexes; it resolves to the same Store route.
+        entry("plugin_store", SettingsCategory.Toolbox, R.string.store_title, R.string.store_summary),
 
         entry("manager_identity", SettingsCategory.HomeAndManager, R.string.settings_manager_identity, R.string.settings_manager_identity_summary),
         entry("dynamic_manager", SettingsCategory.HomeAndManager, R.string.dynamic_manager_title, R.string.dynamic_manager_settings_summary),

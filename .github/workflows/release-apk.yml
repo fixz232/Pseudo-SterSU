@@ -1,4 +1,4 @@
-name: Release ApkeSU APK
+name: Release SterSU APK
 
 permissions:
   contents: write
@@ -117,7 +117,7 @@ jobs:
 
           if [ -z "${PROD_KEYSTORE:-}" ] || [ -z "${PROD_KEY_ALIAS:-}" ] || \
              [ -z "${PROD_KEYSTORE_PASSWORD:-}" ] || [ -z "${PROD_KEY_PASSWORD:-}" ]; then
-            echo "::error::Missing release signing secrets. KEYSTORE, KEY_ALIAS, KEYSTORE_PASSWORD, and KEY_PASSWORD must match the certificate trusted by ApkeSU kernels."
+            echo "::error::Missing release signing secrets. KEYSTORE, KEY_ALIAS, KEYSTORE_PASSWORD, and KEY_PASSWORD must match the certificate trusted by SterSU kernels."
             exit 1
           fi
 
@@ -155,7 +155,7 @@ jobs:
           VERSION_CODE="$(sed -n 's/^versionCode=//p' version.properties | head -n 1)"
           test -n "$VERSION_NAME"
           test -n "$VERSION_CODE"
-          OUTPUT_NAME="ApkeSU_${VERSION_NAME}_${VERSION_CODE}-release"
+          OUTPUT_NAME="SterSU_${VERSION_NAME}_${VERSION_CODE}-release"
 
           python3 repack_apk.py repack \
             -b release \
@@ -166,7 +166,7 @@ jobs:
             -A "$SIGN_KEY_ALIAS" \
             -P "$SIGN_KEYSTORE_PASSWORD" \
             -S "$SIGN_KEY_PASSWORD" \
-            --manager-package io.github.fixz.apkesu \
+            --manager-package io.github.fixz.stersu \
             -n "$OUTPUT_NAME" \
             -o release-apk \
             --strip
@@ -177,7 +177,7 @@ jobs:
           set -euo pipefail
 
           python3 scripts/verify_apkesu_kernel_identity.py
-          APK="$(find release-apk -maxdepth 1 -type f -name 'ApkeSU_*-release.apk' | head -n 1)"
+          APK="$(find release-apk -maxdepth 1 -type f -name 'SterSU_*-release.apk' | head -n 1)"
           test -n "$APK"
 
           BUILD_TOOLS="$(find "$ANDROID_SDK_ROOT/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
@@ -209,7 +209,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          APK="$(find release-apk -maxdepth 1 -type f -name 'ApkeSU_*-release.apk' | head -n 1)"
+          APK="$(find release-apk -maxdepth 1 -type f -name 'SterSU_*-release.apk' | head -n 1)"
           test -n "$APK"
 
           VERSION_NAME="$(sed -n 's/^versionName=//p' version.properties | head -n 1)"
@@ -236,7 +236,7 @@ jobs:
 
           manifest = {
               "schema": 1,
-              "artifact": "ApkeSU release APK",
+              "artifact": "SterSU release APK",
               "apk_name": os.environ["APK_NAME"],
               "apk_sha256": os.environ["SHA256"],
               "apk_size_bytes": int(os.environ["SIZE_BYTES"]),
@@ -255,7 +255,7 @@ jobs:
           PY
 
           {
-            echo "### ApkeSU release APK"
+            echo "### SterSU release APK"
             echo
             echo "- APK: \`$APK_NAME\`"
             echo "- Version: \`$VERSION_NAME ($VERSION_CODE)\`"
@@ -270,7 +270,7 @@ jobs:
       - name: Upload release APK artifact
         uses: actions/upload-artifact@v7
         with:
-          name: apkesu-release-apk
+          name: stersu-release-apk
           path: release-apk/*
           if-no-files-found: error
           compression-level: 9
@@ -280,7 +280,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.meta.outputs.release_tag }}
-          name: ApkeSU APK ${{ steps.meta.outputs.release_tag }}
+          name: SterSU APK ${{ steps.meta.outputs.release_tag }}
           draft: ${{ inputs.draft || false }}
           prerelease: ${{ inputs.prerelease || false }}
           files: |

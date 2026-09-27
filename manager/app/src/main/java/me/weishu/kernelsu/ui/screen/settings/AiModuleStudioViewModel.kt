@@ -581,7 +581,7 @@ internal class AiModuleStudioViewModel : ViewModel() {
     private fun buildStudioSystemPrompt(existing: String): String = buildString {
         if (existing.isNotBlank()) appendLine(existing.trim())
         appendLine()
-        appendLine("You are assisting with an ApkeSU/KernelSU module project.")
+        appendLine("You are assisting with a SterSU/KernelSU module project.")
         appendLine("Never claim to execute, flash, install, or test code. Never request secrets.")
         appendLine("Keep module.prop at the ZIP root and use Android /system/bin/sh compatible scripts.")
         appendLine("Prefer narrow permissions and fail-safe behavior. Warn before block-device, SELinux, boot, or shared /data/adb mutations.")

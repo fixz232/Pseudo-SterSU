@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name" translatable="false">ApkeSU</string>
-    <string name="home_title" translatable="false">ApkeSU</string>
+    <string name="app_name" translatable="false">SterSU</string>
+    <string name="home_title" translatable="false">SterSU</string>
     <string name="module_shortcut_copy_scheme">Copy shortcut link</string>
     <string name="module_shortcut_scheme_copied">Shortcut link copied</string>
     <string name="jailbreak_reboot_warning">You are in Jailbreak mode. Rebooting will lose root access, and you will have to jailbreak again after the device starts up. Reboot anyway?</string>
@@ -9,7 +9,7 @@
     <string name="home_not_installed">Ready to install</string>
     <string name="home_click_to_install">Tap to install</string>
     <string name="home_install_preparing">Preparing install</string>
-    <string name="home_working">ApkeSU active</string>
+    <string name="home_working">SterSU active</string>
     <string name="home_working_version">Installed version: %s</string>
     <string name="home_lkm_update_available">A newer bundled LKM is available. Tap to update.</string>
     <string name="home_lkm_custom">Custom</string>
@@ -52,8 +52,8 @@
     <string name="home_card_wallpapers_summary">Choose image or video wallpapers for every card on the Home page.</string>
     <string name="settings_show_home_support_card">Show support card</string>
     <string name="settings_show_home_support_card_summary">Show the support development card on the home screen.</string>
-    <string name="settings_show_home_learn_card">Show learn ApkeSU card</string>
-    <string name="settings_show_home_learn_card_summary">Show the learn ApkeSU card on the home screen.</string>
+    <string name="settings_show_home_learn_card">Show learn SterSU card</string>
+    <string name="settings_show_home_learn_card_summary">Show the learn SterSU card on the home screen.</string>
     <string name="home_card_wallpapers_main_section">Main card</string>
     <string name="home_card_wallpapers_main_section_summary">Set independent wallpapers for the default, classic Miuix, and Material status cards.</string>
     <string name="home_card_wallpapers_metric_section">Metric cards</string>
@@ -97,8 +97,8 @@
     <string name="module_wallpaper_clear">Clear module wallpaper</string>
     <string name="module_wallpaper_preview_hint">Module card preview</string>
     <string name="home_unsupported">Unsupported kernel</string>
-    <string name="home_unsupported_reason">ApkeSU currently supports GKI kernels only. Patch the boot image on a GKI device to continue.</string>
-    <string name="home_version_mismatch">Manager version (%1$d) and ApkeSU driver version (%2$d) mismatch.</string>
+    <string name="home_unsupported_reason">SterSU currently supports GKI kernels only. Patch the boot image on a GKI device to continue.</string>
+    <string name="home_version_mismatch">Manager version (%1$d) and SterSU driver version (%2$d) mismatch.</string>
     <string name="home_device_model">Device model</string>
     <string name="home_kernel">Kernel version</string>
     <string name="home_kpm">KPM</string>
@@ -188,16 +188,16 @@
     <string name="safe_mode_module_disabled">Module installation is disabled in safe mode</string>
     <string name="reboot_to_apply">Reboot to take effect</string>
     <string name="module_magisk_conflict">Modules are unavailable due to a conflict with Magisk!</string>
-    <string name="home_learn_kernelsu">Learn ApkeSU</string>
+    <string name="home_learn_kernelsu">Learn SterSU</string>
     <string name="home_learn_kernelsu_url">https://github.com/fixz232/ApkeSU.git</string>
-    <string name="home_click_to_learn_kernelsu">Learn how to install ApkeSU and use modules.</string>
+    <string name="home_click_to_learn_kernelsu">Learn how to install SterSU and use modules.</string>
     <string name="home_support_title">Support Us</string>
-    <string name="home_support_content">ApkeSU is, and always will be, free, and open source. However, you can show us that you care by making a donation.</string>
+    <string name="home_support_content">SterSU is, and always will be, free, and open source. However, you can show us that you care by making a donation.</string>
     <string name="home_gki_warning">Starting from v3.0.0, the GKI work mode will be used only in testing environments. We do not recommend it for daily use, and image files will no longer be provided.</string>
-    <string name="home_manager_identity_warning">ApkeSU is active, but this app is not recognized as the manager by the kernel. Reinstall the matching Manager APK or rebuild the kernel with this app signature.</string>
-    <string name="home_manager_build_mismatch_warning">The active driver (%1$d) was not built for this ApkeSU Manager (%2$d). Reinstalling the APK alone cannot fix it. Patch and flash a new image with this Manager, or use a GKI/LKM built from the current ApkeSU source.</string>
-    <string name="about_join_qq_group">点击链接加入群聊【ApkeSU官方群】</string>
-    <string name="about_official_telegram">Official channel: ApkeSU</string>
+    <string name="home_manager_identity_warning">SterSU is active, but this app is not recognized as the manager by the kernel. Reinstall the matching Manager APK or rebuild the kernel with this app signature.</string>
+    <string name="home_manager_build_mismatch_warning">The active driver (%1$d) was not built for this SterSU Manager (%2$d). Reinstalling the APK alone cannot fix it. Patch and flash a new image with this Manager, or use a GKI/LKM built from the current SterSU source.</string>
+    <string name="about_join_qq_group">点击链接加入群聊【SterSU官方群】</string>
+    <string name="about_official_telegram">Official channel: SterSU</string>
     <string name="about_official_upstream">Official upstream: KernelSU</string>
     <string name="profile">App Profile</string>
     <string name="profile_default">Default</string>
@@ -214,15 +214,15 @@
     <string name="profile_selinux_context">SELinux context</string>
     <string name="profile_umount_modules">Umount modules</string>
     <string name="failed_to_update_app_profile">Failed to update App Profile for %s</string>
-    <string name="uapi_mismatch">Manager uapi version (%1$d) and ApkeSU driver uapi version (%2$d) mismatch.</string>
-    <string name="require_manager_version">The current ApkeSU manager version %1$d is too low for ApkeSU to work properly. Please upgrade manager to version %2$d or higher!</string>
-    <string name="require_kernel_version">The current ApkeSU version %1$d is too low for the manager to work properly. Please upgrade to version %2$d or higher!</string>
+    <string name="uapi_mismatch">Manager uapi version (%1$d) and SterSU driver uapi version (%2$d) mismatch.</string>
+    <string name="require_manager_version">The current SterSU manager version %1$d is too low for SterSU to work properly. Please upgrade manager to version %2$d or higher!</string>
+    <string name="require_kernel_version">The current SterSU version %1$d is too low for the manager to work properly. Please upgrade to version %2$d or higher!</string>
     <string name="require_kernel_version_gki">Kernel update required</string>
     <string name="settings_umount_modules_default">Umount modules by default</string>
     <string name="settings_umount_modules_default_summary">The global default value for \"Umount modules\" in App Profile. If enabled, it will remove all module modifications to the system for apps that don\'t have a profile set.</string>
     <string name="settings_check_update">Check for updates</string>
     <string name="settings_check_update_summary">Automatically check for updates when opening the app.</string>
-    <string name="profile_umount_modules_summary">Enabling this option will allow ApkeSU to restore any modified files by the modules for this app.</string>
+    <string name="profile_umount_modules_summary">Enabling this option will allow SterSU to restore any modified files by the modules for this app.</string>
     <string name="profile_selinux_domain">Domain</string>
     <string name="profile_selinux_rules">Rules</string>
     <string name="recently_installed">Recently installed</string>
@@ -258,20 +258,20 @@
     <string name="app_profile_template_import_empty">Clipboard is empty!</string>
     <string name="app_profile_affects_following_apps">Affects the following apps</string>
     <string name="manager_update_title">Update available</string>
-    <string name="manager_update_message">ApkeSU Manager %1$s (%2$d) is available.</string>
+    <string name="manager_update_message">SterSU Manager %1$s (%2$d) is available.</string>
     <string name="manager_force_update_title">Update required</string>
-    <string name="manager_force_update_message">This version is no longer supported. Please update to ApkeSU Manager %1$s (%2$d) to continue.</string>
+    <string name="manager_force_update_message">This version is no longer supported. Please update to SterSU Manager %1$s (%2$d) to continue.</string>
     <string name="manager_update_changelog">%1$s\n\n%2$s</string>
     <string name="settings_enable_predictive_back">Predictive back gesture</string>
     <string name="settings_enable_predictive_back_summary">Enable predictive back gesture support.</string>
     <string name="settings_module_check_update">Check for module updates</string>
     <string name="settings_module_check_update_summary">Automatically check installed modules for available updates.</string>
     <string name="settings_version_mismatch_warning">Version mismatch warning</string>
-    <string name="settings_version_mismatch_warning_summary">Show a warning when the Manager and ApkeSU driver versions do not match.</string>
+    <string name="settings_version_mismatch_warning_summary">Show a warning when the Manager and SterSU driver versions do not match.</string>
     <string name="settings_gki_warning">Show GKI testing warning</string>
     <string name="settings_gki_warning_summary">Show the home warning that GKI work mode is recommended for testing only.</string>
     <string name="grant_root_failed">Failed to grant root!</string>
-    <string name="root_daemon_warning">The ApkeSU driver is connected, but the ksud Root Shell is unavailable. Run Root diagnostics to check daemon and version state.</string>
+    <string name="root_daemon_warning">The SterSU driver is connected, but the ksud Root Shell is unavailable. Run Root diagnostics to check daemon and version state.</string>
     <string name="root_runtime_version_warning">The installed ksud does not match this Manager. Run Root diagnostics and reinstall the daemon.</string>
     <string name="home_pr_build_warning">This is a PR debug build. Do NOT use it in production!</string>
     <string name="home_pr_kernel_warning">The kernel was built with PR signature support. This is not a production kernel!</string>
@@ -310,14 +310,14 @@
     <string name="web_manager_notification_text">Available at 127.0.0.1:%1$d</string>
     <string name="web_manager_open_failed">Unable to open web manager: %1$s</string>
     <string name="direct_install">Direct install (Recommended)</string>
-    <string name="direct_install_root_required">Grant root access to ApkeSU before using direct install.</string>
+    <string name="direct_install_root_required">Grant root access to SterSU before using direct install.</string>
     <string name="select_file">Select a file and patch</string>
     <string name="install_patch_mode_normal">Normal patch</string>
     <string name="install_patch_mode_native_kpm">Native GKI KPM patch</string>
-    <string name="install_patch_mode_native_kpm_summary">Requires an ApkeSU GKI kernel built with CONFIG_KSU=y and CONFIG_KPM=y. Only boot.img is supported. Saves a patched image without flashing; init_boot and stock kernels are not supported.</string>
-    <string name="install_patch_mode_normal_summary">Patch with the built-in ApkeSU LKM. KMI is detected from the selected image automatically.</string>
+    <string name="install_patch_mode_native_kpm_summary">Requires a SterSU GKI kernel built with CONFIG_KSU=y and CONFIG_KPM=y. Only boot.img is supported. Saves a patched image without flashing; init_boot and stock kernels are not supported.</string>
+    <string name="install_patch_mode_normal_summary">Patch with the built-in SterSU LKM. KMI is detected from the selected image automatically.</string>
     <string name="install_patch_mode_hidden_path">Hidden path patch</string>
-    <string name="install_patch_mode_hidden_path_summary">Patch ApkeSU and embed the matching pathmask LKM for hidden path configuration.</string>
+    <string name="install_patch_mode_hidden_path_summary">Patch SterSU and embed the matching pathmask LKM for hidden path configuration.</string>
     <string name="install_target_kmi">Target KMI</string>
     <string name="install_kmi_detecting">Detecting KMI from the selected image…</string>
     <string name="install_kmi_detected">Automatically detected: %1$s</string>
@@ -446,16 +446,16 @@
     <string name="ai_chat_send">Send</string>
     <string name="ai_chat_generating">Generating&#8230;</string>
     <string name="ai_chat_input_hint">Ask about modules, logs, flashing, or attach a file/image&#8230;</string>
-    <string name="ai_chat_welcome">Configure an OpenAI-compatible API, then chat with your ApkeSU assistant.</string>
+    <string name="ai_chat_welcome">Configure an OpenAI-compatible API, then chat with your SterSU assistant.</string>
     <string name="ai_chat_empty_title">Start a conversation</string>
     <string name="ai_chat_setup_title">Connect your AI provider</string>
-    <string name="ai_chat_role_assistant">ApkeSU AI</string>
+    <string name="ai_chat_role_assistant">SterSU AI</string>
     <string name="ai_chat_role_user">You</string>
     <string name="ai_chat_request_failed">Request failed: %s</string>
     <string name="ai_chat_file_failed">Failed to read this file.</string>
     <string name="ai_chat_modules_empty">No installed modules were found.</string>
     <string name="ai_chat_modules_failed">Failed to load modules: %s</string>
-    <string name="ai_chat_default_system_prompt">You are the ApkeSU manager assistant. Answer in the user language, focus on Android root, modules, boot image patching, logs, and risk-aware troubleshooting.</string>
+    <string name="ai_chat_default_system_prompt">You are the SterSU manager assistant. Answer in the user language, focus on Android root, modules, boot image patching, logs, and risk-aware troubleshooting.</string>
     <string name="ai_chat_back">Back</string>
     <string name="ai_chat_more_options">More options</string>
     <string name="ai_chat_confirm">Confirm</string>
@@ -499,7 +499,7 @@
     <string name="ai_chat_context_usage">Context token estimate: %1$d / %2$d</string>
     <string name="ai_chat_confirm_send_title">Confirm external transmission</string>
     <string name="ai_chat_send_destination">Destination: %1$s</string>
-    <string name="ai_chat_external_api_warning">The selected content leaves this device and is processed under the destination API provider\'s privacy policy. ApkeSU cannot control or revoke data after transmission.</string>
+    <string name="ai_chat_external_api_warning">The selected content leaves this device and is processed under the destination API provider\'s privacy policy. SterSU cannot control or revoke data after transmission.</string>
     <string name="ai_chat_data_summary">Data to send:</string>
     <string name="ai_chat_data_text">message text and selected context</string>
     <string name="ai_chat_data_auth">API authentication credentials</string>
@@ -515,7 +515,7 @@
     <string name="ai_chat_confirm_send">Confirm and send</string>
     <string name="ai_chat_preview_truncated">Preview truncated</string>
     <string name="ai_chat_attachment_prompt">Please analyze the attached content.</string>
-    <string name="ai_chat_module_analysis_prompt">Analyze the current ApkeSU module and Root runtime report.</string>
+    <string name="ai_chat_module_analysis_prompt">Analyze the current SterSU module and Root runtime report.</string>
     <string name="ai_chat_attachment_too_large">The attachment is too large. Limit: %1$s.</string>
     <string name="ai_chat_unsupported_file">This file is binary or unsupported. Upload a text, ZIP, or image file.</string>
     <plurals name="ai_chat_too_many_attachments">
@@ -706,8 +706,8 @@
     <string name="settings_restore_stock_image">Restore stock image</string>
     <string name="install_force_backup">Back up original image</string>
     <string name="install_force_backup_summary">Keep the selected unpatched image for later restoration</string>
-    <string name="settings_uninstall_permanent_message">Uninstalling ApkeSU (root and all modules) completely and permanently.</string>
-    <string name="settings_restore_stock_image_message">Restore the stock factory image (if a backup exists), usually used before OTA; if you need to uninstall ApkeSU, please use \"Uninstall permanently\".</string>
+    <string name="settings_uninstall_permanent_message">Uninstalling SterSU (root and all modules) completely and permanently.</string>
+    <string name="settings_restore_stock_image_message">Restore the stock factory image (if a backup exists), usually used before OTA; if you need to uninstall SterSU, please use \"Uninstall permanently\".</string>
     <string name="flashing">Flashing</string>
     <string name="flash_success">Flash success</string>
     <string name="flash_failed">Flash failed</string>
@@ -729,12 +729,12 @@
     <string name="settings_selinux_hide_reboot_required">Reboot to take effect</string>
     <string name="settings_selinux_hide_failed">Error: %d</string>
     <string name="settings_sulog">SU Log</string>
-    <string name="settings_sulog_summary">Record root-related events into ApkeSU sulog files.</string>
+    <string name="settings_sulog_summary">Record root-related events into SterSU sulog files.</string>
     <string name="settings_avc_spoof">AVC log spoofing</string>
     <string name="settings_avc_spoof_summary">Hide KernelSU SELinux domains in AVC audit logs.</string>
-    <string name="settings_epkesu_hide">ApkeSU Hide</string>
+    <string name="settings_epkesu_hide">SterSU Hide</string>
     <string name="settings_epkesu_hide_summary">把Bootloader解锁状态藏起来</string>
-    <string name="settings_epkesu_hide_failed">Failed to update ApkeSU Hide.</string>
+    <string name="settings_epkesu_hide_failed">Failed to update SterSU Hide.</string>
     <string name="feature_status_unsupported_summary">Kernel does not support this feature</string>
     <string name="feature_status_managed_summary">This feature is managed by a module</string>
     <string name="settings_mode_enable_by_default">Enable (Default)</string>
@@ -782,7 +782,7 @@
     <string name="kpm_kpatch_pending_summary">KPM files can be imported and enabled now. Reboot to activate KPatch-Next before using immediate load or control.</string>
     <string name="kpm_empty">No KPM imported</string>
     <string name="kpm_empty_summary">Import a trusted AArch64 relocatable KPM to manage it here. Imported files are validated before any kernel code is loaded.</string>
-    <string name="kpm_footer">KPM uses the KernelPatch section ABI. Native GKI uses a compatible loader supplied by the boot image, while LKM uses a separate KPatch-Next backend. ApkeSU handles trusted import, policy, rescue recovery, and su log integration. Never import code you do not trust.</string>
+    <string name="kpm_footer">KPM uses the KernelPatch section ABI. Native GKI uses a compatible loader supplied by the boot image, while LKM uses a separate KPatch-Next backend. SterSU handles trusted import, policy, rescue recovery, and su log integration. Never import code you do not trust.</string>
     <string name="kpm_status_failed">Unable to read KPM status</string>
     <string name="kpm_operation_succeeded">Operation completed.</string>
     <string name="kpm_operation_failed">KPM operation failed.</string>
@@ -995,7 +995,7 @@
     <string name="ui_decoration_import">Import</string>
     <string name="ui_decoration_export">Export</string>
     <string name="ui_decoration_import_success">Decoration presets imported.</string>
-    <string name="ui_decoration_import_failed">Could not import this file. Select a valid ApkeSU decoration preset file.</string>
+    <string name="ui_decoration_import_failed">Could not import this file. Select a valid SterSU decoration preset file.</string>
     <string name="ui_decoration_export_success">Decoration presets exported.</string>
     <string name="ui_decoration_export_failed">Could not export decoration presets.</string>
     <string name="ui_decoration_search_components">Search decoration names or effects</string>
@@ -1349,7 +1349,7 @@
     <string name="theme_store_startup_media_summary">Configure the sound and animation used when the Manager opens.</string>
     <string name="theme_store_page_backgrounds_notice">Page-specific backgrounds configured in Background settings are also included when exporting.</string>
     <string name="theme_store_transfer_panel_title">Portable theme backup</string>
-    <string name="theme_store_transfer_panel_summary">Export creates an ApkeSU .kstheme package. Import validates the package before replacing the current theme resources.</string>
+    <string name="theme_store_transfer_panel_summary">Export creates a SterSU .kstheme package. Import validates the package before replacing the current theme resources.</string>
     <string name="theme_store_import_replaces_notice">Import replaces matching theme resources. If validation or saving fails, the current configuration is kept.</string>
     <string name="theme_store_import_confirm_title">Import theme package?</string>
     <string name="theme_store_import_confirm_message">Matching card, icon, background, and startup media settings will be replaced after the package passes validation.</string>
@@ -1453,7 +1453,7 @@
     <string name="settings_startup_animation">Startup animation</string>
     <string name="settings_startup_animation_summary">Choose an image, GIF, video, or Android Motion Photo to show when the app starts.</string>
     <string name="settings_startup_animation_selected_summary">Startup animation selected. Tap to choose another file.</string>
-    <string name="settings_startup_animation_page_summary">Set the media that appears briefly when ApkeSU opens. The same player is used here and during app startup.</string>
+    <string name="settings_startup_animation_page_summary">Set the media that appears briefly when SterSU opens. The same player is used here and during app startup.</string>
     <string name="settings_startup_animation_status_title">Current status</string>
     <string name="settings_startup_animation_status_empty">No startup animation selected.</string>
     <string name="settings_startup_animation_status_selected">Startup animation is ready.</string>
@@ -1645,7 +1645,7 @@
     <string name="settings_hub_root_permissions">Root and permissions</string>
     <string name="settings_hub_root_permissions_summary">App profiles, su compatibility, kernel umount, SELinux, logs, adb root, and AVC spoofing</string>
     <string name="settings_hub_mount_hide">Mounting and hiding</string>
-    <string name="settings_hub_mount_hide_summary">Default unmount rules, KPatch Next, path configuration, and ApkeSU Hide</string>
+    <string name="settings_hub_mount_hide_summary">Default unmount rules, KPatch Next, path configuration, and SterSU Hide</string>
     <string name="settings_hub_toolbox">Toolbox</string>
     <string name="settings_hub_toolbox_summary">Rescue, image, CPU, device identity, AI, and graphics tools</string>
     <string name="settings_hub_app_maintenance">App and maintenance</string>
@@ -1673,7 +1673,7 @@
     <string name="settings_group_diagnostics">Diagnostics and experiments</string>
     <string name="settings_group_maintenance_about">Maintenance and about</string>
     <string name="settings_log_export_summary">Collect and export manager and root service logs for troubleshooting.</string>
-    <string name="settings_uninstall_summary">Remove ApkeSU from the active LKM installation.</string>
+    <string name="settings_uninstall_summary">Remove SterSU from the active LKM installation.</string>
     <string name="settings_about_summary">Version, licenses, source code, and project information.</string>
     <string name="settings_section_item_count_single">1 item</string>
     <string name="settings_section_item_count">%1$d items</string>
@@ -1707,7 +1707,7 @@
     <string name="sort_by_install_time">Install time</string>
     <string name="sort_by_update_time">Update time</string>
     <string name="sort_reverse">Reverse</string>
-    <string name="profile_flags_desc_no_new_privs">Prevent further privilege escalation via ApkeSU from within the context of this root profile.</string>
+    <string name="profile_flags_desc_no_new_privs">Prevent further privilege escalation via SterSU from within the context of this root profile.</string>
     <string name="home_kernel_hook">Hook type</string>
     <string name="hook_type_tracepoint">Tracepoint Hook</string>
     <string name="settings_cpu_spoof">Custom CPU spoof</string>
@@ -1744,7 +1744,7 @@
     <string name="graphics_renderer_apply_confirm_title">Apply renderer mode?</string>
     <string name="graphics_renderer_apply_confirm_message">Set HWUI to %1$s. Reboot persistence: %2$s. Runtime properties will be read back before success is reported.</string>
     <string name="graphics_renderer_restore_confirm_title">Restore original renderer properties?</string>
-    <string name="graphics_renderer_restore_confirm_message">Restore the properties backed up before the first change and remove the ApkeSU startup script.</string>
+    <string name="graphics_renderer_restore_confirm_message">Restore the properties backed up before the first change and remove the SterSU startup script.</string>
     <string name="graphics_renderer_reboot_confirm_title">Restart the device?</string>
     <string name="graphics_renderer_reboot_confirm_message">The renderer properties have been verified. Restart now to recreate System UI and app processes with the selected mode.</string>
     <string name="graphics_renderer_apply_success">Renderer configuration applied and verified</string>
@@ -1831,7 +1831,7 @@
     <string name="device_identity_tool_unavailable">A required system command is unavailable on this ROM.</string>
     <string name="device_identity_value_unavailable">No value was returned by the system.</string>
     <string name="device_identity_restore_original">Restore original</string>
-    <string name="device_identity_not_modified">No ApkeSU backup</string>
+    <string name="device_identity_not_modified">No SterSU backup</string>
     <string name="device_identity_copy">Copy current value</string>
     <string name="device_identity_edit">Edit identifier</string>
     <string name="device_identity_copied">Identifier copied</string>
@@ -1852,10 +1852,10 @@
     <string name="device_identity_bluetooth_confirm">Android\'s stored Bluetooth address record will change. Bluetooth services or apps may need to restart; the hardware controller address is not rewritten.</string>
     <string name="device_identity_oaid_confirm">The recognized OAID text file will be rewritten in place and verified. Reboot before checking apps that cache OAID.</string>
     <string name="device_identity_restore_confirm_title">Restore backed-up value?</string>
-    <string name="device_identity_restore_confirm_message">Restore the original %1$s value and remove its ApkeSU target configuration.</string>
+    <string name="device_identity_restore_confirm_message">Restore the original %1$s value and remove its SterSU target configuration.</string>
     <string name="device_identity_restore_action">Restore and verify</string>
     <string name="device_identity_restore_all_title">Restore all identifiers?</string>
-    <string name="device_identity_restore_all_message">Every identifier with an ApkeSU backup will be restored independently. Unsupported items remain untouched and any failed item will be reported.</string>
+    <string name="device_identity_restore_all_message">Every identifier with a SterSU backup will be restored independently. Unsupported items remain untouched and any failed item will be reported.</string>
     <string name="device_identity_restore_all_action">Restore all</string>
     <string name="device_identity_restore_all_success">All backed-up identifiers were restored and verified.</string>
     <string name="device_identity_restore_all_partial">Some identifiers could not be restored: %1$s. Their backups and target configuration were kept for retry.</string>
@@ -1899,7 +1899,7 @@
     <string name="app_id_manager_open">Open App ID manager</string>
     <string name="app_id_manager_refresh">Refresh applications and App ID status</string>
     <string name="app_id_manager_reboot_required">Changes take effect after a reboot</string>
-    <string name="app_id_manager_safety_summary">ApkeSU stages each change and applies it atomically during post-fs-data, before Android loads the SSAID database. Current and pending values are always shown separately.</string>
+    <string name="app_id_manager_safety_summary">SterSU stages each change and applies it atomically during post-fs-data, before Android loads the SSAID database. Current and pending values are always shown separately.</string>
     <string name="app_id_manager_apps">Applications (%1$d)</string>
     <string name="app_id_manager_search">Search application, package, or UID</string>
     <string name="app_id_manager_clear_search">Clear search</string>
@@ -1940,7 +1940,7 @@
     <string name="app_id_manager_cancel_pending">Cancel pending</string>
     <string name="app_id_manager_shared_packages">UID %2$d · linked: %1$d</string>
     <string name="app_id_manager_empty">No matching applications</string>
-    <string name="app_id_manager_error_root">A Root shell is unavailable. Check ApkeSU status and manager registration.</string>
+    <string name="app_id_manager_error_root">A Root shell is unavailable. Check SterSU status and manager registration.</string>
     <string name="app_id_manager_error_file_missing">This Android user has no settings_ssaid.xml file yet.</string>
     <string name="app_id_manager_error_invalid_xml">The SSAID settings file is unsupported or damaged. Nothing was written.</string>
     <string name="app_id_manager_error_backup_missing">No valid original backup exists for this UID.</string>
@@ -2010,7 +2010,7 @@
     <string name="foreground_tool_notice_moved_from_tools">The app was removed from tool apps because one package cannot use both roles.</string>
     <string name="foreground_tool_notice_moved_from_targets">The app was removed from trigger apps because one package cannot use both roles.</string>
     <string name="foreground_tool_notice_log_cleared">Event log cleared.</string>
-    <string name="foreground_tool_error_root">A Root shell is unavailable. Check ApkeSU status and manager registration.</string>
+    <string name="foreground_tool_error_root">A Root shell is unavailable. Check SterSU status and manager registration.</string>
     <string name="foreground_tool_error_invalid_package">The configuration contains an invalid package name and was not saved.</string>
     <string name="foreground_tool_error_target_required">Select at least one trigger app before enabling protection.</string>
     <string name="foreground_tool_error_tool_required">Select at least one tool app before enabling protection.</string>
@@ -2252,7 +2252,7 @@
     <string name="cloud_theme_creator_changelog">Changelog</string>
     <string name="cloud_theme_creator_media_title">Store media</string>
     <string name="cloud_theme_creator_cover_url">Cover image URL</string>
-    <string name="cloud_theme_creator_cover_url_hint">Optional. Leave blank to use the first screenshot, or the ApkeSU default cover when no screenshot is provided</string>
+    <string name="cloud_theme_creator_cover_url_hint">Optional. Leave blank to use the first screenshot, or the SterSU default cover when no screenshot is provided</string>
     <string name="cloud_theme_creator_screenshot_urls">Screenshot URLs</string>
     <string name="cloud_theme_creator_screenshot_urls_hint">One GitHub-hosted image URL per line, up to eight</string>
     <string name="cloud_theme_creator_remote_package">Remote release package</string>
@@ -2335,7 +2335,7 @@
     <string name="app_freeze_empty">No matching apps</string>
     <string name="app_freeze_empty_summary">Change the search, filter, or system app setting.</string>
     <string name="app_freeze_retry_summary">Review the error, then retry the application state scan.</string>
-    <string name="app_freeze_protection_manager">ApkeSU protects itself so frozen apps can always be recovered.</string>
+    <string name="app_freeze_protection_manager">SterSU protects itself so frozen apps can always be recovered.</string>
     <string name="app_freeze_protection_launcher">The active launcher is protected to prevent losing access to the home screen.</string>
     <string name="app_freeze_protection_critical">This package provides a critical Android management function and cannot be frozen here.</string>
     <string name="app_freeze_protection_core_uid">Android core-UID packages are protected from freezing.</string>
@@ -2357,7 +2357,7 @@
     <string name="card_style_creator_entry_summary">Design Xiaomi home cards and bottom bars with pixel layers</string>
     <string name="card_style_creator_default_name">Pixel glow cards</string>
     <string name="card_style_creator_xiaomi_preview">Xiaomi home preview</string>
-    <string name="card_style_creator_preview_title">ApkeSU</string>
+    <string name="card_style_creator_preview_title">SterSU</string>
     <string name="card_style_creator_preview_status">Running normally</string>
     <string name="card_style_creator_preview_home">Home mapping</string>
     <string name="card_style_creator_preview_chrome">Navigation and menu</string>
@@ -2384,7 +2384,7 @@
     <string name="card_style_creator_preview_system">Android 16 · arm64</string>
     <string name="card_style_creator_preview_reboot">System · Recovery · Bootloader</string>
     <string name="card_style_creator_cloud_category">Card styles</string>
-    <string name="card_style_creator_cloud_description">A custom pixel card and navigation style for the ApkeSU Xiaomi home interface.</string>
+    <string name="card_style_creator_cloud_description">A custom pixel card and navigation style for the SterSU Xiaomi home interface.</string>
     <string name="card_style_creator_draft_recovered">Recovered your last unsaved card style draft</string>
     <string name="card_style_creator_image_imported">Image converted to the current pixel layer</string>
     <string name="card_style_creator_unsaved_title">Discard unsaved changes?</string>
@@ -2455,7 +2455,7 @@
     <string name="switch_style_creator_state_on">Enabled</string>
     <string name="switch_style_creator_state_off">Disabled</string>
     <string name="switch_style_creator_cloud_category">Switch styles</string>
-    <string name="switch_style_creator_cloud_description">A custom pixel or image-based switch style for ApkeSU controls.</string>
+    <string name="switch_style_creator_cloud_description">A custom pixel or image-based switch style for SterSU controls.</string>
     <string name="switch_style_creator_draft_recovered">Recovered your last unsaved switch style draft</string>
     <string name="switch_style_creator_unsaved_title">Save changes before continuing?</string>
     <string name="switch_style_creator_unsaved_message">The current switch style has unsaved changes. Save it, discard it, or return to the editor.</string>
@@ -2597,14 +2597,14 @@
     <string name="root_diagnostic_failed">Root diagnostics failed\n%1$s</string>
     <string name="root_diagnostic_mode_jailbreak">Jailbreak mode</string>
     <string name="root_diagnostic_unknown">Unknown</string>
-    <string name="root_diagnostic_title">ApkeSU Root diagnostics</string>
+    <string name="root_diagnostic_title">SterSU Root diagnostics</string>
     <string name="root_diagnostic_time">Time: %1$s</string>
     <string name="root_diagnostic_conclusion">Conclusion: %1$s</string>
     <string name="root_diagnostic_driver_connection">Driver connection: %1$s</string>
     <string name="root_diagnostic_driver_version">Driver version: %1$s</string>
     <string name="root_diagnostic_driver_manager_match">Driver and Manager versions match: %1$s</string>
     <string name="root_diagnostic_kernel_module">Kernel module marker: %1$s</string>
-    <string name="root_diagnostic_root_shell">ApkeSU Root Shell: %1$s</string>
+    <string name="root_diagnostic_root_shell">SterSU Root Shell: %1$s</string>
     <string name="root_diagnostic_fallback_shell">Fallback su Root Shell: %1$s</string>
     <string name="root_diagnostic_manager_registered">Manager registration: %1$s</string>
     <string name="root_diagnostic_manager">Manager: %1$s (UID %2$d)</string>
@@ -2620,8 +2620,8 @@
     <string name="root_diagnostic_no_slot">No slot</string>
     <string name="root_diagnostic_work_mode">Work mode: %1$s</string>
     <string name="root_diagnostic_hidden_path_lkm">Hidden path LKM: %1$s</string>
-    <string name="root_diagnostic_fix_version_mismatch">Suggested fix: driver %1$d and ApkeSU Manager %2$d have different build identities.</string>
-    <string name="root_diagnostic_fix_repatch">Reinstalling only the APK cannot fix this. Patch and flash an image with the current Manager, or flash GKI/LKM built from the current ApkeSU source.</string>
+    <string name="root_diagnostic_fix_version_mismatch">Suggested fix: driver %1$d and SterSU Manager %2$d have different build identities.</string>
+    <string name="root_diagnostic_fix_repatch">Reinstalling only the APK cannot fix this. Patch and flash an image with the current Manager, or flash GKI/LKM built from the current SterSU source.</string>
     <string name="root_diagnostic_fix_identity">Suggested fix: the kernel does not trust the current APK package name or signature. Rebuild the kernel from the same source with the same release certificate.</string>
     <string name="root_diagnostic_normal">Normal</string>
     <string name="root_diagnostic_abnormal">Abnormal</string>
@@ -2964,7 +2964,7 @@
     <string name="app_font_title">App fonts</string>
     <string name="app_font_summary">Choose one font for Material and MIUI-style pages. Custom fonts are validated before they are applied.</string>
     <string name="app_font_current">Current font</string>
-    <string name="app_font_preview_text">ApkeSU · Theme Aa 123</string>
+    <string name="app_font_preview_text">SterSU · Theme Aa 123</string>
     <string name="app_font_presets_title">Built-in fonts</string>
     <string name="app_font_preset_system">System default</string>
     <string name="app_font_preset_system_summary">Use Android’s default interface font.</string>
@@ -3133,7 +3133,7 @@
     <string name="image_tool_custom_title">Custom partition path</string>
     <string name="image_tool_custom_summary">Use this only when the card list misses a partition. Paths must still start with /dev/block/.</string>
     <string name="image_tool_extract_title">Extract image</string>
-    <string name="image_tool_extract_summary">Read a block partition and save the image to /sdcard/Download/ApkeSU-images.</string>
+    <string name="image_tool_extract_summary">Read a block partition and save the image to /sdcard/Download/SterSU-images.</string>
     <string name="image_tool_extract_action">Extract</string>
     <string name="image_tool_flash_title">Flash image</string>
     <string name="image_tool_flash_summary">Write the selected image to the partition path above. Confirm before enabling the button.</string>
@@ -3144,7 +3144,7 @@
     <string name="image_tool_flash_action">Flash image</string>
     <string name="image_tool_confirm_flash_action">Confirm flash</string>
     <string name="image_tool_modify_title">Modify image workspace</string>
-    <string name="image_tool_modify_summary">Create a verified editable copy in the ApkeSU images folder before using an external image editor or patcher.</string>
+    <string name="image_tool_modify_summary">Create a verified editable copy in the SterSU images folder before using an external image editor or patcher.</string>
     <string name="image_tool_modify_action">Create editable copy</string>
     <string name="image_tool_modify_action_short">Modify</string>
     <string name="image_tool_log_title">Operation log</string>
@@ -3281,6 +3281,12 @@
     <string name="module_wallpaper_processing">Processing wallpapers…</string>
     <string name="module_wallpaper_error_title">Module wallpaper error</string>
     <string name="theme_store_customize_title">Customize</string>
+    <string name="store_title">Store</string>
+    <string name="store_summary">Themes, interface styles, and built-in plugins in one place.</string>
+    <string name="store_tab_discover">Discover</string>
+    <string name="store_tab_customize">Customize</string>
+    <string name="store_tab_plugins">Plugins</string>
+    <string name="store_tab_library">My</string>
     <string name="theme_store_library_title">Theme library</string>
     <string name="theme_store_tab_customize">Customize</string>
     <string name="theme_store_tab_library">Library</string>
@@ -3310,21 +3316,21 @@
     <string name="dynamic_manager_refresh">Refresh</string>
     <string name="dynamic_manager_revoke">Revoke</string>
     <string name="dynamic_manager_confirm_title">Grant full Manager authority?</string>
-    <string name="dynamic_manager_confirm_message">The signing certificate used by %1$s (%2$s) will receive the same root-management authority as ApkeSU. Every compatible installed APK signed by this certificate will be trusted.</string>
+    <string name="dynamic_manager_confirm_message">The signing certificate used by %1$s (%2$s) will receive the same root-management authority as SterSU. Every compatible installed APK signed by this certificate will be trusted.</string>
     <string name="dynamic_manager_grant">Grant</string>
     <string name="dynamic_manager_granted">Secondary Manager authority granted</string>
     <string name="dynamic_manager_configured">Dynamic Manager certificate applied</string>
     <string name="dynamic_manager_revoked">Secondary Manager authority revoked</string>
     <string name="dynamic_manager_failed">Operation failed</string>
     <string name="dynamic_manager_revoke_title">Revoke secondary Manager?</string>
-    <string name="dynamic_manager_revoke_message">The configured certificate will be revoked, and every matching application will immediately lose Manager authority. The built-in ApkeSU Manager remains available.</string>
+    <string name="dynamic_manager_revoke_message">The configured certificate will be revoked, and every matching application will immediately lose Manager authority. The built-in SterSU Manager remains available.</string>
     <string name="dynamic_manager_runtime">Runtime identity</string>
     <string name="dynamic_manager_search">Search compatible managers</string>
     <string name="dynamic_manager_clear_search">Clear search</string>
     <string name="dynamic_manager_no_candidates">No compatible Manager found</string>
     <string name="dynamic_manager_no_candidates_summary">Install a Manager APK under /data/app that bundles libksud.so and uses a kernel-compatible APK v2 signature.</string>
     <string name="dynamic_manager_security_title">Full root authority</string>
-    <string name="dynamic_manager_security_summary">The configured APK signing certificate receives full Manager authority. Every installed compatible APK signed by that certificate can be recognized; the built-in ApkeSU package remains fixed to io.github.fixz.apkesu.</string>
+    <string name="dynamic_manager_security_summary">The configured APK signing certificate receives full Manager authority. Every installed compatible APK signed by that certificate can be recognized; the built-in SterSU package remains fixed to io.github.fixz.stersu.</string>
     <string name="dynamic_manager_app_id">App ID: %1$d</string>
     <string name="dynamic_manager_certificate">Certificate: %1$d bytes · SHA-256 %2$s…</string>
     <string name="dynamic_manager_selected">Selected and active</string>
@@ -3390,6 +3396,9 @@
     <string name="stealth_mode_save_failed">Could not update stealth mode: %1$s</string>
     <string name="plugin_store_title">Plugin store</string>
     <string name="plugin_store_refresh">Refresh plugin catalog</string>
+    <string name="plugin_store_retry">Try again</string>
+    <string name="plugin_store_empty_title">No plugins available</string>
+    <string name="plugin_store_empty_summary">The verified catalog has no compatible plugins right now.</string>
     <string name="plugin_store_security_notice">The catalog is signed and downloads are hash-checked. These entries only enable features already built into the APK; they cannot download new code.</string>
     <string name="plugin_store_builtin_notice">This is an enablement grant for a built-in feature. It does not add code or change which implementations are present in this APK.</string>
     <string name="plugin_store_accelerated">Accelerated download</string>
@@ -3401,8 +3410,15 @@
     <string name="plugin_store_download">Download</string>
     <string name="plugin_store_remove">Remove</string>
     <string name="plugin_store_installed">Installed</string>
+    <string name="plugin_store_incompatible">Incompatible with the current Manager or ksud</string>
     <string name="plugin_store_instructions">Usage</string>
     <string name="plugin_store_instruction_item">%1$d. %2$s</string>
+    <string name="plugin_store_capabilities">Enabled capabilities</string>
+    <string name="plugin_store_slot_item">• %1$s</string>
+    <string name="plugin_store_remove_confirm_title">Remove plugin?</string>
+    <string name="plugin_store_remove_confirm_message">Remove "%1$s"? Its built-in capabilities will be disabled, while saved settings are kept.</string>
+    <string name="plugin_store_remove_remote_warning">This plugin controls the Web Manager and stealth mode. Removal stops the Web Manager and removes its enablement grant; disable stealth mode first.</string>
+    <string name="plugin_store_remove_action">Remove</string>
     <string name="plugin_store_disable_stealth_first">Disable stealth mode before removing the remote management plugin.</string>
     <string name="plugin_store_removed">Plugin removed. Its original settings are preserved.</string>
     <string name="plugin_store_enabled">Built-in feature enabled.</string>

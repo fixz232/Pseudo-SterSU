@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -37,6 +38,7 @@ import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Leaderboard
 import androidx.compose.material.icons.rounded.NewReleases
+import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Update
@@ -65,6 +67,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -103,6 +106,7 @@ private enum class CloudThemeDiscoverFilter {
 internal fun CloudThemeDiscoverContent(
     onOpenTheme: (String) -> Unit,
     onOpenRanking: () -> Unit,
+    onOpenInterfaceStyles: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -236,6 +240,12 @@ internal fun CloudThemeDiscoverContent(
                 onRefresh = { refresh(true) },
             )
         }
+        item(
+            key = "interface-style-store",
+            span = { GridItemSpan(maxLineSpan) },
+        ) {
+            CloudThemeInterfaceStyleEntry(onClick = onOpenInterfaceStyles)
+        }
         highlightedTheme?.let { theme ->
             item(
                 key = "featured-${theme.id}",
@@ -290,6 +300,7 @@ internal fun CloudThemeDiscoverContent(
                             selected = categoryId == null,
                             onClick = { categoryId = null },
                             label = { Text(stringResource(R.string.cloud_theme_category_all)) },
+                            modifier = Modifier.heightIn(min = 48.dp),
                         )
                     }
                     items(categories, key = { it.id }) { category ->
@@ -297,6 +308,7 @@ internal fun CloudThemeDiscoverContent(
                             selected = categoryId == category.id,
                             onClick = { categoryId = category.id },
                             label = { Text(category.name, maxLines = 1) },
+                            modifier = Modifier.heightIn(min = 48.dp),
                         )
                     }
                 }
@@ -339,6 +351,61 @@ internal fun CloudThemeDiscoverContent(
 }
 
 @Composable
+private fun CloudThemeInterfaceStyleEntry(onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(role = Role.Button, onClick = onClick),
+        shape = RoundedCornerShape(8.dp),
+        color = cloudThemeSurfaceColor(),
+        tonalElevation = if (LocalInterfaceStyle.current == InterfaceStyle.Skrootpro.value) 0.dp else 1.dp,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(8.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Palette,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.interface_style_store_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = cloudThemeTextColor(),
+                )
+                Text(
+                    text = stringResource(R.string.interface_style_store_summary),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = cloudThemeMutedColor(),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+                contentDescription = stringResource(R.string.interface_style_store_title),
+                tint = cloudThemeMutedColor(),
+            )
+        }
+    }
+}
+
+@Composable
 private fun CloudThemeUsagePreview(
     statistics: CloudThemeUsageStatistics,
     onClick: () -> Unit,
@@ -348,7 +415,7 @@ private fun CloudThemeUsagePreview(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .clickable(onClick = onClick),
+            .clickable(role = Role.Button, onClick = onClick),
         shape = RoundedCornerShape(8.dp),
         color = cloudThemeSurfaceColor(),
         tonalElevation = if (LocalInterfaceStyle.current == InterfaceStyle.Skrootpro.value) 0.dp else 1.dp,
@@ -430,6 +497,13 @@ private fun CloudThemeDiscoverHeader(
                     color = cloudThemeTextColor(),
                 )
                 Text(
+                    text = stringResource(R.string.store_summary),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = cloudThemeMutedColor(),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
                     text = stringResource(
                         R.string.cloud_theme_catalog_count,
                         snapshot?.catalog?.themes?.count {
@@ -497,6 +571,7 @@ private fun CloudThemeFilters(
                 selected = selected == filter,
                 onClick = { onSelected(filter) },
                 label = { Text(label) },
+                modifier = Modifier.heightIn(min = 48.dp),
                 leadingIcon = when (filter) {
                     CloudThemeDiscoverFilter.Featured -> ({
                         Icon(Icons.Rounded.NewReleases, contentDescription = null, modifier = Modifier.size(16.dp))

@@ -55,6 +55,10 @@ data class SettingsUiState(
     val uiMode: String = UiMode.DEFAULT_VALUE,
     val installedInterfaceStyles: List<InstalledInterfaceStyle> = emptyList(),
     val installedPluginIds: Set<String> = emptySet(),
+    /** IDs that were present locally but failed the current Manager/ksud check. */
+    val incompatiblePluginIds: Set<String> = emptySet(),
+    /** True only after the registry and ksud version have been read off the UI thread. */
+    val pluginCompatibilityResolved: Boolean = false,
     val checkModuleUpdate: Boolean = true,
     val showVersionMismatchWarning: Boolean = true,
     val showGkiWarning: Boolean = true,
@@ -172,7 +176,7 @@ data class SettingsUiState(
     val isKpmManagementAvailable: Boolean = false,
     val isKpmCapabilityResolved: Boolean = false,
 
-    // ApkeSU Hide
+    // SterSU Hide
     val isEpkesuHideEnabled: Boolean = false,
 
     // ADB Root
@@ -194,7 +198,11 @@ data class SettingsUiState(
 )
 
 internal fun SettingsUiState.hasPlugin(plugin: ManagerPlugin): Boolean =
-    plugin.id in installedPluginIds
+    plugin.id in installedPluginIds &&
+        (!pluginCompatibilityResolved || plugin.id !in incompatiblePluginIds)
+
+internal fun SettingsUiState.hasIncompatiblePlugin(plugin: ManagerPlugin): Boolean =
+    pluginCompatibilityResolved && plugin.id in incompatiblePluginIds
 
 internal fun SettingsUiState.isInterfaceStyleActive(style: InterfaceStylePackage): Boolean {
     if (style.engine != uiMode) return false

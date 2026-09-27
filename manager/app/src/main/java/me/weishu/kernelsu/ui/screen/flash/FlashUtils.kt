@@ -183,7 +183,7 @@ fun saveLog(
                     val date = format.format(Date())
                     saveTextToDownloads(
                         context = context,
-                        displayName = "KernelSU_install_log_${date}.log",
+                        displayName = "SterSU_install_log_${date}.log",
                         text = logContent,
                     )
                 }

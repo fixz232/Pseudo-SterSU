@@ -158,7 +158,7 @@ android {
     ndkVersion = androidCompileNdkVersion
 
     defaultConfig {
-        applicationId = "io.github.fixz.apkesu"
+        applicationId = "io.github.fixz.stersu"
         minSdk = androidMinSdkVersion
         targetSdk = androidTargetSdkVersion
         versionCode = managerVersionCode
@@ -198,7 +198,7 @@ androidComponents {
 }
 
 base {
-    archivesName.set("ApkeSU_${managerVersionName}_${managerVersionCode}")
+    archivesName.set("SterSU_${managerVersionName}_${managerVersionCode}")
 }
 
 dependencies {

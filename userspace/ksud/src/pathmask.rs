@@ -53,6 +53,7 @@ const PACKAGE_UID_CONFIRM_DELAY_MS: u64 = 200;
 const PACKAGE_UID_PERIODIC_REFRESH_SECONDS: u64 = 60;
 const PACKAGE_UID_REFRESH_RETRY_DELAYS_MS: &[u64] = &[0, 250, 1_000, 3_000];
 const LATE_TARGET_WATCH_TIMEOUT_MS: i32 = 60_000;
+const INOTIFY_NOISE_BACKOFF_MS: u64 = 25;
 const LATE_TARGET_WATCH_DEBOUNCE_MS: u64 = 300;
 const LOG_MAX_BYTES: u64 = 512 * 1024;
 const LOG_ROTATION_COUNT: usize = 3;
@@ -1750,6 +1751,12 @@ fn wait_for_relevant_inotify_event(
         if timeout_ms == 0 {
             return Ok(false);
         }
+
+        // A watched parent can emit a sustained stream of unrelated events
+        // (for example, cgroup directories changing). Keep draining those
+        // events, but yield briefly so the watcher cannot turn into a busy
+        // loop while waiting for the target path.
+        thread::sleep(Duration::from_millis(INOTIFY_NOISE_BACKOFF_MS));
     }
 }
 
@@ -1915,7 +1922,7 @@ pub fn print_logs() {
 }
 
 pub fn print_diagnostics() {
-    println!("=== ApkeSU Pathmask diagnostic ===");
+    println!("=== SterSU Pathmask diagnostic ===");
     println!("generatedAt={}", Local::now().to_rfc3339());
     println!("=== status ===");
     print_status();

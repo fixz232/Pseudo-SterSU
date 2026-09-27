@@ -512,7 +512,11 @@ bool is_manager_apk(char *path, u8 *signature_index)
 #endif
     } else {
 #ifdef KSU_MANAGER_PACKAGE
-        if (strcmp(pkg, KSU_MANAGER_PACKAGE) != 0)
+        if (strcmp(pkg, KSU_MANAGER_PACKAGE) != 0
+#ifdef KSU_MANAGER_PACKAGE_LEGACY
+            && strcmp(pkg, KSU_MANAGER_PACKAGE_LEGACY) != 0
+#endif
+        )
             return false;
 #else
         return false;

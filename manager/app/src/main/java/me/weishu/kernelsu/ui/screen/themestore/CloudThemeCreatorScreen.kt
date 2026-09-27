@@ -515,7 +515,7 @@ fun CloudThemeCreatorScreen(initialPageIndex: Int = 0) {
                     },
                     onCreatePackage = {
                         cloudPackageLauncher.launch(
-                            "apkesu-cloud-theme.$THEME_STORE_FILE_EXTENSION"
+                            "SterSU-cloud-theme.$THEME_STORE_FILE_EXTENSION"
                         )
                     },
                     onExportPackage = {

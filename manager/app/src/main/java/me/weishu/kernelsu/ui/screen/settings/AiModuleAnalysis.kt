@@ -11,7 +11,7 @@ internal fun buildModuleAnalysisReport(
 ): String {
     val findings = buildList {
         if (!root.kernelModuleLoaded && root.driverVersion <= 0) {
-            add("CRITICAL: ApkeSU kernel driver is not connected; module state may be incomplete.")
+            add("CRITICAL: SterSU kernel driver is not connected; module state may be incomplete.")
         }
         if (!root.managerRegistered) {
             add("HIGH: This Manager is not registered with the kernel driver.")
@@ -58,7 +58,7 @@ internal fun buildModuleAnalysisReport(
     }
 
     return buildString {
-        appendLine("Analyze this local ApkeSU diagnostic report in the user's language.")
+        appendLine("Analyze this local SterSU diagnostic report in the user's language.")
         appendLine("Separate confirmed facts from hypotheses. Do not claim a conflict unless the report proves it.")
         appendLine("Give reversible troubleshooting steps first and state which additional log would verify each hypothesis.")
         appendLine("Never suggest destructive flashing or deleting /data/adb without an explicit backup and recovery path.")

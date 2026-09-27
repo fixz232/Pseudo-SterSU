@@ -32,6 +32,25 @@ class InterfaceStyleStoreTest {
         parseInterfaceStyleCatalog(validCatalog().replace("\"spring\"", "\"monsoon\""))
     }
 
+    @Test
+    fun lenientCatalogSkipsUnknownVariantAndKeepsOtherStyles() {
+        val catalog = parseInterfaceStyleCatalogLenient(validCatalog().replace("\"spring\"", "\"monsoon\""))
+
+        assertEquals(1, catalog.styles.size)
+        assertEquals("pixel-cloud-town", catalog.styles.single().id)
+    }
+
+    @Test
+    fun lenientCatalogReturnsEmptyWhenEveryOptionalStyleIsInvalid() {
+        val catalog = parseInterfaceStyleCatalogLenient(
+            validCatalog()
+                .replace("\"spring\"", "\"monsoon\"")
+                .replace("\"cloud_town\"", "\"unknown_pixel\""),
+        )
+
+        assertTrue(catalog.styles.isEmpty())
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun catalogRejectsNonGithubPackageUrl() {
         parseInterfaceStyleCatalog(

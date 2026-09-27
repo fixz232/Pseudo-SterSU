@@ -1901,7 +1901,7 @@ private fun DecorationPhonePreview(config: UiDecorationConfig, modifier: Modifie
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "ApkeSU",
+                            text = "SterSU",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.weight(1f),
@@ -2419,7 +2419,7 @@ private fun decorationConflicts(
 }
 
 private const val UI_DECORATION_PRESET_MIME_TYPE = "application/json"
-private const val UI_DECORATION_PRESET_EXPORT_NAME = "ApkeSU_UI_Decoration_Presets.json"
+private const val UI_DECORATION_PRESET_EXPORT_NAME = "SterSU_UI_Decoration_Presets.json"
 private const val MAX_COMPONENT_SEARCH_LENGTH = 60
 private const val MAX_FEATURED_COMPONENTS = 4
 private const val NO_DECORATION_CATEGORY = -1

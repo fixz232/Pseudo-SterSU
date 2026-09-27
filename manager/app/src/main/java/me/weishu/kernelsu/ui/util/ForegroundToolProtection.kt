@@ -35,6 +35,7 @@ val DEFAULT_FOREGROUND_TOOL_PACKAGES = setOf(
     "me.yuki.folk",
     "me.weishu.kernelsu",
     "com.sukisu.ultra",
+    "io.github.fixz.stersu",
     "io.github.fixz.apkesu",
 )
 

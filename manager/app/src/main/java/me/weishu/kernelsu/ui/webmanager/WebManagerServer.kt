@@ -107,7 +107,7 @@ import android.content.ComponentName
  * delivered in the URL fragment so it is never included in an HTTP request.
  */
 internal object WebManagerServer {
-    private const val TAG = "ApkeSU-WebManager"
+    private const val TAG = "SterSU-WebManager"
     private const val API_VERSION = 3
     private const val MAX_HEADERS_BYTES = 16 * 1024
     private const val MAX_BODY_BYTES = 64 * 1024
@@ -189,7 +189,7 @@ internal object WebManagerServer {
     private val rebootPending = AtomicBoolean(false)
     private val activeActionShells = HashMap<String, Shell>()
     private val queryExecutor = Executors.newCachedThreadPool { runnable ->
-        Thread(runnable, "ApkeSU-WebManager-Query").apply { isDaemon = true }
+        Thread(runnable, "SterSU-WebManager-Query").apply { isDaemon = true }
     }
     private val random = SecureRandom()
     private var serverSocket: ServerSocket? = null
@@ -203,7 +203,7 @@ internal object WebManagerServer {
 
     /** 应用列表查询专用线程池：Root 查询卡住时也不会占住其它查询的线程。 */
     private val appQueryExecutor = Executors.newCachedThreadPool { runnable ->
-        Thread(runnable, "ApkeSU-WebManager-Apps").apply { isDaemon = true }
+        Thread(runnable, "SterSU-WebManager-Apps").apply { isDaemon = true }
     }
 
     /** 服务实际绑定的端口：绑定 0 端口由系统分配，避免与其它程序抢固定端口。 */
@@ -241,14 +241,14 @@ internal object WebManagerServer {
         }
         val nextToken = ByteArray(32).also(random::nextBytes).toHex()
         val nextExecutor = Executors.newFixedThreadPool(8) { runnable ->
-            Thread(runnable, "ApkeSU-WebManager-Client").apply { isDaemon = true }
+            Thread(runnable, "SterSU-WebManager-Client").apply { isDaemon = true }
         }
         serverSocket = socket
         executor = nextExecutor
         token = nextToken
         boundPort = socket.localPort
         startedAtElapsedRealtime = SystemClock.elapsedRealtime()
-        Thread({ acceptLoop(socket, nextExecutor) }, "ApkeSU-WebManager-Accept").apply {
+        Thread({ acceptLoop(socket, nextExecutor) }, "SterSU-WebManager-Accept").apply {
             isDaemon = true
             start()
         }
@@ -295,7 +295,7 @@ internal object WebManagerServer {
         warmUpThread = Thread({
             runCatching { readModuleList(forceRefresh = true) }
             runCatching { readSuperUserSnapshot(forceRefresh = true) }
-        }, "ApkeSU-WebManager-WarmUp").apply {
+        }, "SterSU-WebManager-WarmUp").apply {
             isDaemon = true
             priority = Thread.MIN_PRIORITY
             start()
@@ -492,7 +492,7 @@ internal object WebManagerServer {
                 HttpResponse(403, jsonError("module WebUI is isolated from browser management"))
             method == "GET" && iconPackage != null -> iconResponse(iconPackage)
             method == "GET" && path.startsWith(WebManagerRoutes.WEBUI_PATH_PREFIX) ->
-                HttpResponse(403, jsonError("请在 ApkeSU 软件管理器内打开模块 WebUI"))
+                HttpResponse(403, jsonError("请在 SterSU 软件管理器内打开模块 WebUI"))
             method == "GET" && path == "/api/status" -> HttpResponse(200, statusJson())
             method == "GET" && path == "/api/modules" -> modulesResponse(
                 forceRefresh = parameters["refresh"] == "1",
@@ -780,7 +780,7 @@ internal object WebManagerServer {
                 runCatching { shell?.close() }
                 jobs.prune(SystemClock.elapsedRealtime())
             }
-        }, "ApkeSU-WebManager-Action").apply {
+        }, "SterSU-WebManager-Action").apply {
             isDaemon = true
             start()
         }
@@ -996,7 +996,7 @@ internal object WebManagerServer {
                     diagnostics.info("apps", "root snapshot arrived late, cache merged")
                 }
             }
-        }, "ApkeSU-WebManager-AppsUpgrade").apply {
+        }, "SterSU-WebManager-AppsUpgrade").apply {
             isDaemon = true
             start()
         }
@@ -1509,7 +1509,7 @@ internal object WebManagerServer {
             return errorResponse(413, "kpm_file_too_large", "文件 ${bodyBytes.size} 字节，超过 KPM 上限 $limit 字节")
         }
         val fileName = WebManagerSecurity.sanitizeUploadName(parameters["name"])
-            ?: "apkesu-kpm-${System.currentTimeMillis()}.kpm"
+            ?: "SterSU-kpm-${System.currentTimeMillis()}.kpm"
         val directory = File(ksuApp.cacheDir, "kpm-upload")
         if (!directory.exists() && !directory.mkdirs()) {
             return errorResponse(500, "cache_unavailable", "无法创建导入缓存目录")

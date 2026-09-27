@@ -17,6 +17,7 @@ import java.io.FileOutputStream
 import java.net.URI
 import java.security.KeyFactory
 import java.security.MessageDigest
+import java.security.NoSuchAlgorithmException
 import java.security.Signature
 import java.security.spec.X509EncodedKeySpec
 import java.util.Base64
@@ -393,11 +394,13 @@ class InterfaceStyleCatalogRepository(
             val catalogBytes = downloadCatalogFile(DEFAULT_CATALOG_URL, MAX_CATALOG_BYTES, "application/json")
             val signatureBytes = downloadCatalogFile(DEFAULT_CATALOG_SIGNATURE_URL, MAX_SIGNATURE_BYTES, "text/plain")
             verifyInterfaceStyleCatalogSignature(catalogBytes, signatureBytes)
-            val catalog = parseInterfaceStyleCatalog(catalogBytes.toString(Charsets.UTF_8))
+            val catalog = parseInterfaceStyleCatalogLenient(catalogBytes.toString(Charsets.UTF_8))
             cacheFile.parentFile?.mkdirs()
             writeAtomic(cacheSignatureFile, signatureBytes)
             writeAtomic(cacheFile, catalogBytes)
             InterfaceStyleCatalogSnapshot(catalog, InterfaceStyleCatalogSource.Network, offline = false)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
         } catch (error: Throwable) {
             cached?.let {
                 return@withContext InterfaceStyleCatalogSnapshot(
@@ -407,7 +410,8 @@ class InterfaceStyleCatalogRepository(
                     errorMessage = error.safeInterfaceStyleMessage(),
                 )
             }
-            val bundled = readBundledCatalog()
+            val bundled = runCatching { readBundledCatalog() }
+                .getOrElse { InterfaceStyleCatalog(generatedAt = 0L, styles = emptyList()) }
             InterfaceStyleCatalogSnapshot(
                 catalog = bundled,
                 source = InterfaceStyleCatalogSource.Bundled,
@@ -422,7 +426,7 @@ class InterfaceStyleCatalogRepository(
             val catalog = AtomicFile(file).openRead().use { it.readLimited(MAX_CATALOG_BYTES) }
             val signature = AtomicFile(signatureFile).openRead().use { it.readLimited(MAX_SIGNATURE_BYTES) }
             verifyInterfaceStyleCatalogSignature(catalog, signature)
-            parseInterfaceStyleCatalog(catalog.toString(Charsets.UTF_8))
+            parseInterfaceStyleCatalogLenient(catalog.toString(Charsets.UTF_8))
         }
             .getOrNull()
     } else null
@@ -430,8 +434,8 @@ class InterfaceStyleCatalogRepository(
     private fun readBundledCatalog(): InterfaceStyleCatalog {
         val catalog = appContext.assets.open(CATALOG_ASSET).use { it.readLimited(MAX_CATALOG_BYTES) }
         val signature = appContext.assets.open(CATALOG_SIGNATURE_ASSET).use { it.readLimited(MAX_SIGNATURE_BYTES) }
-        verifyInterfaceStyleCatalogSignature(catalog, signature)
-        return parseInterfaceStyleCatalog(catalog.toString(Charsets.UTF_8))
+        verifyBundledInterfaceStyleCatalogSignature(catalog, signature)
+        return parseInterfaceStyleCatalogLenient(catalog.toString(Charsets.UTF_8))
     }
 
     private fun downloadCatalogFile(url: String, maximumBytes: Long, accept: String): ByteArray {
@@ -653,6 +657,31 @@ internal fun parseInterfaceStyleCatalog(json: String): InterfaceStyleCatalog {
     return InterfaceStyleCatalog(root.optLong("generatedAt", 0L).coerceAtLeast(0L), styles)
 }
 
+/**
+ * Parses a signed catalog for display. A bad optional entry must not take down
+ * the manager, so entries that fail the same validation as strict parsing are
+ * omitted while the rest of the catalog remains usable.
+ */
+internal fun parseInterfaceStyleCatalogLenient(json: String): InterfaceStyleCatalog {
+    require(json.toByteArray(Charsets.UTF_8).size <= MAX_CATALOG_BYTES) { "Interface style catalog is too large" }
+    val root = JSONObject(json)
+    require(root.optString("schema") == INTERFACE_STYLE_SCHEMA) { "Unsupported interface style catalog" }
+    require(root.optInt("version") == INTERFACE_STYLE_VERSION) { "Unsupported interface style catalog version" }
+    val stylesJson = root.optJSONArray("styles") ?: error("Interface style catalog has no styles")
+    require(stylesJson.length() <= 64) { "Interface style catalog has too many styles" }
+    val styles = buildList {
+        for (index in 0 until stylesJson.length()) {
+            val item = stylesJson.optJSONObject(index) ?: continue
+            runCatching { parseStyle(item, requireUrl = true) }
+                .onSuccess { style -> add(style) }
+        }
+    }
+    return InterfaceStyleCatalog(
+        generatedAt = root.optLong("generatedAt", 0L).coerceAtLeast(0L),
+        styles = styles.distinctBy { it.id },
+    )
+}
+
 private fun parseStyle(item: JSONObject, requireUrl: Boolean): InterfaceStylePackage {
     val id = item.optString("id")
     require(ID_PATTERN.matches(id)) { "Interface style id is invalid" }
@@ -764,6 +793,16 @@ internal fun verifyInterfaceStyleCatalogSignature(
     verifier.initVerify(publicKey)
     verifier.update(catalog)
     require(verifier.verify(signatureBytes)) { "Interface style catalog signature verification failed" }
+}
+
+private fun verifyBundledInterfaceStyleCatalogSignature(catalog: ByteArray, signature: ByteArray) {
+    try {
+        verifyInterfaceStyleCatalogSignature(catalog, signature)
+    } catch (_: NoSuchAlgorithmException) {
+        // Bundled assets are protected by the signed APK. Some vendor images
+        // omit the Ed25519 provider, so keep the local catalog usable without
+        // weakening verification for downloaded catalogs.
+    }
 }
 
 private fun java.io.InputStream.readLimited(

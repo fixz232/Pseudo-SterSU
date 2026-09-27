@@ -53,6 +53,21 @@ class PluginStoreTest {
         assertEquals(url, urls.last())
     }
 
+    @Test
+    fun catalogRouteKeepsCatalogAndSignatureOnTheSameRoute() {
+        val url = "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/catalog-v1.json"
+        val pairs = resolvePluginCatalogUrls(url, PluginDownloadRoute.Accelerator)
+
+        assertEquals(2, pairs.size)
+        assertTrue(pairs.first().first.startsWith("https://ghproxy.net/"))
+        assertTrue(pairs.first().second.endsWith("/catalog-v1.sig"))
+        assertEquals(url, pairs.last().first)
+        assertEquals(
+            "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/catalog-v1.sig",
+            pairs.last().second,
+        )
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun downloadRejectsNonHttps() {
         resolvePluginDownloadUrls("http://raw.githubusercontent.com/fixz232/plugin", PluginDownloadRoute.Direct)
@@ -80,11 +95,12 @@ class PluginStoreTest {
     }
 
     @Test
-    fun catalogVersionOnlyOffersForwardUpdates() {
+    fun catalogOffersForwardOrSameVersionHashUpdates() {
         val installed = InstalledManagerPlugin(pluginPackage(version = 1), installedAt = 1L)
 
         assertTrue(hasPluginUpdate(installed, pluginPackage(version = 2)))
         assertFalse(hasPluginUpdate(installed, pluginPackage(version = 1)))
+        assertTrue(hasPluginUpdate(installed, pluginPackage(version = 1).copy(sha256 = "b".repeat(64))))
         assertFalse(hasPluginUpdate(installed, pluginPackage(version = 0)))
         assertFalse(hasPluginUpdate(null, pluginPackage(version = 2)))
     }

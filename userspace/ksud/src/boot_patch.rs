@@ -644,7 +644,7 @@ pub fn enforce_apkesu_lkm_identity(kernelsu_ko: &[u8], source: &str) -> Result<(
         kernelsu_ko
             .windows(MANAGER_CERT_HASH.len())
             .any(|window| window == MANAGER_CERT_HASH),
-        "{source} does not contain the ApkeSU manager certificate hash; rebuild or patch the LKM assets before patching a boot image"
+        "{source} does not contain the SterSU manager certificate hash; rebuild or patch the LKM assets before patching a boot image"
     );
     Ok(())
 }
@@ -956,7 +956,7 @@ pub fn patch(args: BootPatchArgs) -> Result<()> {
                 "Cannot work with Magisk patched image"
             );
 
-            println!("- Adding ApkeSU LKM");
+            println!("- Adding SterSU LKM");
             let is_kernelsu_patched = cpio.exists("kernelsu.ko");
 
             if !is_kernelsu_patched && cpio.exists("init") {
@@ -1079,7 +1079,7 @@ pub fn patch(args: BootPatchArgs) -> Result<()> {
             let output_dir = out.unwrap_or(std::env::current_dir()?);
             let name = out_name.unwrap_or_else(|| {
                 let now = chrono::Utc::now();
-                format!("apkesu_patched_{}.img", now.format("%Y%m%d_%H%M%S"))
+                format!("stersu_patched_{}.img", now.format("%Y%m%d_%H%M%S"))
             });
             let output_image = output_dir.join(name);
             std::fs::write(&output_image, &new_boot_bytes).context("write out new boot failed")?;
@@ -1179,7 +1179,7 @@ pub fn restore(args: BootRestoreArgs) -> Result<()> {
 
     ensure!(
         cpio.exists("kernelsu.ko"),
-        "boot image is not patched by ApkeSU"
+        "boot image is not patched by SterSU"
     );
 
     #[cfg(target_os = "android")]
@@ -1250,7 +1250,7 @@ pub fn restore(args: BootRestoreArgs) -> Result<()> {
         let output_dir = out.unwrap_or(std::env::current_dir()?);
         let name = out_name.unwrap_or_else(|| {
             let now = chrono::Utc::now();
-            format!("apkesu_restore_{}.img", now.format("%Y%m%d_%H%M%S"))
+            format!("stersu_restore_{}.img", now.format("%Y%m%d_%H%M%S"))
         });
         let output_image = output_dir.join(name);
         std::fs::write(&output_image, &new_boot_bytes).context("copy out new boot failed")?;
@@ -1267,7 +1267,7 @@ fn rebuild_without_ksu(
     cpio: &mut Cpio,
     vendor_ramdisk_idx: Option<usize>,
 ) -> Result<Vec<u8>> {
-    println!("- Removing ApkeSU from boot image");
+    println!("- Removing SterSU from boot image");
     cpio.rm("kernelsu.ko", false);
     cpio.rm("pathmask.ko", false);
     if cpio.exists("init.real") {

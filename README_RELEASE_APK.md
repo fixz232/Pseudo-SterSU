@@ -1,14 +1,14 @@
-# ApkeSU release APK
+# SterSU release APK
 
-Use `.github/workflows/release-apk.yml` to build an ApkeSU release APK for this
+Use `.github/workflows/release-apk.yml` to build a SterSU release APK for this
 repository.
 
 The workflow builds the release manager APK, injects fresh `ksud` binaries for
 `arm64-v8a` and `x86_64`, zipaligns the APK with 16 KB page alignment, signs it,
 and uploads:
 
-- `ApkeSU_<versionName>_<versionCode>-release.apk`
-- `ApkeSU_<versionName>_<versionCode>-release.apk.sha256`
+- `SterSU_<versionName>_<versionCode>-release.apk`
+- `SterSU_<versionName>_<versionCode>-release.apk.sha256`
 - `manager_identity.mk`
 - `RELEASE_APK_MANIFEST.json`
 
@@ -32,6 +32,6 @@ certificate will not trust them as Manager.
 ## Usage
 
 1. Push a tag matching `v*`, or open `Actions`.
-2. Run `Release ApkeSU APK`.
+2. Run `Release SterSU APK`.
 3. Keep `create_github_release` enabled to publish the APK to GitHub Releases.
-4. Download the `apkesu-release-apk` artifact or the created release assets.
+4. Download the `stersu-release-apk` artifact or the created release assets.

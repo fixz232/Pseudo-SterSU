@@ -78,7 +78,7 @@ fun RootDiagnosticDialog(
                 TextButton(
                     onClick = {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        clipboard.setPrimaryClip(ClipData.newPlainText("ApkeSU Root diagnostics", report))
+                        clipboard.setPrimaryClip(ClipData.newPlainText("SterSU Root diagnostics", report))
                         Toast.makeText(context, R.string.root_diagnostic_copied, Toast.LENGTH_SHORT).show()
                     },
                 ) {

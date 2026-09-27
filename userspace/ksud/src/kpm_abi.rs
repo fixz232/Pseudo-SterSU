@@ -26,7 +26,7 @@ pub fn parse_info_output(buffer: &[u8], operation_result: i32) -> io::Result<Str
     })?;
 
     // SukiSU reports zero after a successful copy. Positive lengths remain
-    // accepted for images produced by earlier ApkeSU builds.
+    // accepted for images produced by earlier SterSU builds.
     Ok(String::from_utf8_lossy(&output[..end]).trim().to_string())
 }
 

@@ -52,10 +52,17 @@ import me.weishu.kernelsu.ui.webmanager.ManagerAppSettingsStore
 import java.util.concurrent.atomic.AtomicLong
 import me.weishu.kernelsu.ui.util.ManagerPluginRegistry
 import me.weishu.kernelsu.ui.util.ManagerPlugin
+import me.weishu.kernelsu.ui.util.getInstalledKsudStatus
+import me.weishu.kernelsu.ui.util.resolveCompatiblePluginIds
 
 class SettingsViewModel(
     private val repo: SettingsRepository = SettingsRepositoryImpl()
 ) : ViewModel() {
+
+    private data class PluginCompatibilitySnapshot(
+        val compatibleIds: Set<String>,
+        val incompatibleIds: Set<String>,
+    )
 
     private val interfaceStyleRegistry = InterfaceStyleRegistry(ksuApp)
     private val pluginRegistry = ManagerPluginRegistry(ksuApp)
@@ -79,6 +86,13 @@ class SettingsViewModel(
     fun refresh() {
         refreshJob?.cancel()
         val kPatchNextRefreshGeneration = kPatchNextStateGeneration.get()
+        _uiState.update {
+            it.copy(
+                installedPluginIds = emptySet(),
+                incompatiblePluginIds = emptySet(),
+                pluginCompatibilityResolved = false,
+            )
+        }
         refreshJob = viewModelScope.launch(refreshExceptionHandler) {
             val checkModuleUpdate = repo.checkModuleUpdate
             val showVersionMismatchWarning = repo.showVersionMismatchWarning
@@ -93,7 +107,23 @@ class SettingsViewModel(
             val enablePredictiveBack = repo.enablePredictiveBack
             val uiMode = repo.uiMode
             val installedInterfaceStyles = interfaceStyleRegistry.list()
-            val installedPluginIds = pluginRegistry.ids()
+            // Registry state is file-backed and ksud version probing opens a
+            // root shell. Keep both operations off the Compose/main thread,
+            // then publish only plugins that can actually run in this build.
+            val pluginCompatibility = withContext(Dispatchers.IO) {
+                val installed = pluginRegistry.list()
+                val ksudStatus = getInstalledKsudStatus()
+                val compatibleIds = resolveCompatiblePluginIds(
+                    installed = installed,
+                    managerVersionCode = me.weishu.kernelsu.BuildConfig.VERSION_CODE,
+                    ksudStatus = ksudStatus,
+                )
+                PluginCompatibilitySnapshot(
+                    compatibleIds = compatibleIds,
+                    incompatibleIds = installed.mapTo(linkedSetOf()) { it.plugin.id } - compatibleIds,
+                )
+            }
+            val installedPluginIds = pluginCompatibility.compatibleIds
             val enableBlur = resolveRealtimeBlurEnabled(uiMode, repo.enableBlur)
             val enableFloatingBottomBar = repo.enableFloatingBottomBar
             val enableFloatingBottomBarBlur = resolveRealtimeBlurEnabled(
@@ -209,6 +239,8 @@ class SettingsViewModel(
                     uiMode = uiMode,
                     installedInterfaceStyles = installedInterfaceStyles,
                     installedPluginIds = installedPluginIds,
+                    incompatiblePluginIds = pluginCompatibility.incompatibleIds,
+                    pluginCompatibilityResolved = true,
                     checkModuleUpdate = checkModuleUpdate,
                     showVersionMismatchWarning = showVersionMismatchWarning,
                     showGkiWarning = showGkiWarning,
@@ -1140,7 +1172,9 @@ class SettingsViewModel(
     }
 
     fun setWebManagerAutoStart(enabled: Boolean) {
-        if (!pluginRegistry.contains(ManagerPlugin.RemoteManagementSuite.id)) {
+        if (!_uiState.value.pluginCompatibilityResolved ||
+            ManagerPlugin.RemoteManagementSuite.id !in _uiState.value.installedPluginIds
+        ) {
             Log.w(TAG, "ignoring web manager setting without remote management plugin")
             return
         }
@@ -1154,7 +1188,9 @@ class SettingsViewModel(
     }
 
     fun setStealthMode(enabled: Boolean, code: String) {
-        if (!pluginRegistry.contains(ManagerPlugin.RemoteManagementSuite.id)) {
+        if (!_uiState.value.pluginCompatibilityResolved ||
+            ManagerPlugin.RemoteManagementSuite.id !in _uiState.value.installedPluginIds
+        ) {
             Log.w(TAG, "ignoring stealth setting without remote management plugin")
             return
         }

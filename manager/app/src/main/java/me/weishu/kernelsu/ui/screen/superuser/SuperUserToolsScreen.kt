@@ -1,5 +1,6 @@
 package me.weishu.kernelsu.ui.screen.superuser
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -31,7 +32,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -40,6 +45,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.dropUnlessResumed
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import me.weishu.kernelsu.BuildConfig
 import me.weishu.kernelsu.R
 import me.weishu.kernelsu.ui.navigation3.LocalNavigator
 import me.weishu.kernelsu.ui.navigation3.Route
@@ -49,13 +61,52 @@ import me.weishu.kernelsu.ui.theme.immersiveSurfaceColor
 import me.weishu.kernelsu.ui.theme.immersiveTopBarColor
 import me.weishu.kernelsu.ui.util.ManagerPlugin
 import me.weishu.kernelsu.ui.util.ManagerPluginRegistry
+import me.weishu.kernelsu.ui.util.getInstalledKsudStatus
+import me.weishu.kernelsu.ui.util.resolveCompatiblePluginIds
 
 @Composable
 fun SuperUserToolsScreen() {
     val context = androidx.compose.ui.platform.LocalContext.current
     val pluginRegistry = remember { ManagerPluginRegistry(context) }
-    val appIdInstalled = pluginRegistry.contains(ManagerPlugin.AppIdManager.id)
-    val appFreezeInstalled = pluginRegistry.contains(ManagerPlugin.AppFreeze.id)
+    val scope = rememberCoroutineScope()
+    var compatiblePluginIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var compatibilityResolved by remember { mutableStateOf(false) }
+    var refreshJob by remember { mutableStateOf<Job?>(null) }
+
+    fun refreshPluginCompatibility() {
+        refreshJob?.cancel()
+        compatibilityResolved = false
+        refreshJob = scope.launch {
+            val compatible = runCatching {
+                withContext(Dispatchers.IO) {
+                    resolveCompatiblePluginIds(
+                        installed = pluginRegistry.list(),
+                        managerVersionCode = BuildConfig.VERSION_CODE,
+                        ksudStatus = getInstalledKsudStatus(),
+                    )
+                }
+            }.getOrElse { error ->
+                if (error is CancellationException) throw error
+                Log.w(TAG, "unable to resolve superuser tool plugins", error)
+                emptySet()
+            }
+            compatiblePluginIds = compatible
+            compatibilityResolved = true
+        }
+    }
+
+    LifecycleResumeEffect(Unit) {
+        refreshPluginCompatibility()
+        onPauseOrDispose {
+            refreshJob?.cancel()
+            refreshJob = null
+        }
+    }
+
+    val appIdInstalled = compatibilityResolved &&
+        ManagerPlugin.AppIdManager.id in compatiblePluginIds
+    val appFreezeInstalled = compatibilityResolved &&
+        ManagerPlugin.AppFreeze.id in compatiblePluginIds
     val navigator = LocalNavigator.current
     val onBack = dropUnlessResumed { navigator.pop() }
 
@@ -117,6 +168,8 @@ fun SuperUserToolsScreen() {
         }
     }
 }
+
+private const val TAG = "SterSU-SuperUserTools"
 
 @Composable
 private fun SuperUserToolRow(

@@ -86,7 +86,10 @@ class DynamicManagerRepository {
         val applicationInfo = packageInfo.applicationInfo ?: return null
         val packageName = packageInfo.packageName.orEmpty()
         if (packageName == ksuApp.packageName ||
-            packageName == "io.github.fixz.apkesu"
+            packageName == "io.github.fixz.stersu" ||
+            packageName == "io.github.fixz.stersu.dev" ||
+            packageName == "io.github.fixz.apkesu" ||
+            packageName == "io.github.fixz.apkesu.dev"
         ) {
             return null
         }

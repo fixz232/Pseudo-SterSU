@@ -264,8 +264,10 @@ import me.weishu.kernelsu.ui.util.ManagerUpdateChecker
 import me.weishu.kernelsu.ui.util.ManagerUpdateInfo
 import me.weishu.kernelsu.ui.util.ManagerPlugin
 import me.weishu.kernelsu.ui.util.ManagerPluginRegistry
+import me.weishu.kernelsu.ui.util.checkManagerPluginCompatibility
 import me.weishu.kernelsu.ui.util.ensureManagerRegistered
 import me.weishu.kernelsu.ui.util.getFileName
+import me.weishu.kernelsu.ui.util.getInstalledKsudStatus
 import me.weishu.kernelsu.ui.util.getSuperuserCount
 import me.weishu.kernelsu.ui.util.KpmCaps
 import me.weishu.kernelsu.ui.util.getKpmCaps
@@ -658,12 +660,23 @@ class MainActivity : ComponentActivity() {
                                 entry<Route.Kpm> { KpmScreen() }
                                 entry<Route.ImageTool> { PluginRouteGate(ManagerPlugin.ImageTools) { ImageToolScreen() } }
                                 entry<Route.ThemeStore> { ThemeStoreScreen() }
+                                entry<Route.ThemeStoreCustomize> {
+                                    ThemeStoreScreen(page = ThemeStorePage.Customize)
+                                }
                                 entry<Route.PluginStore> { PluginStoreScreen() }
                                 entry<Route.InterfaceStyleStore> {
                                     ThemeStoreScreen(
                                         page = ThemeStorePage.Customize,
                                         customizeSection = ThemeStoreCustomizeSection.Style,
                                         returnToAppearance = true,
+                                        interfaceStyleStore = true,
+                                    )
+                                }
+                                entry<Route.StoreInterfaceStyles> {
+                                    ThemeStoreScreen(
+                                        page = ThemeStorePage.Customize,
+                                        customizeSection = ThemeStoreCustomizeSection.Style,
+                                        interfaceStyleStore = true,
                                     )
                                 }
                                 entry<Route.ThemeStoreAssets> {
@@ -1771,10 +1784,23 @@ private fun PluginRouteGate(
     val context = LocalContext.current
     val navigator = LocalNavigator.current
     val registry = remember { ManagerPluginRegistry(context) }
-    val installed = remember(plugin.id) { registry.contains(plugin.id) }
-    if (installed) {
+    val compatible by produceState<Boolean?>(initialValue = null, key1 = plugin.id) {
+        value = kotlinx.coroutines.withContext(Dispatchers.IO) {
+            val installed = registry.list().firstOrNull { it.plugin.id == plugin.id }
+            if (installed == null) {
+                false
+            } else {
+                checkManagerPluginCompatibility(
+                    plugin = installed.plugin,
+                    managerVersionCode = BuildConfig.VERSION_CODE,
+                    ksudStatus = getInstalledKsudStatus(),
+                ).isCompatible
+            }
+        }
+    }
+    if (compatible == true) {
         content()
-    } else {
+    } else if (compatible == false) {
         LaunchedEffect(plugin.id) {
             navigator.replace(Route.PluginStore)
         }

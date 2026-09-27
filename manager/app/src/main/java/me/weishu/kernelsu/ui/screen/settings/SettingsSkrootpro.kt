@@ -127,13 +127,8 @@ fun SettingPagerSkrootpro(
                     },
                 )
                 SkrootproActionRow(
-                    title = stringResource(R.string.interface_style_store_title),
-                    summary = stringResource(R.string.interface_style_store_summary),
-                    onClick = actions.onOpenInterfaceStyleStore,
-                )
-                SkrootproActionRow(
-                    title = stringResource(R.string.theme_store),
-                    summary = stringResource(R.string.theme_store_settings_summary),
+                    title = stringResource(R.string.store_title),
+                    summary = stringResource(R.string.store_summary),
                     onClick = actions.onOpenThemeStore,
                 )
             }
