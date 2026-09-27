@@ -1,6 +1,5 @@
 <div align="center">
-  <img src=".github/assets/apkesu-avatar.jpg" width="180" alt="ApkeSU 项目头像">
-  <h1>ApkeSU</h1>
+  <h1>SterSU</h1>
   <p>面向 GKI Android 设备的内核 Root 管理器</p>
   <p>
     <strong>简体中文</strong> ·
