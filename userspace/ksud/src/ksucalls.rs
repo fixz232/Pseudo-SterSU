@@ -48,6 +48,7 @@ extern "C" fn sigsys_handler(
             SIGSYS_OCCURRED.with(|occurred| occurred.set(true));
         }
 
+        #[cfg(not(target_arch = "riscv64"))]
         let ucontext = ctx.cast::<libc::ucontext_t>();
         #[cfg(target_arch = "aarch64")]
         {
@@ -57,6 +58,12 @@ extern "C" fn sigsys_handler(
         {
             let rax = libc::REG_RAX as usize;
             (*ucontext).uc_mcontext.gregs[rax] = i64::from(-libc::EPERM);
+        }
+        #[cfg(target_arch = "riscv64")]
+        {
+            let ucontext = ctx.cast::<ksu_uapi::ucontext_t>();
+            (*ucontext).uc_mcontext.__gregs[ksu_uapi::REG_A0 as usize] =
+                (-libc::EPERM) as libc::c_ulong;
         }
     }
 }
@@ -885,6 +892,17 @@ pub fn native_kpm_control(name: &str, args: &str) -> io::Result<i32> {
 
 pub fn is_uapi_version_mismatch() -> bool {
     get_info().uapi_version != ksu_uapi::KERNEL_SU_UAPI_VERSION
+}
+
+pub fn ensure_uapi_version_matched() -> Result<()> {
+    let kernel_uapi = get_info().uapi_version;
+    let userspace_uapi = ksu_uapi::KERNEL_SU_UAPI_VERSION;
+    if kernel_uapi != userspace_uapi {
+        bail!(
+            "UAPI version mismatch: kernel={kernel_uapi}, ksud={userspace_uapi}. Please update KernelSU!"
+        );
+    }
+    Ok(())
 }
 
 pub fn grant_root() -> Result<()> {
