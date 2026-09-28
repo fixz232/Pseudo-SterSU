@@ -16,6 +16,14 @@ class CloudThemeCatalogTest {
         val theme = catalog.themes.single()
         assertEquals("aurora-night", theme.id)
         assertEquals("Appearance", catalog.categoryName(theme.categoryId))
+        assertEquals(
+            "https://github.com/Dama926/ApkeSU-ThemeStore/releases/download/theme-1/aurora.kstheme",
+            theme.downloadUrl,
+        )
+        assertEquals(
+            "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/theme-store/media/aurora.png",
+            theme.coverUrl,
+        )
         assertTrue(theme.isCompatible(32700L))
         assertTrue(theme.isCompatible(1L))
         assertTrue(theme.isCompatible(Long.MAX_VALUE))

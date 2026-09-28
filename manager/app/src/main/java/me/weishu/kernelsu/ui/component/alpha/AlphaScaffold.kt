@@ -53,6 +53,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -79,6 +80,8 @@ import me.weishu.kernelsu.ui.theme.LocalImmersiveBackgroundActive
 import me.weishu.kernelsu.ui.theme.immersiveTopBarColor
 import me.weishu.kernelsu.ui.theme.isInDarkTheme
 import me.weishu.kernelsu.ui.util.CustomNavigationIconState
+import me.weishu.kernelsu.ui.util.InterfaceStyleTheme
+import me.weishu.kernelsu.ui.util.LocalInterfaceStyleTheme
 import me.weishu.kernelsu.ui.util.LocalCustomNavigationIcons
 
 private data class AlphaPalette(
@@ -94,6 +97,34 @@ private data class AlphaPalette(
     val disabled: Color,
     val divider: Color,
 )
+
+private fun externalAlphaPalette(theme: InterfaceStyleTheme, dark: Boolean): AlphaPalette {
+    val source = if (dark || theme.forceDark) theme.darkPalette else theme.lightPalette
+    val accent = Color(source.primary)
+    return AlphaPalette(
+        background = Color(source.background),
+        topBar = Color(source.backgroundAlt).copy(alpha = theme.chrome.topBarAlpha),
+        surface = Color(source.surface),
+        surfaceStrong = Color(source.surfaceAlt),
+        accent = accent,
+        onAccent = if (accent.luminance() > 0.48f) Color(0xFF071317) else Color.White,
+        accentSoft = accent.copy(alpha = if (dark) 0.22f else 0.14f),
+        text = Color(source.content),
+        muted = Color(source.muted),
+        disabled = Color(source.muted).copy(alpha = 0.68f),
+        divider = Color(source.outline).copy(alpha = theme.chrome.borderAlpha),
+    )
+}
+
+@Composable
+@ReadOnlyComposable
+private fun externalAlphaTheme(): InterfaceStyleTheme? =
+    LocalInterfaceStyleTheme.current?.takeIf { it.engine == InterfaceStyle.Alpha.value }
+
+@Composable
+@ReadOnlyComposable
+private fun alphaCorner(default: Dp): Dp =
+    externalAlphaTheme()?.chrome?.cornerDp?.dp ?: default
 
 object AlphaColors {
     private val Alpha = AlphaPalette(
@@ -249,6 +280,10 @@ object AlphaColors {
         @Composable
         @ReadOnlyComposable
         get() = when {
+            externalAlphaTheme() != null -> externalAlphaPalette(
+                externalAlphaTheme()!!,
+                isInDarkTheme(),
+            )
             isSnowStyle() && isInDarkTheme() -> SnowDark
             isSnowStyle() -> SnowLight
             isDeltaStyle() && isInDarkTheme() -> DeltaDark
@@ -263,6 +298,7 @@ object AlphaShapes {
         @Composable
         @ReadOnlyComposable
         get() = when {
+            externalAlphaTheme() != null -> RoundedCornerShape(alphaCorner(8.dp))
             isDeltaStyle() -> RoundedCornerShape(30.dp)
             else -> RoundedCornerShape(8.dp)
         }
@@ -271,6 +307,7 @@ object AlphaShapes {
         @Composable
         @ReadOnlyComposable
         get() = when {
+            externalAlphaTheme() != null -> RoundedCornerShape(alphaCorner(4.dp))
             isDeltaStyle() -> RoundedCornerShape(26.dp)
             isSnowStyle() -> RoundedCornerShape(8.dp)
             else -> RoundedCornerShape(8.dp)
@@ -280,6 +317,7 @@ object AlphaShapes {
         @Composable
         @ReadOnlyComposable
         get() = when {
+            externalAlphaTheme() != null -> RoundedCornerShape(alphaCorner(4.dp))
             isDeltaStyle() -> CircleShape
             isSnowStyle() -> RoundedCornerShape(8.dp)
             else -> RoundedCornerShape(8.dp)
@@ -289,6 +327,7 @@ object AlphaShapes {
         @Composable
         @ReadOnlyComposable
         get() = when {
+            externalAlphaTheme() != null -> RoundedCornerShape(0.dp)
             isDeltaStyle() -> RoundedCornerShape(36.dp)
             isSnowStyle() -> RoundedCornerShape(18.dp)
             else -> RoundedCornerShape(0.dp)
@@ -298,6 +337,7 @@ object AlphaShapes {
         @Composable
         @ReadOnlyComposable
         get() = when {
+            externalAlphaTheme() != null -> RoundedCornerShape(alphaCorner(4.dp))
             isDeltaStyle() -> RoundedCornerShape(28.dp)
             isSnowStyle() -> RoundedCornerShape(12.dp)
             else -> RoundedCornerShape(0.dp)
@@ -411,7 +451,11 @@ fun AlphaTopBar(
     forceTransparent: Boolean = false,
 ) {
     val immersiveBackgroundActive = LocalImmersiveBackgroundActive.current || forceTransparent
-    val topBarColor = if (forceTransparent) Color.Transparent else immersiveTopBarColor(AlphaColors.TopBar)
+    val topBarColor = if (forceTransparent) {
+        Color.Transparent
+    } else {
+        externalAlphaTheme()?.let { AlphaColors.TopBar } ?: immersiveTopBarColor(AlphaColors.TopBar)
+    }
     val dividerColor = if (immersiveBackgroundActive) Color.Transparent else AlphaColors.Divider
     val topBarElevation = if (immersiveBackgroundActive) 0.dp else 4.dp
 
@@ -650,7 +694,22 @@ fun AlphaCard(
                         .background(snowGlassBrush, shape)
                         .border(1.dp, AlphaColors.Snow.copy(alpha = 0.54f), shape)
                 } else {
-                    Modifier.background(AlphaColors.Surface)
+                    Modifier
+                        .background(
+                            AlphaColors.Surface.copy(
+                                alpha = externalAlphaTheme()?.chrome?.cardAlpha ?: 1f,
+                            ),
+                            shape,
+                        )
+                        .then(
+                            externalAlphaTheme()?.let { theme ->
+                                Modifier.border(
+                                    width = 1.dp,
+                                    color = AlphaColors.Divider.copy(alpha = theme.chrome.borderAlpha),
+                                    shape = shape,
+                                )
+                            } ?: Modifier
+                        )
                 }
             )
             .uiDecoratedCard(shape = shape),
@@ -847,7 +906,15 @@ fun AlphaBottomBar(
             .height(if (delta) 68.dp else 60.dp)
             .shadow(if (delta) 10.dp else 8.dp, AlphaShapes.BottomBar)
             .clip(AlphaShapes.BottomBar)
-            .background(if (delta) AlphaColors.Surface.copy(alpha = 0.94f) else AlphaColors.TopBar)
+            .background(
+                when {
+                    delta -> AlphaColors.Surface.copy(alpha = 0.94f)
+                    externalAlphaTheme() != null -> AlphaColors.TopBar.copy(
+                        alpha = externalAlphaTheme()!!.chrome.navigationAlpha,
+                    )
+                    else -> AlphaColors.TopBar
+                }
+            )
             .padding(horizontal = if (delta) 8.dp else 4.dp, vertical = if (delta) 7.dp else 0.dp),
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically,
@@ -952,12 +1019,21 @@ fun AlphaNavigationRail(
             .fillMaxHeight()
             .width(78.dp)
             .background(
-                Brush.verticalGradient(
-                    listOf(
-                        AlphaColors.Surface.copy(alpha = 0.78f),
-                        AlphaColors.SurfaceStrong.copy(alpha = 0.62f),
+                if (externalAlphaTheme() != null) {
+                    Brush.verticalGradient(
+                        listOf(
+                            AlphaColors.TopBar.copy(alpha = externalAlphaTheme()!!.chrome.navigationAlpha),
+                            AlphaColors.Surface.copy(alpha = externalAlphaTheme()!!.chrome.navigationAlpha),
+                        )
                     )
-                )
+                } else {
+                    Brush.verticalGradient(
+                        listOf(
+                            AlphaColors.Surface.copy(alpha = 0.78f),
+                            AlphaColors.SurfaceStrong.copy(alpha = 0.62f),
+                        )
+                    )
+                }
             )
             .border(
                 width = 1.dp,

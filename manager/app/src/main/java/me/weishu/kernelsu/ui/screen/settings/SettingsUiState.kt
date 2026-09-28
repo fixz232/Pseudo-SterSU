@@ -215,12 +215,18 @@ internal fun SettingsUiState.isInterfaceStyleActive(style: InterfaceStylePackage
 }
 
 internal fun SettingsUiState.interfaceStyleSelectedIndex(): Int {
+    // A downloaded style can intentionally reuse a built-in renderer (for
+    // example Kernel Elite uses Alpha). Prefer that package while it is
+    // active so the picker reflects the actual appearance instead of hiding
+    // it behind the renderer's built-in entry.
+    val downloadedIndex = installedInterfaceStyles.indexOfFirst { isInterfaceStyleActive(it.style) }
+    if (downloadedIndex >= 0) return InterfaceStyle.selectableEntries.size + downloadedIndex
+
     val builtInIndex = InterfaceStyle.selectableEntries.indexOfFirst { style ->
         style == InterfaceStyle.Alpha && uiMode == InterfaceStyle.Delta.value || style.value == uiMode
     }
     if (builtInIndex >= 0) return builtInIndex
-    val downloadedIndex = installedInterfaceStyles.indexOfFirst { isInterfaceStyleActive(it.style) }
-    return if (downloadedIndex >= 0) InterfaceStyle.selectableEntries.size + downloadedIndex else 0
+    return 0
 }
 
 @Immutable

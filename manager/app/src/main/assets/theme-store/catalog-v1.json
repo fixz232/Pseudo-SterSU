@@ -35,7 +35,7 @@
       "screenshots": [
         "https://github.com/HYLDHPX/Theme/releases/download/ApkeSU/HoshinoTakanashi_BlueArchive_Blue_1.0.1.jpg"
       ],
-      "downloadUrl": "https://github.com/fixz232/ApkeSU-ThemeStore/releases/download/theme-hoshinotakanashibluearchiveblue101-v1/hoshinotakanashibluearchiveblue101-v1.kstheme",
+      "downloadUrl": "https://github.com/Dama926/ApkeSU-ThemeStore/releases/download/theme-hoshinotakanashibluearchiveblue101-v1/hoshinotakanashibluearchiveblue101-v1.kstheme",
       "sha256": "2ffb2da2a4e099f53e0766ab2fb52662beb5a2023ec944edb1a806e581406a48",
       "sizeBytes": 2598168,
       "license": "MTK",
@@ -53,7 +53,7 @@
         "name": "wjn",
         "bio": "SterSU 云主题创作者",
         "profileUrl": "https://github.com/wjn-boop",
-        "avatarUrl": "https://raw.githubusercontent.com/fixz232/ApkeSU-ThemeStore/main/theme-store/assets/authors/wjn-boop.jpg"
+        "avatarUrl": "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/theme-store/assets/authors/wjn-boop.jpg"
       },
       "description": "以《超时空辉夜姬》角色与和风夜景为核心的动漫主题，包含六张主页卡片壁纸、五个页面背景、四枚导航图标和 GIF 启动动画。",
       "category": "anime",
@@ -70,9 +70,9 @@
       "packageVersion": 2,
       "minManagerVersionCode": 32700,
       "maxManagerVersionCode": null,
-      "coverUrl": "https://github.com/fixz232/ApkeSU-ThemeStore/releases/download/theme-kaguya-hime-v1/kaguya-hime-cover.jpg",
+      "coverUrl": "https://github.com/Dama926/ApkeSU-ThemeStore/releases/download/theme-kaguya-hime-v1/kaguya-hime-cover.jpg",
       "screenshots": [],
-      "downloadUrl": "https://github.com/fixz232/ApkeSU-ThemeStore/releases/download/theme-kaguya-hime-v1/kaguya-hime-v1.kstheme",
+      "downloadUrl": "https://github.com/Dama926/ApkeSU-ThemeStore/releases/download/theme-kaguya-hime-v1/kaguya-hime-v1.kstheme",
       "sha256": "4f03d9e02420389819b29dc04f0172d07ac2430142b1f8be46e525ff050fce27",
       "sizeBytes": 40399820,
       "license": "LicenseRef-UserProvided",
@@ -90,7 +90,7 @@
         "name": "wjn",
         "bio": "SterSU 云主题创作者",
         "profileUrl": "https://github.com/wjn-boop",
-        "avatarUrl": "https://raw.githubusercontent.com/fixz232/ApkeSU-ThemeStore/main/theme-store/assets/authors/wjn-boop.jpg"
+        "avatarUrl": "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/theme-store/assets/authors/wjn-boop.jpg"
       },
       "description": "以中野三玖为核心的暖色动漫主题，包含六张主页卡片壁纸、四个页面背景、四枚表情导航图标和无音乐 MP4 启动动画。",
       "category": "anime",
@@ -107,9 +107,9 @@
       "packageVersion": 2,
       "minManagerVersionCode": 32700,
       "maxManagerVersionCode": null,
-      "coverUrl": "https://github.com/fixz232/ApkeSU-ThemeStore/releases/download/theme-miku-nakano-v1/miku-nakano-cover.jpg",
+      "coverUrl": "https://github.com/Dama926/ApkeSU-ThemeStore/releases/download/theme-miku-nakano-v1/miku-nakano-cover.jpg",
       "screenshots": [],
-      "downloadUrl": "https://github.com/fixz232/ApkeSU-ThemeStore/releases/download/theme-miku-nakano-v1/miku-nakano-v1.kstheme",
+      "downloadUrl": "https://github.com/Dama926/ApkeSU-ThemeStore/releases/download/theme-miku-nakano-v1/miku-nakano-v1.kstheme",
       "sha256": "8f8464d754ee2be46e8aa4f41c075381f340db21cdd6174609952d064b79776c",
       "sizeBytes": 91782362,
       "license": "LicenseRef-UserProvided",
@@ -123,11 +123,11 @@
       "id": "rikka-takanashi",
       "name": "小鸟游六花",
       "author": {
-        "id": "fixz232",
-        "name": "fixz232",
+        "id": "dama926",
+        "name": "Dama926",
         "bio": "SterSU 云主题创作者",
-        "profileUrl": "https://github.com/fixz232",
-        "avatarUrl": "https://github.com/fixz232.png"
+        "profileUrl": "https://github.com/Dama926",
+        "avatarUrl": "https://github.com/Dama926.png"
       },
       "description": "以小鸟游六花为核心的紫蓝动漫主题，包含 1080p 动态背景、六张主页卡片壁纸、五个页面背景和四枚表情导航图标。",
       "category": "anime",
@@ -144,9 +144,9 @@
       "packageVersion": 4,
       "minManagerVersionCode": 32700,
       "maxManagerVersionCode": null,
-      "coverUrl": "https://github.com/fixz232/ApkeSU-ThemeStore/releases/download/theme-rikka-takanashi-v1/rikka-takanashi-cover.jpg",
+      "coverUrl": "https://github.com/Dama926/ApkeSU-ThemeStore/releases/download/theme-rikka-takanashi-v1/rikka-takanashi-cover.jpg",
       "screenshots": [],
-      "downloadUrl": "https://github.com/fixz232/ApkeSU-ThemeStore/releases/download/theme-rikka-takanashi-v1/rikka-takanashi-v1.kstheme",
+      "downloadUrl": "https://github.com/Dama926/ApkeSU-ThemeStore/releases/download/theme-rikka-takanashi-v1/rikka-takanashi-v1.kstheme",
       "sha256": "8145a651954fcabe3051cc932a1bab56714991ce49f0797f97ebe45d3fb3e635",
       "sizeBytes": 6665712,
       "license": "LicenseRef-UserProvided",
@@ -164,7 +164,7 @@
         "name": "wjn",
         "bio": "SterSU 云主题创作者",
         "profileUrl": "https://github.com/wjn-boop",
-        "avatarUrl": "https://raw.githubusercontent.com/fixz232/ApkeSU-ThemeStore/main/theme-store/assets/authors/wjn-boop.jpg"
+        "avatarUrl": "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/theme-store/assets/authors/wjn-boop.jpg"
       },
       "description": "以《缘之空》角色为核心的雪景浅色动漫主题，包含六张主页卡片壁纸、四个页面背景、四枚导航图标和静态启动图。",
       "category": "anime",
@@ -181,9 +181,9 @@
       "packageVersion": 2,
       "minManagerVersionCode": 32700,
       "maxManagerVersionCode": null,
-      "coverUrl": "https://github.com/fixz232/ApkeSU-ThemeStore/releases/download/theme-yosuga-no-sora-v1/yosuga-no-sora-cover.jpg",
+      "coverUrl": "https://github.com/Dama926/ApkeSU-ThemeStore/releases/download/theme-yosuga-no-sora-v1/yosuga-no-sora-cover.jpg",
       "screenshots": [],
-      "downloadUrl": "https://github.com/fixz232/ApkeSU-ThemeStore/releases/download/theme-yosuga-no-sora-v1/yosuga-no-sora-v1.kstheme",
+      "downloadUrl": "https://github.com/Dama926/ApkeSU-ThemeStore/releases/download/theme-yosuga-no-sora-v1/yosuga-no-sora-v1.kstheme",
       "sha256": "8e9b6384dd4ab1821e2191be9b0eebe3dd48dbe749025a40ce844b6022fce368",
       "sizeBytes": 33166562,
       "license": "LicenseRef-UserProvided",

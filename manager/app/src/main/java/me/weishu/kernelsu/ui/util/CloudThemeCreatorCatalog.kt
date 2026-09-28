@@ -11,14 +11,18 @@ internal const val CLOUD_THEME_CREATOR_REGISTRY_SCHEMA =
 internal const val CLOUD_THEME_CREATOR_REGISTRY_VERSION = 1
 internal const val CLOUD_THEME_SUBMISSION_SCHEMA =
     "io.github.fixz.apkesu.theme-submission"
+internal const val CLOUD_THEME_GITHUB_OWNER = "Dama926"
+internal const val CLOUD_THEME_STORE_REPOSITORY_PATH = "Dama926/ApkeSU-ThemeStore"
+private const val CLOUD_THEME_LEGACY_STORE_REPOSITORY_PATH = "fixz232/ApkeSU-ThemeStore"
+private const val CLOUD_THEME_LEGACY_CREATOR_REVIEWER = "fixz232"
 internal const val CLOUD_THEME_SUBMISSION_VERSION = 1
 internal const val CLOUD_THEME_DEFAULT_CREATOR_REGISTRY_URL =
-    "https://raw.githubusercontent.com/fixz232/ApkeSU-ThemeStore/main/theme-store/creators/v1/creators.json"
+    "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/theme-store/creators/v1/creators.json"
 internal const val CLOUD_THEME_GITHUB_REPOSITORY_URL =
-    "https://github.com/fixz232/ApkeSU-ThemeStore"
+    "https://github.com/Dama926/ApkeSU-ThemeStore"
 internal const val CLOUD_THEME_DEFAULT_COVER_URL =
-    "https://raw.githubusercontent.com/fixz232/ApkeSU-ThemeStore/main/theme-store/assets/default-cover.png"
-internal const val CLOUD_THEME_CREATOR_REVIEWER = "fixz232"
+    "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/theme-store/assets/default-cover.png"
+internal const val CLOUD_THEME_CREATOR_REVIEWER = CLOUD_THEME_GITHUB_OWNER
 internal const val CLOUD_THEME_MAX_CREATOR_REGISTRY_BYTES = 512L * 1024L
 internal const val CLOUD_THEME_MAX_GITHUB_ISSUES_BYTES = 2L * 1024L * 1024L
 internal const val CLOUD_THEME_CREATOR_PICKER_MIME_TYPE = "*/*"
@@ -243,7 +247,10 @@ internal fun parseCloudThemeCreatorRegistry(json: String): CloudThemeCreatorRegi
     }
     val generatedAt = root.requiredCreatorLong("generatedAt", 0L)
     val reviewer = normalizeCloudThemeGithubLogin(root.requiredCreatorString("reviewer", 39))
-    require(reviewer == CLOUD_THEME_CREATOR_REVIEWER) { "Unexpected creator reviewer" }
+    require(
+        reviewer.equals(CLOUD_THEME_CREATOR_REVIEWER, ignoreCase = true) ||
+            reviewer.equals(CLOUD_THEME_LEGACY_CREATOR_REVIEWER, ignoreCase = true)
+    ) { "Unexpected creator reviewer" }
     val creatorsJson = root.optJSONArray("creators") ?: error("Creator list is missing")
     require(creatorsJson.length() <= 500) { "Creator list is too large" }
     val creators = buildList {
@@ -270,6 +277,22 @@ internal fun parseCloudThemeCreatorRegistry(json: String): CloudThemeCreatorRegi
         creators = creators,
     )
 }
+
+/**
+ * The theme-store repository was transferred from the legacy owner. Keep
+ * already-published catalogs usable while directing those assets to the
+ * current repository.
+ */
+internal fun migrateCloudThemeStoreUrl(rawUrl: String): String =
+    rawUrl
+        .replace(
+            "https://github.com/$CLOUD_THEME_LEGACY_STORE_REPOSITORY_PATH",
+            CLOUD_THEME_GITHUB_REPOSITORY_URL,
+        )
+        .replace(
+            "https://raw.githubusercontent.com/$CLOUD_THEME_LEGACY_STORE_REPOSITORY_PATH/main",
+            "https://raw.githubusercontent.com/$CLOUD_THEME_STORE_REPOSITORY_PATH/main",
+        )
 
 internal fun buildCloudThemeSubmissionManifest(draft: CloudThemeSubmissionDraft): String {
     val github = normalizeCloudThemeGithubLogin(draft.githubLogin)

@@ -30,7 +30,6 @@ import me.weishu.kernelsu.ui.LocalInterfaceStyle
 import me.weishu.kernelsu.ui.LocalMainPagerState
 import me.weishu.kernelsu.ui.LocalUiMode
 import me.weishu.kernelsu.ui.UiMode
-import me.weishu.kernelsu.ui.component.PagerNavigationSpringSpec
 import me.weishu.kernelsu.ui.component.alpha.AlphaBottomBar
 import me.weishu.kernelsu.ui.component.delta.DeltaBottomBar
 import me.weishu.kernelsu.ui.component.skrootpro.SkrootproBottomBar
@@ -41,6 +40,7 @@ import me.weishu.kernelsu.R
 import me.weishu.kernelsu.ui.util.shouldShowSplitPane
 import top.yukonga.miuix.kmp.blur.Backdrop
 import top.yukonga.miuix.kmp.blur.LayerBackdrop
+import top.yukonga.miuix.kmp.utils.PagerNavigationSpringSpec
 import kotlin.math.abs
 
 class MainPagerState(

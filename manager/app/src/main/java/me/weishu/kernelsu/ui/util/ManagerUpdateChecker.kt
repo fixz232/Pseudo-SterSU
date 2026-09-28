@@ -18,7 +18,7 @@ data class ManagerUpdateInfo(
 )
 
 object ManagerUpdateChecker {
-    private const val RELEASE_API_URL = "https://api.github.com/repos/fixz232/ApkeSU/releases/latest"
+    private const val RELEASE_API_URL = "https://api.github.com/repos/Dama926/SterSU/releases/latest"
     private const val APK_MIME_TYPE = "application/vnd.android.package-archive"
     private const val PREF_CHECK_UPDATE = "check_update"
     private val apkNamePattern = Regex("""^(?:SterSU|ApkeSU)_(.+)_(\d+)(?:-[^.]+)?\.apk$""", RegexOption.IGNORE_CASE)

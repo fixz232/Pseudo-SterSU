@@ -12,7 +12,7 @@ internal const val CLOUD_THEME_PACKAGE_SCHEMA = "io.github.fixz.apkesu.theme"
 internal const val CLOUD_THEME_MAX_PACKAGE_BYTES = 500L * 1024L * 1024L
 internal const val CLOUD_THEME_MAX_CATALOG_BYTES = 2L * 1024L * 1024L
 internal const val CLOUD_THEME_DEFAULT_CATALOG_URL =
-    "https://raw.githubusercontent.com/fixz232/ApkeSU-ThemeStore/main/theme-store/catalog/v1/catalog.json"
+    "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/theme-store/catalog/v1/catalog.json"
 
 private const val CLOUD_THEME_STATE_SCHEMA = "io.github.fixz.apkesu.cloud-theme-state"
 private const val CLOUD_THEME_STATE_VERSION = 1
@@ -212,9 +212,9 @@ private fun parseCloudTheme(item: JSONObject, categoryIds: Set<String>): CloudTh
         "Cloud theme author id is invalid: $authorId"
     }
     val profileUrl = authorJson.optionalString("profileUrl", 512)
-        ?.let { validateCloudThemeUrl(it, allowPackage = false) }
+        ?.let { validateCloudThemeUrl(migrateCloudThemeStoreUrl(it), allowPackage = false) }
     val avatarUrl = authorJson.optionalString("avatarUrl", 512)
-        ?.let { validateCloudThemeUrl(it, allowPackage = false) }
+        ?.let { validateCloudThemeUrl(migrateCloudThemeStoreUrl(it), allowPackage = false) }
     val author = CloudThemeAuthor(
         id = authorId,
         name = authorJson.requiredString("name", 64),
@@ -253,7 +253,7 @@ private fun parseCloudTheme(item: JSONObject, categoryIds: Set<String>): CloudTh
     }
 
     val coverUrl = validateCloudThemeUrl(
-        item.requiredString("coverUrl", 512),
+        migrateCloudThemeStoreUrl(item.requiredString("coverUrl", 512)),
         allowPackage = false,
     )
     val screenshotsJson = item.requiredArray("screenshots", maximumSize = 8)
@@ -261,14 +261,19 @@ private fun parseCloudTheme(item: JSONObject, categoryIds: Set<String>): CloudTh
         for (index in 0 until screenshotsJson.length()) {
             val value = screenshotsJson.opt(index) as? String
                 ?: error("Cloud theme $id has an invalid screenshot URL")
-            add(validateCloudThemeUrl(sanitizeCatalogText(value, 512, "screenshot URL"), false))
+            add(
+                validateCloudThemeUrl(
+                    migrateCloudThemeStoreUrl(sanitizeCatalogText(value, 512, "screenshot URL")),
+                    false,
+                )
+            )
         }
     }
     require(screenshotUrls.distinct().size == screenshotUrls.size) {
         "Cloud theme $id has duplicate screenshots"
     }
     val downloadUrl = validateCloudThemeUrl(
-        item.requiredString("downloadUrl", 768),
+        migrateCloudThemeStoreUrl(item.requiredString("downloadUrl", 768)),
         allowPackage = true,
     )
     val sha256 = item.requiredString("sha256", 64).lowercase()

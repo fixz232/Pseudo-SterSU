@@ -13,6 +13,14 @@ import java.util.zip.ZipOutputStream
 
 class InterfaceStyleStoreTest {
     @Test
+    fun defaultCatalogUsesCurrentThemeStoreRepository() {
+        assertEquals(
+            "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/catalog-v1.json",
+            interfaceStyleCatalogUrl(),
+        )
+    }
+
+    @Test
     fun catalogParsesKnownDeclarativeVariants() {
         val catalog = parseInterfaceStyleCatalog(validCatalog())
 
@@ -108,6 +116,24 @@ class InterfaceStyleStoreTest {
         assertEquals(1, theme.scene.motifs.size)
         assertEquals(14f, theme.chrome.cornerDp)
         assertEquals(12f, theme.glass.blurDp)
+    }
+
+    @Test
+    fun alphaThemeSupportsKernelEliteDayAndNightPalettes() {
+        val expected = packageFor("kernel-elite", "alpha", null, 4278258918)
+        val theme = parseInterfaceStyleTheme(
+            themeJson(expected).toString(Charsets.UTF_8)
+                .replace("\"primary\":\"#ff5e84a6\"", "\"primary\":\"#ff006a70\"")
+                .replace("\"primary\":\"#ffd5e9f7\"", "\"primary\":\"#ff00dce6\"")
+                .toByteArray(),
+            expected,
+        )
+
+        assertEquals("alpha", theme.engine)
+        assertEquals(null, theme.variant)
+        assertEquals(0xFF006A70L, theme.lightPalette.primary)
+        assertEquals(0xFF00DCE6L, theme.darkPalette.primary)
+        assertEquals(8f, theme.chrome.cornerDp)
     }
 
     @Test(expected = IllegalArgumentException::class)
@@ -225,7 +251,7 @@ class InterfaceStyleStoreTest {
           "schema":"io.github.fixz.apkesu.interface-style-theme",
           "version":3,
           "engine":"${style.engine}",
-          "variant":"${style.variant}",
+          "variant":${style.variant?.let { "\"$it\"" } ?: "null"},
           "accent":${style.accent},
           "forceDark":false,
           "palette":{
@@ -233,7 +259,7 @@ class InterfaceStyleStoreTest {
             "dark":{"background":"#ff121a20","backgroundAlt":"#ff19242d","surface":"#ff26343e","surfaceAlt":"#ff1b2931","primary":"#ffd5e9f7","secondary":"#ffa4e5df","outline":"#ff82abb2","highlight":"#fff3faff","shadow":"#ff080d13","muted":"#ff789094","content":"#ffe4edf2"}
           },
           "scene":{"cycleMillis":15000,"primaryCount":68,"secondaryCount":6,"speed":1.0,"angle":0.08,"minLengthDp":8.0,"maxLengthDp":17.0,"minStrokeDp":0.38,"maxStrokeDp":0.72,"minAlpha":0.18,"maxAlpha":0.42,"gridDp":18.0,"clearOnCycle":false,"lightning":false,"motifs":[{"type":"line","color":"muted","x":0.1,"y":0.2,"width":0.2,"height":0.02,"alpha":0.2,"strokeDp":0.7,"repeatX":2,"repeatY":2,"driftX":0.02,"driftY":0.0}]},
-          "chrome":{"cardAlpha":0.76,"borderAlpha":0.6,"cornerDp":14.0,"unitDp":1.5,"topBarAlpha":0.62,"navigationAlpha":0.62},
+          "chrome":{"cardAlpha":${if (style.engine == "alpha") "0.96" else "0.76"},"borderAlpha":${if (style.engine == "alpha") "0.72" else "0.6"},"cornerDp":${if (style.engine == "alpha") "8.0" else "14.0"},"unitDp":1.5,"topBarAlpha":${if (style.engine == "alpha") "0.92" else "0.62"},"navigationAlpha":${if (style.engine == "alpha") "0.96" else "0.62"}},
           "glass":{"surfaceAlpha":0.7,"blurDp":12.0,"strokeAlpha":0.55,"refraction":false,"refractionHeightDp":0.0,"refractionAmountDp":0.0,"chromaticAberration":0.0}
         }
     """.trimIndent().toByteArray()
@@ -241,7 +267,7 @@ class InterfaceStyleStoreTest {
     private fun manifestJson(style: InterfaceStylePackage, resource: ByteArray): ByteArray {
         val hash = MessageDigest.getInstance("SHA-256").digest(resource).joinToString("") { "%02x".format(it) }
         return """
-            {"schema":"io.github.fixz.apkesu.interface-style-bundle","version":${style.version},"id":"${style.id}","engine":"${style.engine}","variant":"${style.variant}","resources":[{"name":"theme","path":"theme.json","mimeType":"application/json","sha256":"$hash","sizeBytes":${resource.size}}]}
+            {"schema":"io.github.fixz.apkesu.interface-style-bundle","version":${style.version},"id":"${style.id}","engine":"${style.engine}","variant":${style.variant?.let { "\"$it\"" } ?: "null"},"resources":[{"name":"theme","path":"theme.json","mimeType":"application/json","sha256":"$hash","sizeBytes":${resource.size}}]}
         """.trimIndent().toByteArray()
     }
 

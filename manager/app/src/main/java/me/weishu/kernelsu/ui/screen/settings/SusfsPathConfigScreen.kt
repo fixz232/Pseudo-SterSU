@@ -28,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.HelpOutline
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.ErrorOutline
@@ -373,6 +374,12 @@ fun SusfsPathConfigScreen() {
                     }
                 },
                 actions = {
+                    IconButton(onClick = dropUnlessResumed { navigator.push(Route.SusfsApplications) }) {
+                        Icon(
+                            Icons.Rounded.Apps,
+                            contentDescription = stringResource(R.string.susfs_applications_title),
+                        )
+                    }
                     IconButton(onClick = dropUnlessResumed { navigator.push(Route.SusfsGuide) }) {
                         Icon(
                             Icons.AutoMirrored.Rounded.HelpOutline,

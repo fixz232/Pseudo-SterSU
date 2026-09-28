@@ -6,6 +6,8 @@ import android.util.AtomicFile
 import androidx.core.content.edit
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import me.weishu.kernelsu.ksuApp
 import okhttp3.Request
@@ -100,9 +102,9 @@ private const val PREFS_NAME = "interface-style-download"
 private const val MODE_KEY = "proxy_mode"
 private const val CUSTOM_PROXY_KEY = "custom_proxy"
 private const val DEFAULT_CATALOG_URL =
-    "https://raw.githubusercontent.com/fixz232/ApkeSU-ThemeStore/main/interface-styles/catalog-v1.json"
+    "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/catalog-v1.json"
 private const val DEFAULT_CATALOG_SIGNATURE_URL =
-    "https://raw.githubusercontent.com/fixz232/ApkeSU-ThemeStore/main/interface-styles/catalog-v1.sig"
+    "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/catalog-v1.sig"
 private const val CATALOG_PUBLIC_KEY_B64 =
     "MCowBQYDK2VwAyEAsuUUb5hSL7V2e89TyM0XRJ9IKY6VSOqP9a5a/OMeCts="
 private const val BUNDLE_MANIFEST_PATH = "manifest.json"
@@ -162,8 +164,10 @@ fun saveInterfaceStyleDownloadPreferences(
 }
 
 class InterfaceStyleRegistry(context: Context) {
-    private companion object {
-        val stateGeneration = AtomicLong(0L)
+    internal companion object Changes {
+        private val stateGeneration = AtomicLong(0L)
+        private val stateChanges = MutableStateFlow(0L)
+        val changes = stateChanges.asStateFlow()
     }
 
     private val appContext = context.applicationContext
@@ -303,7 +307,9 @@ class InterfaceStyleRegistry(context: Context) {
             output.write(root.toString().toByteArray(Charsets.UTF_8))
             output.fd.sync()
             atomicFile.finishWrite(output)
-            cachedGeneration = stateGeneration.incrementAndGet()
+            val generation = stateGeneration.incrementAndGet()
+            stateChanges.value = generation
+            cachedGeneration = generation
             cachedTimestamp = stateFile.lastModified()
             cachedLength = stateFile.length()
             cachedStyles = styles
@@ -692,7 +698,7 @@ private fun parseStyle(item: JSONObject, requireUrl: Boolean): InterfaceStylePac
     require(if (allowedVariants == null) variant == null else variant in allowedVariants) {
         "Interface style variant is invalid"
     }
-    val url = item.optString("downloadUrl")
+    val url = migrateCloudThemeStoreUrl(item.optString("downloadUrl"))
     if (requireUrl) require(validateStyleUrl(url) == url) { "Interface style URL is invalid" }
     val hash = item.optString("sha256")
     if (requireUrl) require(HASH_PATTERN.matches(hash)) { "Interface style hash is invalid" }

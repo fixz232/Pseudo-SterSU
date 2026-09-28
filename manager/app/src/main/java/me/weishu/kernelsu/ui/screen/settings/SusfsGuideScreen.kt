@@ -94,20 +94,11 @@ fun SusfsGuideScreen() {
                     )
                 }
             }
-            GuideSection(R.string.susfs_guide_section_paths, R.string.susfs_guide_paths, initiallyExpanded = true)
+            GuideSection(R.string.susfs_guide_section_steps, R.string.susfs_guide_steps, initiallyExpanded = true)
+            GuideSection(R.string.susfs_guide_section_paths, R.string.susfs_guide_paths)
             GuideSection(R.string.susfs_guide_section_kernel, R.string.susfs_guide_kernel)
             GuideSection(R.string.susfs_guide_section_apply, R.string.susfs_guide_apply)
             GuideSection(R.string.susfs_guide_section_safety, R.string.susfs_guide_safety)
-            Text(
-                text = stringResource(R.string.susfs_guide_section_faq),
-                modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            GuideSection(R.string.susfs_guide_faq_tool_question, R.string.susfs_guide_faq_tool)
-            GuideSection(R.string.susfs_guide_faq_reboot_question, R.string.susfs_guide_faq_reboot)
-            GuideSection(R.string.susfs_guide_faq_partial_question, R.string.susfs_guide_faq_partial)
-            GuideSection(R.string.susfs_guide_faq_618_question, R.string.susfs_guide_faq_618)
         }
     }
 }

@@ -53,6 +53,8 @@ interface SettingsRepository {
     var monetSurfaceOpacity: Float
     var themePreset: String
     var enablePredictiveBack: Boolean
+    var enableSwipeDismiss: Boolean
+    var pagerInterceptionMode: Int
     var enableBlur: Boolean
     var enableFloatingBottomBar: Boolean
     var enableFloatingBottomBarBlur: Boolean
@@ -61,6 +63,7 @@ interface SettingsRepository {
     var moduleTopBarAutoHideEnabled: Boolean
     var pageScale: Float
     var fontScale: Float
+    var moduleDescriptionMaxLines: Int
     var blurIntensity: Float
     var switchStyle: String
     var seasonStyle: String

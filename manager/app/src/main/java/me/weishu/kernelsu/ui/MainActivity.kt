@@ -205,6 +205,7 @@ import me.weishu.kernelsu.ui.screen.settings.ForegroundToolProtectionScreen
 import me.weishu.kernelsu.ui.screen.settings.ImageToolScreen
 import me.weishu.kernelsu.ui.screen.settings.KpmScreen
 import me.weishu.kernelsu.ui.screen.settings.SusfsPathConfigScreen
+import me.weishu.kernelsu.ui.screen.settings.SusfsApplicationsScreen
 import me.weishu.kernelsu.ui.screen.settings.SusfsGuideScreen
 import me.weishu.kernelsu.ui.screen.settings.RescueProtectionScreen
 import me.weishu.kernelsu.ui.screen.settings.HomeCardWallpaperScreen
@@ -259,6 +260,7 @@ import me.weishu.kernelsu.ui.util.LocalCustomNavigationIcons
 import me.weishu.kernelsu.ui.util.LocalInterfaceStyleTheme
 import me.weishu.kernelsu.ui.util.LocalScrollAnimation
 import me.weishu.kernelsu.ui.util.LocalScrollAnimationEffect
+import me.weishu.kernelsu.ui.util.InterfaceStyleRegistry
 import me.weishu.kernelsu.ui.util.interfaceStyleTheme
 import me.weishu.kernelsu.ui.util.ManagerUpdateChecker
 import me.weishu.kernelsu.ui.util.ManagerUpdateInfo
@@ -375,6 +377,7 @@ class MainActivity : ComponentActivity() {
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
             val selectedMainDestination by viewModel.selectedMainDestination.collectAsStateWithLifecycle()
             val managerReady by managerReadyState.collectAsStateWithLifecycle()
+            val interfaceStyleGeneration by InterfaceStyleRegistry.changes.collectAsStateWithLifecycle()
             SideEffect {
                 startupStateResolved = uiState.stealthModeResolved
             }
@@ -401,6 +404,7 @@ class MainActivity : ComponentActivity() {
                 uiState.interfaceStyle,
                 uiState.rainStyle,
                 uiState.pixelStyle,
+                interfaceStyleGeneration,
             ) {
                 val variant = when (uiState.interfaceStyle) {
                     InterfaceStyle.Rain.value -> uiState.rainStyle
@@ -649,6 +653,7 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
                                 entry<Route.SusfsPathConfig> { SusfsPathConfigScreen() }
+                                entry<Route.SusfsApplications> { SusfsApplicationsScreen() }
                                 entry<Route.SusfsGuide> { SusfsGuideScreen() }
                                 entry<Route.ForegroundToolProtection> { ForegroundToolProtectionScreen() }
                                 entry<Route.AiChat> { PluginRouteGate(ManagerPlugin.AiChat) { AiChatScreen() } }

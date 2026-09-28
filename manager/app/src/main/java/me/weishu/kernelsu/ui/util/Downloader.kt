@@ -1,9 +1,13 @@
 package me.weishu.kernelsu.ui.util
 
+import android.content.ContentResolver
 import android.net.Uri
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.withContext
 import me.weishu.kernelsu.ksuApp
+import java.io.File
 
 /**
  * @author weishu
@@ -32,4 +36,15 @@ suspend fun download(
             status == DownloadManager.Status.COMPLETED ||
                 status == DownloadManager.Status.FAILED
         }
+}
+
+suspend fun isDownloadAvailable(uri: Uri): Boolean = withContext(Dispatchers.IO) {
+    when (uri.scheme?.lowercase()) {
+        ContentResolver.SCHEME_CONTENT -> runCatching {
+            ksuApp.contentResolver.openFileDescriptor(uri, "r")?.use { true } ?: false
+        }.getOrDefault(false)
+
+        ContentResolver.SCHEME_FILE, null -> uri.path?.let { File(it).isFile } == true
+        else -> false
+    }
 }

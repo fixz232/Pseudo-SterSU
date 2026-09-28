@@ -9,7 +9,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 $zipTimestamp = [DateTimeOffset]::new(1980, 1, 1, 0, 0, 0, [TimeSpan]::Zero)
-$repositoryBase = 'https://raw.githubusercontent.com/fixz232/ApkeSU-ThemeStore/main/interface-styles'
+$repositoryBase = 'https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles'
 $packageDirectory = Join-Path $OutputDirectory 'interface-styles/packages'
 $catalogDirectory = Join-Path $OutputDirectory 'interface-styles'
 [System.IO.Directory]::CreateDirectory($packageDirectory) | Out-Null
@@ -109,6 +109,34 @@ function New-ThemeResource([object]$Style, [int]$StyleIndex) {
         ($Style.engine -eq 'pixel' -and $Style.variant -eq 'cyber_hacker')
     $lightPalette = New-StylePalette $Style.accent $false
     $darkPalette = New-StylePalette $Style.accent $true
+    if ($Style.id -eq 'kernel-elite') {
+        $lightPalette = [ordered]@{
+            background = '#FFF4F8FA'
+            backgroundAlt = '#FFFFFFFF'
+            surface = '#FFFFFFFF'
+            surfaceAlt = '#FFE5EEF1'
+            primary = '#FF006A70'
+            secondary = '#FF8A5700'
+            outline = '#FF587177'
+            highlight = '#FFFFFFFF'
+            shadow = '#FF203038'
+            muted = '#FF53676E'
+            content = '#FF132329'
+        }
+        $darkPalette = [ordered]@{
+            background = '#FF10131A'
+            backgroundAlt = '#FF0B0E15'
+            surface = '#FF191C23'
+            surfaceAlt = '#FF272A31'
+            primary = '#FF00DCE6'
+            secondary = '#FFFFB300'
+            outline = '#FF3A494B'
+            highlight = '#FFE0FDFF'
+            shadow = '#FF080D13'
+            muted = '#FF849495'
+            content = '#FFE0E2EC'
+        }
+    }
     $motifs = @()
     $scene = [ordered]@{
         cycleMillis = 10000
@@ -168,11 +196,22 @@ function New-ThemeResource([object]$Style, [int]$StyleIndex) {
             (New-Motif 'line' 'outline' 0.04 (0.24 + (($seed % 6) * 0.045)) 0.10 (0.02 + (($seed % 3) * 0.02)) 0.26 (0.6 + (($seed % 4) * 0.2)) (2 + ($seed % 4)) (2 + ($seed % 2)) 0.012 -0.008),
             (New-Motif 'circle' 'highlight' (0.16 + (($seed % 5) * 0.035)) (0.18 + (($seed % 4) * 0.06)) 0.010 0.010 0.30 0.5 (3 + ($seed % 6)) (2 + ($seed % 3)) -0.010 0.012)
         )
+    } elseif ($Style.engine -eq 'alpha') {
+        $scene.cycleMillis = 16000
+        $scene.primaryCount = 0
+        $scene.secondaryCount = 0
+        $scene.speed = 0.0
+        $scene.gridDp = 24.0
+        $motifs = @(
+            (New-Motif 'line' 'outline' 0.02 0.16 0.20 0.01 0.16 0.5 4 2 0.0 0.0),
+            (New-Motif 'circle' 'primary' 0.08 0.72 0.012 0.012 0.22 0.5 5 2 0.0 0.0)
+        )
     }
     $scene.motifs = @($motifs)
 
     $isPixel = $Style.engine -eq 'pixel'
     $isGlass = $Style.engine -eq 'liquid_glass'
+    $isElite = $Style.id -eq 'kernel-elite'
     return [ordered]@{
         schema = 'io.github.fixz.apkesu.interface-style-theme'
         version = 3
@@ -183,17 +222,17 @@ function New-ThemeResource([object]$Style, [int]$StyleIndex) {
         palette = [ordered]@{ light = $lightPalette; dark = $darkPalette }
         scene = $scene
         chrome = [ordered]@{
-            cardAlpha = if ($isGlass) { 0.54 } elseif ($isPixel) { 0.94 } else { 0.76 }
-            borderAlpha = if ($isGlass) { 0.70 } elseif ($isPixel) { 0.72 } else { 0.60 }
-            cornerDp = if ($isGlass) { 20.0 } elseif ($isPixel) { 0.0 } else { 14.0 }
+            cardAlpha = if ($isGlass) { 0.54 } elseif ($isPixel) { 0.94 } elseif ($isElite) { 0.96 } else { 0.76 }
+            borderAlpha = if ($isGlass) { 0.70 } elseif ($isPixel) { 0.72 } elseif ($isElite) { 0.72 } else { 0.60 }
+            cornerDp = if ($isGlass) { 20.0 } elseif ($isPixel) { 0.0 } elseif ($isElite) { 8.0 } else { 14.0 }
             unitDp = if ($isPixel) { 2.0 } else { 1.5 }
-            topBarAlpha = if ($isGlass) { 0.18 } else { 0.62 }
-            navigationAlpha = if ($isGlass) { 0.54 } elseif ($isPixel) { 0.94 } else { 0.62 }
+            topBarAlpha = if ($isGlass) { 0.18 } elseif ($isElite) { 0.92 } else { 0.62 }
+            navigationAlpha = if ($isGlass) { 0.54 } elseif ($isPixel) { 0.94 } elseif ($isElite) { 0.96 } else { 0.62 }
         }
         glass = [ordered]@{
-            surfaceAlpha = if ($isGlass) { 0.54 } else { 0.70 }
+            surfaceAlpha = if ($isGlass) { 0.54 } elseif ($isElite) { 0.96 } else { 0.70 }
             blurDp = if ($isGlass) { 18.0 } else { 12.0 }
-            strokeAlpha = if ($isGlass) { 0.70 } else { 0.55 }
+            strokeAlpha = if ($isGlass) { 0.70 } elseif ($isElite) { 0.72 } else { 0.55 }
             refraction = $isGlass
             refractionHeightDp = if ($isGlass) { 16.0 } else { 0.0 }
             refractionAmountDp = if ($isGlass) { 9.0 } else { 0.0 }
@@ -219,6 +258,7 @@ function Write-ZipEntry(
 
 $styles = @(
     [ordered]@{ id='liquid-glass'; name='毛玻璃 / Frosted glass'; summary='半透明毛玻璃界面'; engine='liquid_glass'; variant=$null; accent=4283987338L },
+    [ordered]@{ id='kernel-elite'; name='内核精英 / Kernel Elite'; summary='终端 HUD 风格的内核、授权和模块管理界面，支持日间与夜间调色板。'; engine='alpha'; variant=$null; accent=4278258918L },
     [ordered]@{ id='season-spring'; name='春日 / Spring'; summary='四季主题：春日'; engine='snow'; variant='spring'; accent=4283404098L },
     [ordered]@{ id='season-summer'; name='盛夏 / Summer'; summary='四季主题：盛夏'; engine='snow'; variant='summer'; accent=4279663744L },
     [ordered]@{ id='season-autumn'; name='金秋 / Autumn'; summary='四季主题：金秋'; engine='snow'; variant='autumn'; accent=4288309803L },

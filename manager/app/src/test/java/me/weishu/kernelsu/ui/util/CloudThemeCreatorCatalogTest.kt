@@ -12,10 +12,22 @@ class CloudThemeCreatorCatalogTest {
     fun parseRegistry_normalizesLoginAndFindsApprovedCreator() {
         val registry = parseCloudThemeCreatorRegistry(validRegistryJson())
 
-        assertEquals("fixz232", registry.reviewer)
+        assertEquals("dama926", registry.reviewer)
         assertEquals("alice-theme", registry.creators.single().github)
         assertTrue(registry.isApproved("Alice-Theme"))
         assertFalse(registry.isApproved("unknown"))
+    }
+
+    @Test
+    fun parseRegistry_acceptsLegacyReviewerDuringRepositoryTransfer() {
+        val legacy = validRegistryJson().replace(
+            "\"reviewer\":\"Dama926\"",
+            "\"reviewer\":\"fixz232\"",
+        )
+
+        val registry = parseCloudThemeCreatorRegistry(legacy)
+
+        assertEquals("fixz232", registry.reviewer)
     }
 
     @Test
@@ -38,7 +50,7 @@ class CloudThemeCreatorCatalogTest {
     fun creatorApplicationUrl_prefillsTheIssueForm() {
         val url = buildCloudThemeCreatorApplicationUrl("Alice-Theme", "Alice Creator")
 
-        assertTrue(url.startsWith("https://github.com/fixz232/ApkeSU-ThemeStore/issues/new?"))
+        assertTrue(url.startsWith("https://github.com/Dama926/ApkeSU-ThemeStore/issues/new?"))
         assertTrue(url.contains("template=cloud_theme_creator_application.yml"))
         assertTrue(url.contains("github_login=alice-theme"))
         assertTrue(url.contains("display_name=Alice%20Creator"))
@@ -181,7 +193,7 @@ class CloudThemeCreatorCatalogTest {
     fun submissionIssueUrl_prefillsMachineReadableManifest() {
         val url = buildCloudThemeSubmissionIssueUrl(validDraft())
 
-        assertTrue(url.startsWith("https://github.com/fixz232/ApkeSU-ThemeStore/issues/new?"))
+        assertTrue(url.startsWith("https://github.com/Dama926/ApkeSU-ThemeStore/issues/new?"))
         assertTrue(url.contains("template=cloud_theme_submission.yml"))
         assertTrue(url.contains("manifest="))
         assertTrue(url.contains("theme_id=aurora-night"))
@@ -196,7 +208,7 @@ class CloudThemeCreatorCatalogTest {
                 "number": 10,
                 "title": "[Creator application] alice-theme",
                 "state": "closed",
-                "html_url": "https://github.com/fixz232/ApkeSU-ThemeStore/issues/10",
+                "html_url": "https://github.com/Dama926/ApkeSU-ThemeStore/issues/10",
                 "updated_at": "2026-07-24T01:02:03Z",
                 "user": {"login": "Alice-Theme"},
                 "labels": [{"name": "creator-active"}],
@@ -206,7 +218,7 @@ class CloudThemeCreatorCatalogTest {
                 "number": 12,
                 "title": "[Cloud theme] aurora-night - Aurora Night",
                 "state": "closed",
-                "html_url": "https://github.com/fixz232/ApkeSU-ThemeStore/issues/12",
+                "html_url": "https://github.com/Dama926/ApkeSU-ThemeStore/issues/12",
                 "updated_at": "2026-07-24T02:03:04Z",
                 "user": {"login": "alice-theme"},
                 "labels": [{"name": "theme-published"}],
@@ -233,7 +245,7 @@ class CloudThemeCreatorCatalogTest {
                 "number": 81,
                 "title": "[Creator application] alice-theme",
                 "state": "open",
-                "html_url": "https://github.com/fixz232/ApkeSU-ThemeStore/issues/81",
+                "html_url": "https://github.com/Dama926/ApkeSU-ThemeStore/issues/81",
                 "updated_at": "2026-07-24T06:28:48Z",
                 "user": {"login": "alice-theme"},
                 "labels": [],
@@ -259,7 +271,7 @@ class CloudThemeCreatorCatalogTest {
                 "number": 82,
                 "title": "[Creator application] alice-theme",
                 "state": "open",
-                "html_url": "https://github.com/fixz232/ApkeSU-ThemeStore/issues/82",
+                "html_url": "https://github.com/Dama926/ApkeSU-ThemeStore/issues/82",
                 "updated_at": "2026-07-24T06:30:00Z",
                 "user": {"login": "alice-theme"},
                 "labels": [{"name": "theme-creator-application"}],
@@ -278,7 +290,7 @@ class CloudThemeCreatorCatalogTest {
           "schema":"io.github.fixz.apkesu.theme-creators",
           "version":1,
           "generatedAt":1,
-          "reviewer":"fixz232",
+          "reviewer":"Dama926",
           "creators":[
             {
               "github":"Alice-Theme",
