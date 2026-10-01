@@ -54,6 +54,7 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.DesignServices
 import androidx.compose.material.icons.rounded.Pin
 import androidx.compose.material.icons.rounded.Style
+import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
@@ -267,11 +268,11 @@ fun ColorPaletteScreenMaterial(
                     content = listOf(
                         {
                             SegmentedSwitchItem(
-                                icon = Icons.Rounded.Pin,
-                                title = stringResource(id = R.string.settings_navigation_badge),
-                                summary = stringResource(id = R.string.settings_navigation_badge_summary),
-                                checked = uiState.enableNavigationBadge,
-                                onCheckedChange = actions.onSetEnableNavigationBadge
+                                icon = Icons.Rounded.Timer,
+                                title = stringResource(id = R.string.settings_module_top_bar_auto_hide),
+                                summary = stringResource(id = R.string.settings_module_top_bar_auto_hide_summary),
+                                checked = uiState.moduleTopBarAutoHideEnabled,
+                                onCheckedChange = actions.onSetModuleTopBarAutoHideEnabled,
                             )
                         }
                     )

@@ -16,7 +16,6 @@ import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -29,8 +28,6 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.webkit.WebViewAssetLoader
 import me.weishu.kernelsu.ksuApp
-import me.weishu.kernelsu.ui.LocalUiMode
-import me.weishu.kernelsu.ui.UiMode
 import me.weishu.kernelsu.ui.theme.isInDarkTheme
 import me.weishu.kernelsu.ui.util.adjustLightnessArgb
 import me.weishu.kernelsu.ui.util.cssColorFromArgb
@@ -61,6 +58,8 @@ fun GithubMarkdown(
     isMarkdown: Boolean = false,
     onLoadingChange: (Boolean) -> Unit = {},
     containerColor: androidx.compose.ui.graphics.Color? = null,
+    allowRemoteContent: Boolean = true,
+    contentPaddingDp: Int = 16,
 ) {
     val density = LocalDensity.current
     val systemDensity = LocalResources.current.displayMetrics.density
@@ -107,7 +106,7 @@ fun GithubMarkdown(
         }
         html, body { margin: 0; padding: 0 }
         img, video { max-width: 100%; height: auto; }
-        .markdown-body { padding: 16px; }
+        .markdown-body { padding: ${contentPaddingDp.coerceAtLeast(0)}px; }
     """.trimIndent()
     val html = template
         .replace("@dir@", dir)
@@ -221,6 +220,8 @@ fun GithubMarkdown(
                                 context.startActivity(intent)
                             } catch (_: ActivityNotFoundException) {
                                 Log.w("GithubMarkdown", "No activity to handle: ${request.url}")
+                            } catch (error: SecurityException) {
+                                Log.w("GithubMarkdown", "Unable to open: ${request.url}", error)
                             }
                             return true
                         }
@@ -235,6 +236,13 @@ fun GithubMarkdown(
                             assetLoader.shouldInterceptRequest(request.url)?.let { return it }
                             val scheme = request.url.scheme ?: return null
                             if (!scheme.startsWith("http")) return null
+                            if (!allowRemoteContent) {
+                                return WebResourceResponse(
+                                    "text/plain",
+                                    "utf-8",
+                                    ByteArrayInputStream(ByteArray(0)),
+                                )
+                            }
                             val client: OkHttpClient = ksuApp.okhttpClient
                             val call = client.newCall(
                                 Request.Builder()
@@ -360,37 +368,22 @@ private data class MarkdownColors(
 
 @Composable
 private fun getMarkdownColors(containerColor: androidx.compose.ui.graphics.Color?): MarkdownColors {
-    val uiMode = LocalUiMode.current
+    val bgArgb = containerColor?.toArgb() ?: MiuixTheme.colorScheme.surfaceContainer.toArgb()
+    val bgLuminance = relativeLuminance(bgArgb)
 
-    return when (uiMode) {
-        UiMode.Material -> {
-            MarkdownColors(
-                bgCode = cssColorFromArgb(MaterialTheme.colorScheme.surfaceContainerHigh.toArgb()),
-                bgRowAlt = cssColorFromArgb(MaterialTheme.colorScheme.surfaceContainerLow.toArgb()),
-                fgDefault = cssColorFromArgb(MaterialTheme.colorScheme.onSurface.toArgb()),
-                fgLink = cssColorFromArgb(MaterialTheme.colorScheme.primary.toArgb())
-            )
-        }
-
-        UiMode.Miuix -> {
-            val bgArgb = containerColor?.toArgb() ?: MiuixTheme.colorScheme.surfaceContainer.toArgb()
-            val bgLuminance = relativeLuminance(bgArgb)
-
-            fun makeVariant(delta: Float, ratio: Double): Int {
-                val candidate = adjustLightnessArgb(bgArgb, delta)
-                val madeLighter = delta > 0f
-                return ensureVisibleByMix(bgArgb, candidate, ratio, madeLighter)
-            }
-
-            val codeDelta = if (bgLuminance > 0.6) -0.05f else 0.05f
-            val rowAltDelta = if (bgLuminance > 0.6) -0.02f else 0.02f
-
-            MarkdownColors(
-                bgCode = cssColorFromArgb(makeVariant(codeDelta, 1.1)),
-                bgRowAlt = cssColorFromArgb(makeVariant(rowAltDelta, 1.05)),
-                fgDefault = cssColorFromArgb(MiuixTheme.colorScheme.onSurface.toArgb()),
-                fgLink = cssColorFromArgb(MiuixTheme.colorScheme.primary.toArgb())
-            )
-        }
+    fun makeVariant(delta: Float, ratio: Double): Int {
+        val candidate = adjustLightnessArgb(bgArgb, delta)
+        val madeLighter = delta > 0f
+        return ensureVisibleByMix(bgArgb, candidate, ratio, madeLighter)
     }
+
+    val codeDelta = if (bgLuminance > 0.6) -0.05f else 0.05f
+    val rowAltDelta = if (bgLuminance > 0.6) -0.02f else 0.02f
+
+    return MarkdownColors(
+        bgCode = cssColorFromArgb(makeVariant(codeDelta, 1.1)),
+        bgRowAlt = cssColorFromArgb(makeVariant(rowAltDelta, 1.05)),
+        fgDefault = cssColorFromArgb(MiuixTheme.colorScheme.onSurface.toArgb()),
+        fgLink = cssColorFromArgb(MiuixTheme.colorScheme.primary.toArgb())
+    )
 }

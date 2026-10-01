@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 import me.weishu.kernelsu.Natives
+import me.weishu.kernelsu.data.model.TemplateInfo
 import me.weishu.kernelsu.data.repository.TemplateRepository
 import me.weishu.kernelsu.data.repository.TemplateRepositoryImpl
 import me.weishu.kernelsu.profile.Capabilities
@@ -25,8 +26,6 @@ const val TAG = "TemplateViewModel"
 class TemplateViewModel(
     private val repo: TemplateRepository = TemplateRepositoryImpl()
 ) : ViewModel() {
-
-    typealias TemplateInfo = me.weishu.kernelsu.data.model.TemplateInfo
 
     private val _uiState = MutableStateFlow(TemplateUiState())
     val uiState: StateFlow<TemplateUiState> = _uiState.asStateFlow()

@@ -15,21 +15,8 @@ fun AppProfileConfig(
     onProfileChange: (Natives.Profile) -> Unit,
 ) {
     when (LocalUiMode.current) {
-        UiMode.Miuix -> AppProfileConfigMiuix(
-            modifier = modifier,
-            fixedName = fixedName,
-            enabled = enabled,
-            profile = profile,
-            onProfileChange = onProfileChange
-        )
-
-        UiMode.Material -> AppProfileConfigMaterial(
-            modifier = modifier,
-            fixedName = fixedName,
-            enabled = enabled,
-            profile = profile,
-            onProfileChange = onProfileChange
-        )
+        UiMode.Miuix -> AppProfileConfigMiuix(modifier, fixedName, enabled, profile, onProfileChange)
+        UiMode.Material -> AppProfileConfigMaterial(modifier, fixedName, enabled, profile, onProfileChange)
     }
 }
 
@@ -42,19 +29,12 @@ fun RootProfileConfig(
     onProfileChange: (Natives.Profile) -> Unit,
 ) {
     when (LocalUiMode.current) {
-        UiMode.Miuix -> RootProfileConfigMiuix(
-            modifier = modifier,
-            fixedName = fixedName,
-            enabled = enabled,
-            profile = profile,
-            onProfileChange = onProfileChange
-        )
-
+        UiMode.Miuix -> RootProfileConfigMiuix(modifier, fixedName, enabled, profile, onProfileChange)
         UiMode.Material -> RootProfileConfigMaterial(
             modifier = modifier,
             enabled = enabled,
             profile = profile,
-            onProfileChange = onProfileChange
+            onProfileChange = onProfileChange,
         )
     }
 }
@@ -69,18 +49,13 @@ fun TemplateConfig(
 ) {
     when (LocalUiMode.current) {
         UiMode.Miuix -> TemplateConfigMiuix(
-            modifier = modifier,
-            profile = profile,
-            onViewTemplate = onViewTemplate,
-            onManageTemplate = onManageTemplate,
-            onProfileChange = onProfileChange
+            modifier, profile, onViewTemplate, onManageTemplate, onProfileChange
         )
-
         UiMode.Material -> TemplateConfigMaterial(
             profile = profile,
             onViewTemplate = onViewTemplate,
             onManageTemplate = onManageTemplate,
-            onProfileChange = onProfileChange
+            onProfileChange = onProfileChange,
         )
     }
 }

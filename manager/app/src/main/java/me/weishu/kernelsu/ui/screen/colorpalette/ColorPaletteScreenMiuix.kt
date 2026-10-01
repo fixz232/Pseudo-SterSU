@@ -5,10 +5,10 @@ import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -30,6 +30,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.MenuOpen
@@ -37,9 +39,18 @@ import androidx.compose.material.icons.rounded.AspectRatio
 import androidx.compose.material.icons.rounded.BlurOn
 import androidx.compose.material.icons.rounded.CallToAction
 import androidx.compose.material.icons.rounded.Colorize
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.DesignServices
-import androidx.compose.material.icons.rounded.Pin
+import androidx.compose.material.icons.rounded.FontDownload
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.RestartAlt
+import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Style
+import androidx.compose.material.icons.rounded.SyncAlt
+import androidx.compose.material.icons.rounded.SwapVert
+import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.runtime.Composable
@@ -65,10 +76,22 @@ import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
 import com.materialkolor.rememberDynamicColorScheme
 import me.weishu.kernelsu.R
+import me.weishu.kernelsu.ui.InterfaceStyle
 import me.weishu.kernelsu.ui.component.bottombar.useNavigationRail
+import me.weishu.kernelsu.ui.component.liquid.globalLiquidGlassSurface
+import me.weishu.kernelsu.ui.component.liquid.liquidGlassMiuixCardColors
 import me.weishu.kernelsu.ui.component.miuix.ScaleDialog
+import me.weishu.kernelsu.ui.component.pixel.PixelStyle
+import me.weishu.kernelsu.ui.component.rain.RainStyle
+import me.weishu.kernelsu.ui.theme.ColorMode
+import me.weishu.kernelsu.ui.theme.CustomThemePreset
 import me.weishu.kernelsu.ui.theme.LocalEnableBlur
+import me.weishu.kernelsu.ui.theme.isInterfaceForcedDark
 import me.weishu.kernelsu.ui.theme.keyColorOptions
+import me.weishu.kernelsu.ui.theme.ThemePreset
+import me.weishu.kernelsu.ui.theme.ThemeAppearanceDefaults
+import me.weishu.kernelsu.ui.theme.ThemeSyncStrategy
+import me.weishu.kernelsu.ui.theme.skrootproTopBarColors
 import me.weishu.kernelsu.ui.util.BlurredBar
 import me.weishu.kernelsu.ui.util.rememberBlurBackdrop
 import top.yukonga.miuix.kmp.basic.Card
@@ -86,10 +109,11 @@ import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
-import top.yukonga.miuix.kmp.preference.SwitchPreference
+import me.weishu.kernelsu.ui.component.miuix.SunMoonSwitchPreference as SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
+import kotlin.math.roundToInt
 
 @Composable
 fun ColorPaletteScreenMiuix(
@@ -101,15 +125,26 @@ fun ColorPaletteScreenMiuix(
     val backdrop = rememberBlurBackdrop(enableBlurState)
     val blurActive = backdrop != null
     val barColor = if (blurActive) Color.Transparent else colorScheme.surface
+    val topBarColors = skrootproTopBarColors(barColor, colorScheme.onSurface)
     val uiState = state.uiState
+    val isLiquidGlassInterface = uiState.uiMode == InterfaceStyle.LiquidGlass.value
     val currentColorMode = state.currentColorMode
+    var showSavePresetDialog by remember { mutableStateOf(false) }
+    var renamePreset by remember { mutableStateOf<CustomThemePreset?>(null) }
     val isDark = currentColorMode.isDark || currentColorMode.isSystem && isSystemInDarkTheme()
+    val interfaceForcesDark = isInterfaceForcedDark(
+        interfaceStyle = uiState.uiMode,
+        rainStyle = RainStyle.fromValue(uiState.rainStyle),
+        pixelStyle = PixelStyle.fromValue(uiState.pixelStyle),
+    )
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             BlurredBar(backdrop) {
                 TopAppBar(
-                    color = barColor,
+                    color = topBarColors.container,
+                    titleColor = topBarColors.content,
                     title = stringResource(R.string.settings_theme),
                     navigationIcon = {
                         IconButton(
@@ -122,7 +157,7 @@ fun ColorPaletteScreenMiuix(
                                 },
                                 imageVector = MiuixIcons.Back,
                                 contentDescription = null,
-                                tint = colorScheme.onBackground
+                                tint = topBarColors.content
                             )
                         }
                     },
@@ -147,131 +182,180 @@ fun ColorPaletteScreenMiuix(
                 overscrollEffect = null,
             ) {
                 item {
+                    val currentPreset = ThemePreset.fromValue(uiState.themePreset)
                     Spacer(modifier = Modifier.height(32.dp))
                     ThemePreviewCardMiuix(
                         keyColor = uiState.keyColor,
                         isDark = isDark,
                         miuixMonet = uiState.miuixMonet,
                         enableFloatingBottomBar = uiState.enableFloatingBottomBar,
-                        enableFloatingBottomBarBlur = uiState.enableFloatingBottomBarBlur,
+                        enableFloatingBottomBarBlur = if (isLiquidGlassInterface) {
+                            false
+                        } else {
+                            uiState.enableFloatingBottomBarBlur
+                        },
                         paletteStyle = state.currentPaletteStyle,
                         colorSpec = state.currentColorSpec,
+                        presetLabel = stringResource(currentPreset.titleRes),
+                        colorModeLabel = themeColorModeLabel(currentColorMode),
+                        keyColorLabel = themeKeyColorLabel(uiState.keyColor),
                     )
-                    Spacer(modifier = Modifier.height(72.dp))
+                    Spacer(modifier = Modifier.height(18.dp))
 
-                    val themeItems = listOf(
-                        stringResource(id = R.string.settings_theme_mode_system),
-                        stringResource(id = R.string.settings_theme_mode_light),
-                        stringResource(id = R.string.settings_theme_mode_dark),
-                    )
-                    TabRow(
-                        tabs = themeItems,
-                        selectedTabIndex = (if (uiState.themeMode >= 3) uiState.themeMode - 3 else uiState.themeMode).coerceIn(0, 2),
-                        onTabSelected = { index ->
-                            actions.onSetThemeMode(index)
-                        },
+                    ThemePresetCardsMiuix(
+                        uiMode = uiState.uiMode,
+                        currentPreset = currentPreset,
+                        isDark = isDark,
+                        onApplyThemePreset = actions.onApplyThemePreset,
                     )
 
-                    Card(
-                        modifier = Modifier
-                            .padding(top = 12.dp)
-                            .fillMaxWidth(),
-                    ) {
-                        SwitchPreference(
-                            title = stringResource(id = R.string.settings_monet),
-                            startAction = {
-                                Icon(
-                                    Icons.Rounded.Wallpaper,
-                                    modifier = Modifier.padding(end = 6.dp),
-                                    contentDescription = stringResource(id = R.string.settings_monet),
-                                    tint = colorScheme.onBackground
-                                )
+                    run {
+                        val themeItems = listOf(
+                            stringResource(id = R.string.settings_theme_mode_system),
+                            stringResource(id = R.string.settings_theme_mode_light),
+                            stringResource(id = R.string.settings_theme_mode_dark),
+                        )
+                        TabRow(
+                            tabs = themeItems,
+                            selectedTabIndex = (if (uiState.themeMode >= 3) uiState.themeMode - 3 else uiState.themeMode).coerceIn(0, 2),
+                            onTabSelected = { index ->
+                                actions.onSetThemeMode(index)
                             },
-                            checked = uiState.miuixMonet,
-                            onCheckedChange = {
-                                actions.onSetMiuixMonet(it)
-                            }
+                            height = 48.dp,
                         )
 
-                        AnimatedVisibility(
-                            visible = uiState.miuixMonet
+                        AnimatedVisibility(visible = interfaceForcesDark) {
+                            Text(
+                                text = stringResource(R.string.settings_theme_forced_dark_notice),
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                color = colorScheme.primary,
+                                fontSize = 13.sp,
+                            )
+                        }
+
+                        SwitchPreference(
+                            title = stringResource(R.string.settings_theme_mode_amoled),
+                            summary = stringResource(R.string.settings_theme_mode_amoled_summary),
+                            checked = currentColorMode.isAmoled,
+                            onCheckedChange = { enabled ->
+                                actions.onSetColorMode(if (enabled) ColorMode.DARK_AMOLED else ColorMode.DARK)
+                            },
+                        )
+
+                        Card(
+                            modifier = Modifier
+                                .padding(top = 12.dp)
+                                .fillMaxWidth()
+                                .themeLiquidGlassSurface(),
+                            colors = liquidGlassMiuixCardColors(),
                         ) {
-                            Column {
-                                val colorItems = listOf(
-                                    stringResource(id = R.string.settings_key_color_default),
-                                    stringResource(id = R.string.color_red),
-                                    stringResource(id = R.string.color_pink),
-                                    stringResource(id = R.string.color_purple),
-                                    stringResource(id = R.string.color_deep_purple),
-                                    stringResource(id = R.string.color_indigo),
-                                    stringResource(id = R.string.color_blue),
-                                    stringResource(id = R.string.color_cyan),
-                                    stringResource(id = R.string.color_teal),
-                                    stringResource(id = R.string.color_green),
-                                    stringResource(id = R.string.color_yellow),
-                                    stringResource(id = R.string.color_amber),
-                                    stringResource(id = R.string.color_orange),
-                                    stringResource(id = R.string.color_brown),
-                                    stringResource(id = R.string.color_blue_grey),
-                                    stringResource(id = R.string.color_sakura),
-                                )
-                                val colorValues = listOf(0) + keyColorOptions
-                                OverlayDropdownPreference(
-                                    title = stringResource(id = R.string.settings_key_color),
-                                    items = colorItems,
-                                    startAction = {
-                                        Icon(
-                                            Icons.Rounded.Colorize,
-                                            modifier = Modifier.padding(end = 6.dp),
-                                            contentDescription = stringResource(id = R.string.settings_key_color),
-                                            tint = colorScheme.onBackground
-                                        )
-                                    },
-                                    selectedIndex = colorValues.indexOf(uiState.keyColor).takeIf { it >= 0 } ?: 0,
-                                    onSelectedIndexChange = { index ->
-                                        actions.onSetKeyColor(colorValues[index])
-                                    }
-                                )
+                            SwitchPreference(
+                                title = stringResource(id = R.string.settings_monet),
+                                startAction = {
+                                    Icon(
+                                        Icons.Rounded.Wallpaper,
+                                        modifier = Modifier.padding(end = 6.dp),
+                                        contentDescription = stringResource(id = R.string.settings_monet),
+                                        tint = colorScheme.onBackground
+                                    )
+                                },
+                                checked = uiState.miuixMonet,
+                                onCheckedChange = {
+                                    actions.onSetMiuixMonet(it)
+                                }
+                            )
 
-                                AnimatedVisibility(
-                                    visible = uiState.keyColor != 0
-                                ) {
-                                    Column {
-                                        val styles = PaletteStyle.entries
-                                        OverlayDropdownPreference(
-                                            title = stringResource(R.string.settings_color_style),
-                                            startAction = {
-                                                Icon(
-                                                    Icons.Rounded.Style,
-                                                    modifier = Modifier.padding(end = 6.dp),
-                                                    contentDescription = stringResource(id = R.string.settings_color_style),
-                                                    tint = colorScheme.onBackground
-                                                )
-                                            },
-                                            items = styles.map { it.name },
-                                            selectedIndex = styles.indexOfFirst { it.name == uiState.colorStyle }.coerceAtLeast(0),
-                                            onSelectedIndexChange = { index ->
-                                                actions.onSetColorStyle(styles[index].name)
-                                            }
-                                        )
+                            AnimatedVisibility(
+                                visible = uiState.miuixMonet
+                            ) {
+                                Column {
+                                    val colorItems = listOf(
+                                        stringResource(id = R.string.settings_key_color_default),
+                                        stringResource(id = R.string.color_red),
+                                        stringResource(id = R.string.color_pink),
+                                        stringResource(id = R.string.color_purple),
+                                        stringResource(id = R.string.color_deep_purple),
+                                        stringResource(id = R.string.color_indigo),
+                                        stringResource(id = R.string.color_blue),
+                                        stringResource(id = R.string.color_cyan),
+                                        stringResource(id = R.string.color_teal),
+                                        stringResource(id = R.string.color_green),
+                                        stringResource(id = R.string.color_yellow),
+                                        stringResource(id = R.string.color_amber),
+                                        stringResource(id = R.string.color_orange),
+                                        stringResource(id = R.string.color_brown),
+                                        stringResource(id = R.string.color_blue_grey),
+                                        stringResource(id = R.string.color_sakura),
+                                    )
+                                    val colorValues = listOf(0) + keyColorOptions
+                                    OverlayDropdownPreference(
+                                        title = stringResource(id = R.string.settings_key_color),
+                                        items = colorItems,
+                                        startAction = {
+                                            Icon(
+                                                Icons.Rounded.Colorize,
+                                                modifier = Modifier.padding(end = 6.dp),
+                                                contentDescription = stringResource(id = R.string.settings_key_color),
+                                                tint = colorScheme.onBackground
+                                            )
+                                        },
+                                        selectedIndex = colorValues.indexOf(uiState.keyColor).takeIf { it >= 0 } ?: 0,
+                                        onSelectedIndexChange = { index ->
+                                            actions.onSetKeyColor(colorValues[index])
+                                        }
+                                    )
 
-                                        val specs = ColorSpec.SpecVersion.entries
-                                        OverlayDropdownPreference(
-                                            title = stringResource(R.string.settings_color_spec),
-                                            startAction = {
-                                                Icon(
-                                                    Icons.Rounded.DesignServices,
-                                                    modifier = Modifier.padding(end = 6.dp),
-                                                    contentDescription = stringResource(id = R.string.settings_color_spec),
-                                                    tint = colorScheme.onBackground
-                                                )
-                                            },
-                                            items = specs.map { it.name },
-                                            selectedIndex = specs.indexOfFirst { it.name == uiState.colorSpec }.coerceAtLeast(0),
-                                            onSelectedIndexChange = { index ->
-                                                actions.onSetColorSpec(specs[index].name)
-                                            }
-                                        )
+                                    AdvancedSliderMiuix(
+                                        title = stringResource(R.string.settings_monet_surface_opacity),
+                                        summary = stringResource(R.string.settings_monet_surface_opacity_summary),
+                                        icon = Icons.Rounded.WaterDrop,
+                                        value = uiState.monetSurfaceOpacity,
+                                        valueRange = ThemeAppearanceDefaults.MIN_MONET_SURFACE_OPACITY..
+                                            ThemeAppearanceDefaults.MAX_MONET_SURFACE_OPACITY,
+                                        keyPoints = listOf(0.45f, 0.6f, 0.75f, 0.9f, 1f),
+                                        onValueChangeFinished = actions.onSetMonetSurfaceOpacity,
+                                    )
+
+                                    AnimatedVisibility(
+                                        visible = uiState.keyColor != 0
+                                    ) {
+                                        Column {
+                                            val styles = PaletteStyle.entries
+                                            OverlayDropdownPreference(
+                                                title = stringResource(R.string.settings_color_style),
+                                                startAction = {
+                                                    Icon(
+                                                        Icons.Rounded.Style,
+                                                        modifier = Modifier.padding(end = 6.dp),
+                                                        contentDescription = stringResource(id = R.string.settings_color_style),
+                                                        tint = colorScheme.onBackground
+                                                    )
+                                                },
+                                                items = styles.map { it.name },
+                                                selectedIndex = styles.indexOfFirst { it.name == uiState.colorStyle }.coerceAtLeast(0),
+                                                onSelectedIndexChange = { index ->
+                                                    actions.onSetColorStyle(styles[index].name)
+                                                }
+                                            )
+
+                                            val specs = ColorSpec.SpecVersion.entries
+                                            OverlayDropdownPreference(
+                                                title = stringResource(R.string.settings_color_spec),
+                                                startAction = {
+                                                    Icon(
+                                                        Icons.Rounded.DesignServices,
+                                                        modifier = Modifier.padding(end = 6.dp),
+                                                        contentDescription = stringResource(id = R.string.settings_color_spec),
+                                                        tint = colorScheme.onBackground
+                                                    )
+                                                },
+                                                items = specs.map { it.name },
+                                                selectedIndex = specs.indexOfFirst { it.name == uiState.colorSpec }.coerceAtLeast(0),
+                                                onSelectedIndexChange = { index ->
+                                                    actions.onSetColorSpec(specs[index].name)
+                                                }
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -281,9 +365,11 @@ fun ColorPaletteScreenMiuix(
                     Card(
                         modifier = Modifier
                             .padding(top = 12.dp)
-                            .fillMaxWidth(),
+                            .fillMaxWidth()
+                            .themeLiquidGlassSurface(),
+                        colors = liquidGlassMiuixCardColors(),
                     ) {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        if (!isLiquidGlassInterface && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             SwitchPreference(
                                 title = stringResource(id = R.string.settings_enable_blur),
                                 summary = stringResource(id = R.string.settings_enable_blur_summary),
@@ -317,7 +403,59 @@ fun ColorPaletteScreenMiuix(
                                 actions.onSetEnableFloatingBottomBar(it)
                             }
                         )
-                        AnimatedVisibility(visible = uiState.enableFloatingBottomBar && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        SwitchPreference(
+                            title = stringResource(id = R.string.settings_auto_hide_navigation_bar),
+                            summary = stringResource(id = R.string.settings_auto_hide_navigation_bar_summary),
+                            startAction = {
+                                Icon(
+                                    Icons.Rounded.Timer,
+                                    modifier = Modifier.padding(end = 6.dp),
+                                    contentDescription = stringResource(
+                                        id = R.string.settings_auto_hide_navigation_bar
+                                    ),
+                                    tint = colorScheme.onBackground,
+                                )
+                            },
+                            checked = uiState.autoHideNavigationBar,
+                            onCheckedChange = actions.onSetAutoHideNavigationBar,
+                        )
+                        SwitchPreference(
+                            title = stringResource(id = R.string.settings_scroll_hide_navigation_bar),
+                            summary = stringResource(id = R.string.settings_scroll_hide_navigation_bar_summary),
+                            startAction = {
+                                Icon(
+                                    Icons.Rounded.SwapVert,
+                                    modifier = Modifier.padding(end = 6.dp),
+                                    contentDescription = stringResource(
+                                        id = R.string.settings_scroll_hide_navigation_bar
+                                    ),
+                                    tint = colorScheme.onBackground,
+                                )
+                            },
+                            checked = uiState.scrollHideNavigationBar,
+                            onCheckedChange = actions.onSetScrollHideNavigationBar,
+                        )
+                        SwitchPreference(
+                            title = stringResource(id = R.string.settings_module_top_bar_auto_hide),
+                            summary = stringResource(id = R.string.settings_module_top_bar_auto_hide_summary),
+                            startAction = {
+                                Icon(
+                                    Icons.Rounded.Timer,
+                                    modifier = Modifier.padding(end = 6.dp),
+                                    contentDescription = stringResource(
+                                        id = R.string.settings_module_top_bar_auto_hide,
+                                    ),
+                                    tint = colorScheme.onBackground,
+                                )
+                            },
+                            checked = uiState.moduleTopBarAutoHideEnabled,
+                            onCheckedChange = actions.onSetModuleTopBarAutoHideEnabled,
+                        )
+                        AnimatedVisibility(
+                            visible = !isLiquidGlassInterface &&
+                                uiState.enableFloatingBottomBar &&
+                                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                        ) {
                             SwitchPreference(
                                 title = stringResource(id = R.string.settings_enable_glass),
                                 summary = stringResource(id = R.string.settings_enable_glass_summary),
@@ -335,28 +473,14 @@ fun ColorPaletteScreenMiuix(
                                 }
                             )
                         }
-                        SwitchPreference(
-                            title = stringResource(id = R.string.settings_navigation_badge),
-                            summary = stringResource(id = R.string.settings_navigation_badge_summary),
-                            startAction = {
-                                Icon(
-                                    Icons.Rounded.Pin,
-                                    modifier = Modifier.padding(end = 6.dp),
-                                    contentDescription = stringResource(id = R.string.settings_navigation_badge),
-                                    tint = colorScheme.onBackground
-                                )
-                            },
-                            checked = uiState.enableNavigationBadge,
-                            onCheckedChange = {
-                                actions.onSetEnableNavigationBadge(it)
-                            }
-                        )
                     }
 
                     Card(
                         modifier = Modifier
                             .padding(top = 12.dp)
-                            .fillMaxWidth(),
+                            .fillMaxWidth()
+                            .themeLiquidGlassSurface(),
+                        colors = liquidGlassMiuixCardColors(),
                     ) {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                             SwitchPreference(
@@ -371,48 +495,41 @@ fun ColorPaletteScreenMiuix(
                                     )
                                 },
                                 checked = uiState.enablePredictiveBack,
+                                enabled = !state.predictiveBackUpdatePending,
                                 onCheckedChange = {
                                     actions.onSetEnablePredictiveBack(it)
                                 }
                             )
                         }
 
-                        var sliderValue by remember(uiState.pageScale) { mutableFloatStateOf(uiState.pageScale) }
-                        ArrowPreference(
+                        AdvancedSliderMiuix(
                             title = stringResource(id = R.string.settings_page_scale),
                             summary = stringResource(id = R.string.settings_page_scale_summary),
-                            startAction = {
-                                Icon(
-                                    Icons.Rounded.AspectRatio,
-                                    modifier = Modifier.padding(end = 6.dp),
-                                    contentDescription = stringResource(id = R.string.settings_page_scale),
-                                    tint = colorScheme.onBackground
-                                )
-                            },
-                            endActions = {
-                                Text(
-                                    text = "${(sliderValue * 100).toInt()}%",
-                                    color = colorScheme.onSurfaceVariantActions,
-                                )
-                            },
+                            icon = Icons.Rounded.AspectRatio,
+                            value = uiState.pageScale,
+                            valueRange = 0.8f..1.1f,
+                            keyPoints = listOf(0.8f, 0.9f, 1f, 1.1f),
+                            onValueChangeFinished = actions.onSetPageScale,
                             onClick = { showScaleDialog.value = !showScaleDialog.value },
                             holdDownState = showScaleDialog.value,
-                            bottomAction = {
-                                Slider(
-                                    value = sliderValue,
-                                    onValueChange = {
-                                        sliderValue = it
-                                    },
-                                    onValueChangeFinished = {
-                                        actions.onSetPageScale(sliderValue)
-                                    },
-                                    valueRange = 0.8f..1.1f,
-                                    showKeyPoints = true,
-                                    keyPoints = listOf(0.8f, 0.9f, 1f, 1.1f),
-                                    magnetThreshold = 0.01f,
-                                    hapticEffect = SliderDefaults.SliderHapticEffect.Step,
-                                )
-                            },
+                        )
+                        AdvancedSliderMiuix(
+                            title = stringResource(id = R.string.settings_font_scale),
+                            summary = stringResource(id = R.string.settings_font_scale_summary),
+                            icon = Icons.Rounded.FontDownload,
+                            value = uiState.fontScale,
+                            valueRange = 0.85f..1.2f,
+                            keyPoints = listOf(0.85f, 1f, 1.1f, 1.2f),
+                            onValueChangeFinished = actions.onSetFontScale,
+                        )
+                        AdvancedSliderMiuix(
+                            title = stringResource(id = R.string.settings_blur_intensity),
+                            summary = stringResource(id = R.string.settings_blur_intensity_summary),
+                            icon = Icons.Rounded.BlurOn,
+                            value = uiState.blurIntensity,
+                            valueRange = 0.5f..1.5f,
+                            keyPoints = listOf(0.5f, 1f, 1.25f, 1.5f),
+                            onValueChangeFinished = actions.onSetBlurIntensity,
                         )
                         ScaleDialog(
                             show = showScaleDialog.value,
@@ -423,6 +540,17 @@ fun ColorPaletteScreenMiuix(
                             }
                         )
                     }
+
+                    ThemeCustomPresetsMiuix(
+                        customPresets = uiState.customThemePresets,
+                        themeSyncStrategy = uiState.themeSyncStrategy,
+                        onSaveCustomThemePreset = { showSavePresetDialog = true },
+                        onApplyCustomThemePreset = actions.onApplyCustomThemePreset,
+                        onRenameCustomThemePreset = { renamePreset = it },
+                        onDeleteCustomThemePreset = actions.onDeleteCustomThemePreset,
+                        onSetThemeSyncStrategy = actions.onSetThemeSyncStrategy,
+                        onResetThemeToDefault = actions.onResetThemeToDefault,
+                    )
                 }
                 item {
                     Spacer(
@@ -436,6 +564,355 @@ fun ColorPaletteScreenMiuix(
             }
         }
     }
+
+    ThemePresetNameDialog(
+        show = showSavePresetDialog,
+        title = stringResource(R.string.theme_custom_preset_save),
+        onDismissRequest = { showSavePresetDialog = false },
+        onConfirm = actions.onSaveCustomThemePreset,
+    )
+    renamePreset?.let { preset ->
+        ThemePresetNameDialog(
+            show = true,
+            title = stringResource(R.string.theme_custom_preset_rename),
+            initialName = preset.name,
+            onDismissRequest = { renamePreset = null },
+            onConfirm = { name -> actions.onRenameCustomThemePreset(preset.id, name) },
+        )
+    }
+}
+
+@Composable
+private fun themeColorModeLabel(mode: ColorMode): String {
+    val displayMode = if (mode.isMonet) ColorMode.fromValue(mode.toNonMonetMode()) else mode
+    return when (displayMode) {
+        ColorMode.LIGHT -> stringResource(R.string.settings_theme_mode_light)
+        ColorMode.DARK -> stringResource(R.string.settings_theme_mode_dark)
+        ColorMode.DARK_AMOLED -> stringResource(R.string.settings_theme_mode_amoled)
+        else -> stringResource(R.string.settings_theme_mode_system)
+    }
+}
+
+@Composable
+private fun themeKeyColorLabel(keyColor: Int): String {
+    return if (keyColor == 0) {
+        stringResource(R.string.settings_key_color_default)
+    } else {
+        "#%06X".format(keyColor and 0x00FFFFFF)
+    }
+}
+
+@Composable
+private fun ThemeSectionHeaderMiuix(
+    title: String,
+    summary: String? = null,
+) {
+    Column(
+        modifier = Modifier.padding(top = 6.dp, bottom = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Text(
+            text = title,
+            color = colorScheme.onBackground,
+            fontSize = 17.sp
+        )
+        if (summary != null) {
+            Text(
+                text = summary,
+                color = colorScheme.onSurfaceVariantSummary,
+                fontSize = 13.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun ThemePresetCardsMiuix(
+    uiMode: String,
+    currentPreset: ThemePreset,
+    isDark: Boolean,
+    onApplyThemePreset: (ThemePreset) -> Unit,
+) {
+    val compatiblePresets = ThemePreset.workshopPresets.filter { it.isCompatibleWith(uiMode) }
+    val visiblePresets = if (currentPreset == ThemePreset.CUSTOM) {
+        listOf(ThemePreset.CUSTOM) + compatiblePresets
+    } else {
+        compatiblePresets
+    }
+
+    ThemeSectionHeaderMiuix(
+        title = stringResource(R.string.theme_workshop),
+        summary = stringResource(R.string.theme_workshop_summary),
+    )
+    LazyRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        items(visiblePresets) { preset ->
+            ThemePresetCardMiuix(
+                preset = preset,
+                selected = currentPreset == preset,
+                enabled = preset != ThemePreset.CUSTOM,
+                isDark = isDark,
+                onClick = { onApplyThemePreset(preset) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ThemePresetCardMiuix(
+    preset: ThemePreset,
+    selected: Boolean,
+    enabled: Boolean,
+    isDark: Boolean,
+    onClick: () -> Unit,
+) {
+    val borderColor = if (selected) colorScheme.primary else colorScheme.outline.copy(alpha = 0.45f)
+    Card(
+        modifier = Modifier
+            .width(176.dp)
+            .border(if (selected) 2.dp else 1.dp, borderColor, RoundedCornerShape(18.dp))
+            .clickable(enabled = enabled) { onClick() }
+            .themeLiquidGlassSurface(),
+        colors = liquidGlassMiuixCardColors(),
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            PresetMiniPreviewMiuix(preset = preset, isDark = isDark)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Rounded.Palette,
+                    modifier = Modifier
+                        .padding(end = 8.dp)
+                        .size(18.dp),
+                    contentDescription = null,
+                    tint = if (selected) colorScheme.primary else colorScheme.onBackground
+                )
+                Text(
+                    text = stringResource(preset.titleRes),
+                    color = colorScheme.onBackground,
+                    fontSize = 15.sp,
+                    modifier = Modifier.weight(1f)
+                )
+                if (selected) {
+                    Icon(
+                        Icons.Rounded.Tune,
+                        modifier = Modifier.size(18.dp),
+                        contentDescription = null,
+                        tint = colorScheme.primary
+                    )
+                }
+            }
+            Text(
+                text = stringResource(preset.summaryRes),
+                color = colorScheme.onSurfaceVariantSummary,
+                fontSize = 12.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun PresetMiniPreviewMiuix(
+    preset: ThemePreset,
+    isDark: Boolean,
+) {
+    val previewIsDark = preset.colorMode.isDark || preset.colorMode.isSystem && isDark
+    val seedColor = if (preset.keyColor == 0) colorScheme.primary else Color(preset.keyColor)
+    val previewScheme = rememberDynamicColorScheme(
+        seedColor = seedColor,
+        isDark = previewIsDark,
+        style = preset.paletteStyle,
+        specVersion = preset.colorSpec,
+    )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(46.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(previewScheme.background)
+            .padding(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        listOf(
+            previewScheme.primary,
+            previewScheme.secondaryContainer,
+            previewScheme.tertiaryContainer,
+            previewScheme.surfaceContainerHighest
+        ).forEach { previewColor ->
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(previewColor)
+            )
+        }
+    }
+}
+
+@Composable
+private fun Modifier.themeLiquidGlassSurface(): Modifier {
+    return globalLiquidGlassSurface(
+        shape = RoundedCornerShape(18.dp),
+        surfaceAlpha = 0.58f,
+        blurRadius = 10.dp,
+        refractionHeight = 14.dp,
+        refractionAmount = 9.dp,
+        strokeAlpha = 0.66f,
+    )
+}
+
+@Composable
+private fun ThemeCustomPresetsMiuix(
+    customPresets: List<CustomThemePreset>,
+    themeSyncStrategy: ThemeSyncStrategy,
+    onSaveCustomThemePreset: () -> Unit,
+    onApplyCustomThemePreset: (String) -> Unit,
+    onRenameCustomThemePreset: (CustomThemePreset) -> Unit,
+    onDeleteCustomThemePreset: (String) -> Unit,
+    onSetThemeSyncStrategy: (ThemeSyncStrategy) -> Unit,
+    onResetThemeToDefault: () -> Unit,
+) {
+    val syncItems = listOf(
+        stringResource(R.string.theme_sync_shared),
+        stringResource(R.string.theme_sync_per_style),
+    )
+    Card(
+        modifier = Modifier
+            .padding(top = 12.dp)
+            .fillMaxWidth()
+            .themeLiquidGlassSurface(),
+        colors = liquidGlassMiuixCardColors(),
+    ) {
+        ArrowPreference(
+            title = stringResource(R.string.theme_custom_preset_save),
+            summary = stringResource(R.string.theme_custom_preset_save_summary),
+            startAction = {
+                Icon(
+                    Icons.Rounded.Save,
+                    modifier = Modifier.padding(end = 6.dp),
+                    contentDescription = stringResource(id = R.string.theme_custom_preset_save),
+                    tint = colorScheme.onBackground
+                )
+            },
+            onClick = onSaveCustomThemePreset,
+        )
+        customPresets.forEach { preset ->
+            ArrowPreference(
+                title = preset.name,
+                summary = stringResource(R.string.theme_custom_preset_item_summary),
+                startAction = {
+                    Icon(
+                        Icons.Rounded.Tune,
+                        modifier = Modifier.padding(end = 6.dp),
+                        contentDescription = preset.name,
+                        tint = colorScheme.onBackground
+                    )
+                },
+                endActions = {
+                    IconButton(onClick = { onRenameCustomThemePreset(preset) }) {
+                        Icon(
+                            Icons.Rounded.Edit,
+                            contentDescription = stringResource(R.string.theme_custom_preset_rename),
+                            tint = colorScheme.onSurfaceVariantActions,
+                        )
+                    }
+                    IconButton(onClick = { onDeleteCustomThemePreset(preset.id) }) {
+                        Icon(
+                            Icons.Rounded.Delete,
+                            contentDescription = stringResource(R.string.theme_custom_preset_delete),
+                            tint = colorScheme.onSurfaceVariantActions,
+                        )
+                    }
+                },
+                onClick = { onApplyCustomThemePreset(preset.id) },
+            )
+        }
+        OverlayDropdownPreference(
+            title = stringResource(R.string.theme_sync_strategy),
+            summary = stringResource(R.string.theme_sync_strategy_summary),
+            items = syncItems,
+            startAction = {
+                Icon(
+                    Icons.Rounded.SyncAlt,
+                    modifier = Modifier.padding(end = 6.dp),
+                    contentDescription = stringResource(id = R.string.theme_sync_strategy),
+                    tint = colorScheme.onBackground
+                )
+            },
+            selectedIndex = if (themeSyncStrategy == ThemeSyncStrategy.SHARED) 0 else 1,
+            onSelectedIndexChange = { index ->
+                onSetThemeSyncStrategy(
+                    if (index == 0) ThemeSyncStrategy.SHARED else ThemeSyncStrategy.PER_STYLE
+                )
+            },
+        )
+        ArrowPreference(
+            title = stringResource(R.string.theme_reset_default),
+            summary = stringResource(R.string.theme_reset_default_summary),
+            startAction = {
+                Icon(
+                    Icons.Rounded.RestartAlt,
+                    modifier = Modifier.padding(end = 6.dp),
+                    contentDescription = stringResource(id = R.string.theme_reset_default),
+                    tint = colorScheme.onBackground
+                )
+            },
+            onClick = onResetThemeToDefault,
+        )
+    }
+}
+
+@Composable
+private fun AdvancedSliderMiuix(
+    title: String,
+    summary: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    keyPoints: List<Float>,
+    onValueChangeFinished: (Float) -> Unit,
+    onClick: () -> Unit = {},
+    holdDownState: Boolean = false,
+) {
+    var sliderValue by remember(value) { mutableFloatStateOf(value) }
+    ArrowPreference(
+        title = title,
+        summary = summary,
+        startAction = {
+            Icon(
+                icon,
+                modifier = Modifier.padding(end = 6.dp),
+                contentDescription = title,
+                tint = colorScheme.onBackground
+            )
+        },
+        endActions = {
+            Text(
+                text = "${(sliderValue * 100).roundToInt()}%",
+                color = colorScheme.onSurfaceVariantActions,
+            )
+        },
+        onClick = onClick,
+        holdDownState = holdDownState,
+        bottomAction = {
+            Slider(
+                value = sliderValue,
+                onValueChange = { sliderValue = it },
+                onValueChangeFinished = { onValueChangeFinished(sliderValue) },
+                valueRange = valueRange,
+                showKeyPoints = true,
+                keyPoints = keyPoints,
+                magnetThreshold = 0.01f,
+                hapticEffect = SliderDefaults.SliderHapticEffect.Step,
+            )
+        },
+    )
 }
 
 @SuppressLint("ConfigurationScreenWidthHeight")
@@ -448,6 +925,9 @@ private fun ThemePreviewCardMiuix(
     enableFloatingBottomBarBlur: Boolean = false,
     paletteStyle: PaletteStyle = PaletteStyle.TonalSpot,
     colorSpec: ColorSpec.SpecVersion = ColorSpec.SpecVersion.SPEC_2021,
+    presetLabel: String,
+    colorModeLabel: String,
+    keyColorLabel: String,
 ) {
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.toFloat()
@@ -478,109 +958,146 @@ private fun ThemePreviewCardMiuix(
     val navSelectedColor = colorScheme.onSurfaceContainer
     val navUnselectedColor = colorScheme.onSurfaceContainer.copy(alpha = 0.5f)
 
-    Box(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 12.dp),
-        contentAlignment = Alignment.TopCenter
+            .padding(top = 12.dp)
+            .themeLiquidGlassSurface(),
+        colors = liquidGlassMiuixCardColors(),
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(0.4f)
-                .aspectRatio(screenRatio)
-                .clip(RoundedCornerShape(20.dp))
-                .background(bgColor)
-                .border(1.dp, colorScheme.outline, RoundedCornerShape(20.dp))
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            val content = @Composable {
-                Column {
-                    Row(
-                        modifier = Modifier
-                            .height(if (useRail) 36.dp else 48.dp)
-                            .fillMaxWidth()
-                            .padding(start = 12.dp, top = if (useRail) 12.dp else 24.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = stringResource(id = R.string.app_name),
-                            fontSize = 12.sp,
-                            color = textColor
-                        )
-                    }
+            Box(
+                modifier = Modifier
+                    .width(168.dp)
+                    .aspectRatio(screenRatio)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(bgColor)
+                    .border(1.dp, colorScheme.outline, RoundedCornerShape(20.dp))
+            ) {
+                val content = @Composable {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                Row(
+                    modifier = Modifier
+                        .height(if (useRail) 36.dp else 48.dp)
+                        .fillMaxWidth()
+                        .padding(start = 12.dp, top = if (useRail) 12.dp else 24.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(id = R.string.app_name),
+                        fontSize = 12.sp,
+                        color = textColor
+                    )
+                }
 
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(65.dp)
+                        .padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(45.dp)
-                            .padding(horizontal = 8.dp)
+                            .weight(1f)
+                            .fillMaxHeight()
                             .clip(RoundedCornerShape(6.dp))
                             .background(accentCardColor)
                     )
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(cardColor)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(cardColor)
+                        )
+                    }
+                }
 
-                    BoxWithConstraints(modifier = Modifier.weight(1f)) {
-                        val smallCardHeight = 12.dp
-                        val smallCardCount = when {
-                            maxHeight >= 96.dp -> 2
-                            maxHeight >= 72.dp -> 1
-                            else -> 0
-                        }
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(0.8f)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(cardColor)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(.1f)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(cardColor)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(.1f)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(cardColor)
+                    )
+                }
+
+            }
+                }
+
+                if (useRail) {
+                    Row(modifier = Modifier.fillMaxSize()) {
                         Column(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 8.dp, vertical = 6.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                                .fillMaxHeight()
+                                .width(30.dp)
+                                .background(navBarColor),
+                            verticalArrangement = Arrangement.spacedBy(
+                                10.dp,
+                                Alignment.CenterVertically,
+                            ),
+                            horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(cardColor)
-                            )
-                            repeat(smallCardCount) {
+                            repeat(4) {
                                 Box(
                                     modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(smallCardHeight)
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(cardColor)
+                                        .size(13.dp)
+                                        .clip(RoundedCornerShape(3.dp))
+                                        .background(
+                                            if (it == 0) navSelectedColor else navUnselectedColor
+                                        ),
                                 )
                             }
                         }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .width(0.5.dp)
+                                .background(textColor.copy(alpha = 0.1f)),
+                        )
+                        Box(modifier = Modifier.weight(1f)) { content() }
                     }
+                } else {
+                    content()
                 }
-            }
-
-            if (useRail) {
-                Row {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .width(30.dp)
-                            .background(navBarColor),
-                        verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        repeat(4) {
-                            Box(
-                                modifier = Modifier
-                                    .size(13.dp)
-                                    .clip(RoundedCornerShape(3.dp))
-                                    .background(if (it == 0) navSelectedColor else navUnselectedColor)
-                            )
-                        }
-                    }
-                    Box(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .width(0.5.dp)
-                            .background(textColor.copy(alpha = 0.1f))
-                    )
-                    Box(modifier = Modifier.weight(1f)) { content() }
-                }
-            } else {
-                content()
-            }
 
             if (!useRail && enableFloatingBottomBar) {
                 Box(
@@ -643,6 +1160,56 @@ private fun ThemePreviewCardMiuix(
                     }
                 }
             }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ThemePreviewInfoMiuix(
+                    label = stringResource(R.string.theme_current_preset),
+                    value = presetLabel,
+                    modifier = Modifier.weight(1f)
+                )
+                ThemePreviewInfoMiuix(
+                    label = stringResource(R.string.theme_current_mode),
+                    value = colorModeLabel,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            ThemePreviewInfoMiuix(
+                label = stringResource(R.string.settings_key_color),
+                value = keyColorLabel,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
+@Composable
+private fun ThemePreviewInfoMiuix(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(colorScheme.surface)
+            .border(1.dp, colorScheme.outline.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = label,
+                color = colorScheme.onSurfaceVariantSummary,
+                fontSize = 12.sp
+            )
+            Text(
+                text = value,
+                color = colorScheme.onBackground,
+                fontSize = 14.sp
+            )
         }
     }
 }

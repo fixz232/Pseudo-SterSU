@@ -195,8 +195,12 @@ public final class SuFilePathHandler implements WebViewAssetLoader.PathHandler {
         }
         if ("internal/colors.css".equals(path)) {
             SharedPreferences prefs = mContext.getSharedPreferences("settings", Context.MODE_PRIVATE);
-            int colorMode = prefs.getInt("color_mode", 0);
             String uiMode = prefs.getString("ui_mode", "miuix");
+            String syncStrategy = prefs.getString("theme_sync_strategy", "shared");
+            String colorModeKey = "per_style".equals(syncStrategy)
+                    ? "color_mode_" + uiMode
+                    : "color_mode";
+            int colorMode = prefs.getInt(colorModeKey, 0);
             String css = "";
             if ((colorMode >= 3 && colorMode <= 6) || "material".equals(uiMode)) {
                 css = MonetColorsProvider.INSTANCE.getColorsCss();

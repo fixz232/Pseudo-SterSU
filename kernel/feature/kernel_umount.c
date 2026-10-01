@@ -1,7 +1,9 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/task_work.h>
 #include <linux/cred.h>
+#include <linux/compiler.h>
 #include <linux/fs.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
@@ -39,6 +41,38 @@ static const struct ksu_feature_handler kernel_umount_handler = {
     .name = "kernel_umount",
     .get_handler = kernel_umount_feature_get,
     .set_handler = kernel_umount_feature_set,
+};
+
+static int webview_zygote_umount_feature_get(u64 *value)
+{
+    *value = ksu_uid_should_umount(WEBVIEW_ZYGOTE_UID) ? 1 : 0;
+    return 0;
+}
+
+static int webview_zygote_umount_feature_set(u64 value)
+{
+    struct app_profile profile = {
+        .version = KSU_APP_PROFILE_VER,
+        .curr_uid = WEBVIEW_ZYGOTE_UID,
+        .allow_su = false,
+        .nrp_config = {
+            .use_default = false,
+            .profile = {
+                .umount_modules = value != 0,
+            },
+        },
+    };
+
+    strscpy(profile.key, "webview_zygote", sizeof(profile.key));
+    pr_info("webview_zygote_umount: set profile to %d\n", value != 0);
+    return ksu_set_app_profile(&profile);
+}
+
+static const struct ksu_feature_handler webview_zygote_umount_handler = {
+    .feature_id = KSU_FEATURE_WEBVIEW_ZYGOTE_UMOUNT,
+    .name = "webview_zygote_umount",
+    .get_handler = webview_zygote_umount_feature_get,
+    .set_handler = webview_zygote_umount_feature_set,
 };
 
 extern int path_umount(struct path *path, int flags);
@@ -130,9 +164,13 @@ void __init ksu_kernel_umount_init(void)
     if (ksu_register_feature_handler(&kernel_umount_handler)) {
         pr_err("Failed to register kernel_umount feature handler\n");
     }
+    if (ksu_register_feature_handler(&webview_zygote_umount_handler)) {
+        pr_err("Failed to register webview_zygote_umount feature handler\n");
+    }
 }
 
 void __exit ksu_kernel_umount_exit(void)
 {
+    ksu_unregister_feature_handler(KSU_FEATURE_WEBVIEW_ZYGOTE_UMOUNT);
     ksu_unregister_feature_handler(KSU_FEATURE_KERNEL_UMOUNT);
 }

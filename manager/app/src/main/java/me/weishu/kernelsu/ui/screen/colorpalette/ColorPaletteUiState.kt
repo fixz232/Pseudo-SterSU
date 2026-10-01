@@ -5,6 +5,8 @@ import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
 import me.weishu.kernelsu.ui.screen.settings.SettingsUiState
 import me.weishu.kernelsu.ui.theme.ColorMode
+import me.weishu.kernelsu.ui.theme.ThemePreset
+import me.weishu.kernelsu.ui.theme.ThemeSyncStrategy
 
 @Immutable
 data class ColorPaletteUiState(
@@ -12,6 +14,7 @@ data class ColorPaletteUiState(
     val currentColorMode: ColorMode,
     val currentPaletteStyle: PaletteStyle,
     val currentColorSpec: ColorSpec.SpecVersion,
+    val predictiveBackUpdatePending: Boolean = false,
 )
 
 @Immutable
@@ -23,10 +26,22 @@ data class ColorPaletteScreenActions(
     val onSetColorMode: (ColorMode) -> Unit,
     val onSetColorStyle: (String) -> Unit,
     val onSetColorSpec: (String) -> Unit,
+    val onSetMonetSurfaceOpacity: (Float) -> Unit,
+    val onApplyThemePreset: (ThemePreset) -> Unit,
     val onSetEnableBlur: (Boolean) -> Unit,
     val onSetEnableFloatingBottomBar: (Boolean) -> Unit,
     val onSetEnableFloatingBottomBarBlur: (Boolean) -> Unit,
-    val onSetEnableNavigationBadge: (Boolean) -> Unit,
+    val onSetAutoHideNavigationBar: (Boolean) -> Unit,
+    val onSetScrollHideNavigationBar: (Boolean) -> Unit,
+    val onSetModuleTopBarAutoHideEnabled: (Boolean) -> Unit,
     val onSetEnablePredictiveBack: (Boolean) -> Unit,
     val onSetPageScale: (Float) -> Unit,
+    val onSetFontScale: (Float) -> Unit,
+    val onSetBlurIntensity: (Float) -> Unit,
+    val onSaveCustomThemePreset: (String) -> Unit,
+    val onApplyCustomThemePreset: (String) -> Unit,
+    val onRenameCustomThemePreset: (String, String) -> Unit,
+    val onDeleteCustomThemePreset: (String) -> Unit,
+    val onSetThemeSyncStrategy: (ThemeSyncStrategy) -> Unit,
+    val onResetThemeToDefault: () -> Unit,
 )

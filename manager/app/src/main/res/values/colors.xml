@@ -1,6 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#FFFFFFFF</color>
+    <color name="ic_launcher_background">#1C1C1E</color>
+    <color name="ic_launcher_image_background">#0D1427</color>
     <color name="ic_launcher_foreground">#FF1E110D</color>
-    <color name="ic_splash_background">#FFF5F5F5</color>
+    <color name="ic_splash_background">#0D1427</color>
+    <color name="neko_star_background">#FFFFFF</color>
+    <color name="anime_blue_hair_background">#F8F7FB</color>
+    <color name="anime_eyepatch_background">#BFD2DD</color>
+    <color name="anime_blonde_background">#FFE2C7</color>
+    <color name="anime_white_hair_background">#DDE4EB</color>
+    <color name="anime_pink_hair_background">#222734</color>
+    <color name="fox_mask_background">#FF004C</color>
+    <color name="opera_mask_background">#00B09C</color>
+    <color name="sk_root_background">#0F172A</color>
+    <color name="grid_mark_background">#FFFFFF</color>
 </resources>

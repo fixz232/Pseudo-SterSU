@@ -192,8 +192,8 @@ mount_partitions() {
 
   # Mount ro partitions
   if is_mounted /system_root; then
-    umount /system 2&>/dev/null
-    umount /system_root 2&>/dev/null
+    umount /system 2>/dev/null
+    umount /system_root 2>/dev/null
   fi
   mount_ro_ensure "system$SLOT app$SLOT" /system
   if [ -f /system/init -o -L /system/init ]; then
@@ -235,6 +235,10 @@ api_level_arch_detect() {
   elif [ "$ABI" = "x86_64" ]; then
     ARCH=x64
     ABI32=x86
+    IS64BIT=true
+  elif [ "$ABI" = "riscv64" ]; then
+    ARCH=riscv64
+    ABI32=
     IS64BIT=true
   else
     ARCH=arm
@@ -325,7 +329,7 @@ boot_actions() { return; }
 
 # Require ZIPFILE to be set
 is_legacy_script() {
-  unzip -l "$ZIPFILE" install.sh | grep -q install.sh
+  unzip -l "$ZIPFILE" install.sh 2>/dev/null | awk '{ print $4 }' | grep -qx 'install.sh'
   return $?
 }
 
@@ -473,7 +477,3 @@ NVBASE=/data/adb
 TMPDIR=/dev/tmp
 POSTFSDATAD=$NVBASE/post-fs-data.d
 SERVICED=$NVBASE/service.d
-
-# Some modules dependents on this
-export MAGISK_VER=25.2
-export MAGISK_VER_CODE=25200

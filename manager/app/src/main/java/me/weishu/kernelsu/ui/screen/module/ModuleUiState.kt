@@ -43,6 +43,7 @@ sealed interface ModuleEffect {
 data class ModuleUiState(
     val isRefreshing: Boolean = false,
     val hasLoaded: Boolean = false,
+    val loadError: String? = null,
     val modules: List<Module> = emptyList(),
     val moduleList: List<Module> = emptyList(),
     val updateInfo: Map<String, ModuleUpdateInfo> = emptyMap(),
@@ -70,6 +71,8 @@ data class ModuleActions(
     val onDismissConfirmRequest: () -> Unit,
     val onConfirmUpdate: (ModuleConfirmRequest.Update) -> Unit,
     val onOpenRepo: () -> Unit,
+    val onOpenTools: () -> Unit,
+    val onOpenWallpaperEditor: (Module) -> Unit,
     val onToggleSortActionFirst: () -> Unit,
     val onToggleSortEnabledFirst: () -> Unit,
     val onOpenWebUi: (Module) -> Unit,

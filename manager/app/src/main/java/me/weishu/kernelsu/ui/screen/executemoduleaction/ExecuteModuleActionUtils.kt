@@ -1,6 +1,10 @@
 package me.weishu.kernelsu.ui.screen.executemoduleaction
 
-import android.os.Environment
+import android.content.ActivityNotFoundException
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
@@ -15,7 +19,7 @@ import kotlinx.coroutines.withContext
 import me.weishu.kernelsu.R
 import me.weishu.kernelsu.data.repository.ModuleRepositoryImpl
 import me.weishu.kernelsu.ui.util.runModuleAction
-import java.io.File
+import me.weishu.kernelsu.ui.util.saveTextToDownloads
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -26,6 +30,7 @@ fun ExecuteModuleActionEffect(
     text: String,
     logContent: StringBuilder,
     fromShortcut: Boolean,
+    autoCloseOnComplete: Boolean,
     onTextUpdate: (String) -> Unit,
     onComplete: () -> Unit = {},
     onExit: () -> Unit
@@ -34,6 +39,7 @@ fun ExecuteModuleActionEffect(
     val noModule = stringResource(R.string.no_such_module)
     val moduleUnavailable = stringResource(R.string.module_unavailable)
     val moduleActionSuccess = stringResource(R.string.module_action_success)
+    val moduleActionFailed = stringResource(R.string.module_action_failed)
 
     LaunchedEffect(Unit) {
         if (text.isNotEmpty()) {
@@ -59,26 +65,31 @@ fun ExecuteModuleActionEffect(
         var actionResult: Boolean
         var currentText = text
         val mainHandler = Handler(Looper.getMainLooper())
+        fun appendLine(line: String) {
+            val tempText = "$line\n"
+            if (tempText.startsWith("\u001B[H\u001B[J")) { // clear command
+                currentText = tempText.substring(6)
+            } else {
+                currentText += tempText
+            }
+            mainHandler.post {
+                onTextUpdate(currentText)
+            }
+            logContent.append(line).append("\n")
+        }
         withContext(Dispatchers.IO) {
-            runModuleAction(
+            val result = runModuleAction(
                 moduleId = moduleId,
                 onStdout = {
-                    val tempText = "$it\n"
-                    if (tempText.startsWith("[H[J")) { // clear command
-                        currentText = tempText.substring(6)
-                    } else {
-                        currentText += tempText
-                    }
-                    mainHandler.post {
-                        onTextUpdate(currentText)
-                    }
-                    logContent.append(it).append("\n")
+                    appendLine(it)
                 },
                 onStderr = {
-                    logContent.append(it).append("\n")
+                    appendLine(it)
                 }
-            ).let {
-                actionResult = it
+            )
+            actionResult = result.isSuccess
+            if (!result.isSuccess && result.err.isEmpty()) {
+                appendLine(moduleActionFailed.format(result.code))
             }
         }
         if (actionResult && fromShortcut) {
@@ -88,11 +99,61 @@ fun ExecuteModuleActionEffect(
                 Toast.LENGTH_SHORT
             ).show()
         }
+        if (actionResult && moduleId == "zygisk_lsposed") {
+            openLsposedManager(context)
+            onComplete()
+            if (autoCloseOnComplete) {
+                onExit()
+            }
+            return@LaunchedEffect
+        }
         onComplete()
     }
 }
 
+private fun openLsposedManager(context: Context): Boolean {
+    val flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+    val directIntents = listOf(
+        Intent().setComponent(
+            ComponentName(
+                "org.lsposed.manager",
+                "org.lsposed.manager.ui.activity.MainActivity"
+            )
+        ),
+        Intent().setComponent(
+            ComponentName(
+                "com.android.shell",
+                "org.lsposed.manager.ui.activity.MainActivity"
+            )
+        )
+    )
+
+    directIntents.forEach { intent ->
+        try {
+            context.startActivity(intent.addFlags(flags))
+            return true
+        } catch (_: ActivityNotFoundException) {
+        } catch (_: SecurityException) {
+        }
+    }
+
+    val secretCodeIntent = Intent(
+        "android.telephony.action.SECRET_CODE",
+        Uri.parse("android_secret_code://5776733")
+    ).apply {
+        setPackage("android")
+        addFlags(flags)
+    }
+    return try {
+        context.sendBroadcast(secretCodeIntent)
+        true
+    } catch (_: SecurityException) {
+        false
+    }
+}
+
 fun saveLog(
+    context: Context,
     logContent: StringBuilder,
     scope: CoroutineScope,
     showMessage: (String) -> Unit
@@ -101,12 +162,19 @@ fun saveLog(
         scope.launch {
             val format = SimpleDateFormat("yyyy-MM-dd-HH-mm-ss", Locale.getDefault())
             val date = format.format(Date())
-            val file = File(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                "KernelSU_module_action_log_${date}.log"
-            )
-            file.writeText(logContent.toString())
-            showMessage("Log saved to ${file.absolutePath}")
+            val result = runCatching {
+                saveTextToDownloads(
+                    context = context,
+                    displayName = "KernelSU_module_action_log_${date}.log",
+                    text = logContent.toString(),
+                )
+            }
+            result.onSuccess { path ->
+                showMessage("${context.getString(R.string.log_saved)}: $path")
+            }.onFailure { throwable ->
+                val reason = throwable.localizedMessage ?: throwable.javaClass.simpleName
+                showMessage("${context.getString(R.string.log_save_failed)}: $reason")
+            }
         }
     }
 }

@@ -6,15 +6,15 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -22,21 +22,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.DeveloperBoard
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Fingerprint
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Smartphone
-import androidx.compose.material.icons.filled.Tag
-import androidx.compose.material.icons.filled.VolunteerActivism
-import androidx.compose.material.icons.rounded.Block
-import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.Warning
+import androidx.compose.material.icons.outlined.Block
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Warning
+import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -52,7 +45,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
@@ -66,8 +58,6 @@ import me.weishu.kernelsu.R
 import me.weishu.kernelsu.ui.component.WarningLevel
 import me.weishu.kernelsu.ui.component.dialog.rememberConfirmDialog
 import me.weishu.kernelsu.ui.component.material.ExpressiveScaffold
-import me.weishu.kernelsu.ui.component.material.SegmentedColumn
-import me.weishu.kernelsu.ui.component.material.SegmentedListItem
 import me.weishu.kernelsu.ui.component.material.TonalCard
 import me.weishu.kernelsu.ui.component.material.expressiveTopAppBarColors
 import me.weishu.kernelsu.ui.component.rebootlistpopup.RebootListPopup
@@ -82,7 +72,13 @@ fun HomePagerMaterial(
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
 
     ExpressiveScaffold(
-        topBar = { TopBar(scrollBehavior = scrollBehavior) },
+        topBar = {
+            TopBar(
+                showSusfs = state.showSusfsPathConfig,
+                onSusfsClick = actions.onSusfsPathClick,
+                scrollBehavior = scrollBehavior,
+            )
+        },
         contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
     ) { innerPadding ->
         Column(
@@ -93,38 +89,50 @@ fun HomePagerMaterial(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(13.dp)
         ) {
-            if (state.checkUpdateEnabled) {
-                UpdateCard(state = state, actions = actions)
-            }
             if (state.showManagerPrBuildWarning) {
                 WarningCard(stringResource(id = R.string.home_pr_build_warning), level = WarningLevel.Notice)
             } else if (state.showKernelPrBuildWarning) {
                 WarningCard(stringResource(id = R.string.home_pr_kernel_warning), level = WarningLevel.Notice)
             }
-            if (state.showGkiWarning) {
-                WarningCard(stringResource(id = R.string.home_gki_warning), level = WarningLevel.Notice)
-            }
-            if (state.requiresNewKernel) {
+            if (state.showVersionMismatchWarning) {
                 WarningCard(
                     stringResource(
-                        id = if (state.lkmMode == true) R.string.require_kernel_version else R.string.require_kernel_version_gki
-                    ),
-                    onClick = if (state.lkmMode == true) actions.onInstallClick else null
-                )
-            }
-            if (state.requiresNewManager) {
-                WarningCard(
-                    stringResource(
-                        id = R.string.require_manager_version
+                        id = R.string.home_version_mismatch,
+                        state.currentManagerVersionCode,
+                        state.ksuVersion ?: 0
                     )
                 )
             }
-            if (state.showLkmUpdate) {
+            if (state.showGkiWarning) {
+                WarningCard(stringResource(id = R.string.home_gki_warning), level = WarningLevel.Notice)
+            }
+            if (state.showUAPIMisMatchWarning) {
                 WarningCard(
-                    message = stringResource(R.string.home_lkm_update_available),
-                    level = WarningLevel.Notice,
-                    onClick = actions.onInstallClick,
+                    stringResource(
+                        id = R.string.uapi_mismatch,
+                        state.managerUAPIVersion,
+                        state.kernelUAPIVersion ?: 0,
+                    )
                 )
+            }
+            if (state.showRequireKernelWarning) {
+                if (state.currentManagerVersionCode < (state.ksuVersion ?: 0)) {
+                    WarningCard(
+                        stringResource(
+                            id = R.string.require_manager_version,
+                            state.currentManagerVersionCode,
+                            state.ksuVersion ?: 0,
+                        )
+                    )
+                } else {
+                    WarningCard(
+                        stringResource(
+                            id = R.string.require_kernel_version,
+                            state.ksuVersion ?: 0,
+                            Natives.minimalSupportedKernel
+                        )
+                    )
+                }
             }
             if (state.showRootWarning) {
                 WarningCard(stringResource(id = R.string.grant_root_failed))
@@ -133,58 +141,40 @@ fun HomePagerMaterial(
                 state = state,
                 actions = actions,
             )
-            InfoCard(systemInfo = state.systemInfo)
-            SupportLinks(onOpenUrl = actions.onOpenUrl)
-            Spacer(
-                Modifier.height(
-                    bottomInnerPadding + if (!Natives.isFullFeatured())
-                        WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() else 0.dp
-                )
-            )
-        }
-    }
-}
-
-@Composable
-private fun UpdateCard(
-    state: HomeUiState,
-    actions: HomeActions,
-) {
-    val newVersion = state.latestVersionInfo
-    val title = stringResource(id = R.string.module_changelog)
-    val updateText = stringResource(id = R.string.module_update)
-
-    AnimatedVisibility(
-        visible = state.hasUpdate,
-        enter = fadeIn() + expandVertically(),
-        exit = shrinkVertically() + fadeOut()
-    ) {
-        val updateDialog = rememberConfirmDialog(onConfirm = { actions.onOpenUrl(newVersion.downloadUrl) })
-        WarningCard(
-            message = stringResource(id = R.string.new_version_available, newVersion.versionCode),
-            level = WarningLevel.Notice
-        ) {
-            if (newVersion.changelog.isEmpty()) {
-                actions.onOpenUrl(newVersion.downloadUrl)
-            } else {
-                updateDialog.showConfirm(
-                    title = title,
-                    content = newVersion.changelog,
-                    markdown = true,
-                    confirm = updateText
-                )
+            if (state.isKernelActive) {
+                MaterialMetricCards(state = state, actions = actions)
             }
+            InfoCard(systemInfo = state.systemInfo)
+            if (state.showHomeSupportCard) {
+                DonateCard(onOpenUrl = actions.onOpenUrl)
+            }
+            if (state.showHomeLearnCard) {
+                LearnMoreCard(onOpenUrl = actions.onOpenUrl)
+            }
+            Spacer(Modifier.height(bottomInnerPadding))
         }
     }
 }
 
 @Composable
 private fun TopBar(
+    showSusfs: Boolean,
+    onSusfsClick: () -> Unit,
     scrollBehavior: TopAppBarScrollBehavior? = null
 ) {
     LargeFlexibleTopAppBar(
         title = { Text(stringResource(R.string.app_name)) },
-        actions = { RebootListPopup() },
+        actions = {
+            if (showSusfs) {
+                IconButton(onClick = onSusfsClick) {
+                    Icon(
+                        Icons.Rounded.VisibilityOff,
+                        contentDescription = stringResource(R.string.home_susfs_path),
+                    )
+                }
+            }
+            RebootListPopup()
+        },
         colors = expressiveTopAppBarColors(),
         windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
         scrollBehavior = scrollBehavior
@@ -199,18 +189,31 @@ private fun StatusCard(
     Column(verticalArrangement = Arrangement.spacedBy(13.dp)) {
         val ksuActive = state.ksuVersion != null
         val notInstalled = !ksuActive && state.kernelVersion.isGKI()
+        val wallpaperState = rememberHomeMetricCardWallpaperState(
+            target = HomeMetricCardWallpaperTarget.MaterialLkm,
+            onWallpaperSelected = {},
+        )
+        val wallpaperBitmap = rememberHomeMetricCardWallpaperBitmap(
+            uriString = wallpaperState.uriString,
+            crop = wallpaperState.crop,
+        )
+        val hasWallpaper = wallpaperBitmap != null || !wallpaperState.videoUriString.isNullOrBlank()
 
         val containerColor = if (ksuActive) {
             MaterialTheme.colorScheme.secondaryContainer
         } else {
             MaterialTheme.colorScheme.errorContainer
         }
-        val contentColor = MaterialTheme.colorScheme.contentColorFor(containerColor)
+        val contentColor = if (hasWallpaper) {
+            Color.White
+        } else {
+            MaterialTheme.colorScheme.contentColorFor(containerColor)
+        }
 
         val statusIcon = when {
-            ksuActive -> Icons.Rounded.CheckCircle
-            notInstalled -> Icons.Rounded.Warning
-            else -> Icons.Rounded.Block
+            ksuActive -> Icons.Outlined.CheckCircle
+            notInstalled -> Icons.Outlined.Warning
+            else -> Icons.Outlined.Block
         }
         val statusTitle = when {
             ksuActive -> stringResource(R.string.home_working)
@@ -263,64 +266,60 @@ private fun StatusCard(
                 }
             }
         ) {
-            ListItem(
-                modifier = Modifier,
-                leadingContent = {
-                    Icon(statusIcon, contentDescription = statusTitle)
-                },
-                trailingContent = statusTrailing,
-                overlineContent = null,
-                supportingContent = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+            Box {
+                HomeMetricCardWallpaperBackground(
+                    bitmap = wallpaperBitmap,
+                    videoUriString = wallpaperState.videoUriString,
+                    videoCrop = wallpaperState.crop,
+                    visualSettings = wallpaperState.visualSettings,
+                )
+                ListItem(
+                    modifier = Modifier,
+                    leadingContent = {
+                        Icon(statusIcon, contentDescription = statusTitle)
+                    },
+                    trailingContent = statusTrailing,
+                    overlineContent = null,
+                    supportingContent = {
                         Text(
                             text = statusSummary,
-                            modifier = Modifier.weight(1f, fill = false),
                             style = MaterialTheme.typography.bodyMedium
                         )
-                        if (state.showCustomLkmBadge) {
-                            Spacer(Modifier.width(8.dp))
-                            StatusTag(
-                                label = stringResource(R.string.home_lkm_custom),
-                                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                                backgroundColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    },
+                    colors = ListItemDefaults.colors(
+                        containerColor = Color.Transparent,
+                        contentColor = contentColor,
+                        leadingContentColor = contentColor,
+                        trailingContentColor = contentColor,
+                        supportingContentColor = contentColor.copy(alpha = 0.78f)
+                    ),
+                    elevation = ListItemDefaults.elevation(),
+                    content = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = statusTitle,
+                                style = MaterialTheme.typography.titleMediumEmphasized
                             )
+                            if (ksuActive && state.isSafeMode) {
+                                Spacer(Modifier.width(8.dp))
+                                StatusTag(
+                                    label = stringResource(id = R.string.safe_mode),
+                                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                                    backgroundColor = MaterialTheme.colorScheme.errorContainer
+                                )
+                            }
+                            if (ksuActive && state.isLateLoadMode) {
+                                Spacer(Modifier.width(8.dp))
+                                StatusTag(
+                                    label = stringResource(id = R.string.jailbreak_mode),
+                                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                                    backgroundColor = MaterialTheme.colorScheme.errorContainer
+                                )
+                            }
                         }
-                    }
-                },
-                verticalAlignment = Alignment.CenterVertically,
-                colors = ListItemDefaults.colors(
-                    containerColor = Color.Transparent,
-                    contentColor = contentColor,
-                    leadingContentColor = contentColor,
-                    trailingContentColor = contentColor,
-                    supportingContentColor = contentColor.copy(alpha = 0.7f)
-                ),
-                elevation = ListItemDefaults.elevation(),
-                content = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = statusTitle,
-                            style = MaterialTheme.typography.titleMediumEmphasized
-                        )
-                        if (ksuActive && state.isSafeMode) {
-                            Spacer(Modifier.width(8.dp))
-                            StatusTag(
-                                label = stringResource(id = R.string.safe_mode),
-                                contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                                backgroundColor = MaterialTheme.colorScheme.errorContainer
-                            )
-                        }
-                        if (ksuActive && state.isLateLoadMode) {
-                            Spacer(Modifier.width(8.dp))
-                            StatusTag(
-                                label = stringResource(id = R.string.jailbreak_mode),
-                                contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                                backgroundColor = MaterialTheme.colorScheme.errorContainer
-                            )
-                        }
-                    }
-                },
-            )
+                    },
+                )
+            }
         }
     }
 }
@@ -356,128 +355,238 @@ private fun WarningCard(
 }
 
 @Composable
-private fun SupportLinks(
-    onOpenUrl: (String) -> Unit,
+private fun MaterialMetricCards(
+    state: HomeUiState,
+    actions: HomeActions,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(104.dp),
+        horizontalArrangement = Arrangement.spacedBy(13.dp),
+    ) {
+        MaterialMetricCard(
+            target = HomeMetricCardWallpaperTarget.Superuser,
+            title = stringResource(R.string.superuser),
+            value = state.superuserCount.toString(),
+            onClick = actions.onSuperuserClick,
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight(),
+        )
+        MaterialMetricCard(
+            target = HomeMetricCardWallpaperTarget.Module,
+            title = stringResource(R.string.module),
+            value = state.moduleCount.toString(),
+            onClick = actions.onModuleClick,
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight(),
+        )
+    }
+}
+
+@Composable
+private fun MaterialMetricCard(
+    target: HomeMetricCardWallpaperTarget,
+    title: String,
+    value: String,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val learnMoreUrl = stringResource(R.string.home_learn_kernelsu_url)
-
-    SegmentedColumn(modifier = modifier.fillMaxWidth()) {
-        item {
-            SegmentedListItem(
-                onClick = { onOpenUrl("https://patreon.com/weishu") },
-                headlineContent = { Text(stringResource(R.string.home_support_title)) },
-                supportingContent = { Text(stringResource(R.string.home_support_content)) },
-                leadingContent = {
-                    Icon(Icons.Filled.VolunteerActivism, stringResource(R.string.home_support_title))
-                },
-                trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null) },
+    WallpaperTonalCard(
+        target = target,
+        modifier = modifier,
+        onClick = onClick,
+    ) { primaryColor, secondaryColor ->
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelLarge,
+                color = secondaryColor,
+                maxLines = 1,
             )
-        }
-        item {
-            SegmentedListItem(
-                onClick = { onOpenUrl(learnMoreUrl) },
-                headlineContent = { Text(stringResource(R.string.home_learn_kernelsu)) },
-                supportingContent = { Text(stringResource(R.string.home_click_to_learn_kernelsu)) },
-                leadingContent = {
-                    Icon(Icons.AutoMirrored.Filled.MenuBook, stringResource(R.string.home_learn_kernelsu))
-                },
-                trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null) },
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = value,
+                style = MaterialTheme.typography.headlineMedium,
+                color = primaryColor,
+                maxLines = 1,
             )
         }
     }
 }
 
 @Composable
-private fun InfoCard(
-    systemInfo: SystemInfo,
-    modifier: Modifier = Modifier,
-) {
-    @Composable
-    fun InfoCardItem(
-        icon: ImageVector,
-        label: String,
-        content: String,
-        modifier: Modifier = Modifier,
-    ) {
-        SegmentedListItem(
-            modifier = modifier,
-            headlineContent = { Text(text = label, style = MaterialTheme.typography.bodyLarge) },
-            leadingContent = { Icon(imageVector = icon, contentDescription = label) },
-            supportingContent = {
+private fun LearnMoreCard(onOpenUrl: (String) -> Unit) {
+    val url = stringResource(R.string.home_learn_kernelsu_url)
+    TonalCard(onClick = { onOpenUrl(url) }) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(text = stringResource(R.string.home_learn_kernelsu), style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.home_click_to_learn_kernelsu),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DonateCard(onOpenUrl: (String) -> Unit) {
+    TonalCard(onClick = { onOpenUrl("https://patreon.com/weishu") }) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(text = stringResource(R.string.home_support_title), style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.home_support_content),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun InfoCard(systemInfo: SystemInfo) {
+    Column(verticalArrangement = Arrangement.spacedBy(13.dp)) {
+        StatusMonitorCard(systemInfo)
+        SystemInfoCard(systemInfo)
+    }
+}
+
+@Composable
+private fun StatusMonitorCard(systemInfo: SystemInfo) {
+    WallpaperTonalCard(
+        target = HomeMetricCardWallpaperTarget.StatusMonitor,
+    ) { primaryColor, secondaryColor ->
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 12.dp),
+        ) {
+            @Composable
+            fun StatusItem(label: String, content: String) {
+                Text(text = label, style = MaterialTheme.typography.bodyLarge, color = primaryColor)
+                Text(text = content, style = MaterialTheme.typography.bodyMedium, color = secondaryColor)
+            }
+
+            val selinuxDisplay = when (systemInfo.selinuxStatus) {
+                "Enforcing" -> stringResource(R.string.selinux_status_enforcing)
+                "Permissive" -> stringResource(R.string.selinux_status_permissive)
+                "Disabled" -> stringResource(R.string.selinux_status_disabled)
+                else -> stringResource(R.string.selinux_status_unknown)
+            }
+            StatusItem(stringResource(R.string.home_selinux_status), selinuxDisplay)
+            Spacer(Modifier.height(16.dp))
+            val seccompDisplay = when (systemInfo.seccompStatus) {
+                -1 -> stringResource(R.string.seccomp_status_not_supported)
+                0 -> stringResource(R.string.seccomp_status_disabled)
+                1 -> stringResource(R.string.seccomp_status_strict)
+                2 -> stringResource(R.string.seccomp_status_filter)
+                else -> stringResource(R.string.seccomp_status_unknown)
+            }
+            StatusItem(stringResource(R.string.home_seccomp_status), seccompDisplay)
+        }
+    }
+}
+
+@Composable
+private fun SystemInfoCard(systemInfo: SystemInfo) {
+    WallpaperTonalCard(
+        target = HomeMetricCardWallpaperTarget.SystemInfo,
+    ) { primaryColor, secondaryColor ->
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 12.dp)
+        ) {
+            @Composable
+            fun InfoCardItem(label: String, content: String) {
+                Text(text = label, style = MaterialTheme.typography.bodyLarge, color = primaryColor)
                 Text(
                     text = content,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = secondaryColor,
                 )
-            },
-        )
-    }
+            }
 
-    val selinuxDisplay = when (systemInfo.selinuxStatus) {
-        "Enforcing" -> stringResource(R.string.selinux_status_enforcing)
-        "Permissive" -> stringResource(R.string.selinux_status_permissive)
-        "Disabled" -> stringResource(R.string.selinux_status_disabled)
-        else -> stringResource(R.string.selinux_status_unknown)
+            InfoCardItem(stringResource(R.string.home_manager_version), systemInfo.managerVersion)
+            Spacer(Modifier.height(16.dp))
+            InfoCardItem(stringResource(R.string.home_kernel), systemInfo.kernelVersion)
+            Spacer(Modifier.height(16.dp))
+            // KPM / SUSFS 有才显示：没有的内核不占一行
+            if (systemInfo.kpm.isNotBlank()) {
+                InfoCardItem(stringResource(R.string.home_kpm), systemInfo.kpm)
+                Spacer(Modifier.height(16.dp))
+            }
+            if (systemInfo.susfs.isNotBlank()) {
+                InfoCardItem(stringResource(R.string.home_susfs), systemInfo.susfs)
+                Spacer(Modifier.height(16.dp))
+            }
+            InfoCardItem(stringResource(R.string.home_device_model), systemInfo.deviceModel)
+            Spacer(Modifier.height(16.dp))
+            InfoCardItem(stringResource(R.string.home_fingerprint), systemInfo.fingerprint)
+        }
     }
-    val seccompDisplay = when (systemInfo.seccompStatus) {
-        -1 -> stringResource(R.string.seccomp_status_not_supported)
-        0 -> stringResource(R.string.seccomp_status_disabled)
-        1 -> stringResource(R.string.seccomp_status_strict)
-        2 -> stringResource(R.string.seccomp_status_filter)
-        else -> stringResource(R.string.seccomp_status_unknown)
-    }
+}
 
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(13.dp),
-    ) {
-        SegmentedColumn(modifier = Modifier.fillMaxWidth()) {
-            item {
-                InfoCardItem(
-                    icon = Icons.Filled.Tag,
-                    label = stringResource(R.string.home_manager_version),
-                    content = systemInfo.managerVersion,
-                )
-            }
-            item {
-                InfoCardItem(
-                    icon = Icons.Filled.DeveloperBoard,
-                    label = stringResource(R.string.home_kernel),
-                    content = systemInfo.kernelVersion,
-                )
-            }
-            item {
-                InfoCardItem(
-                    icon = Icons.Filled.Smartphone,
-                    label = stringResource(R.string.home_device_model),
-                    content = systemInfo.deviceModel,
-                )
-            }
-            item {
-                InfoCardItem(
-                    icon = Icons.Filled.Fingerprint,
-                    label = stringResource(R.string.home_fingerprint),
-                    content = systemInfo.fingerprint,
-                )
-            }
+@Composable
+private fun WallpaperTonalCard(
+    target: HomeMetricCardWallpaperTarget,
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    content: @Composable (primaryColor: Color, secondaryColor: Color) -> Unit,
+) {
+    val wallpaperState = rememberHomeMetricCardWallpaperState(
+        target = target,
+        onWallpaperSelected = {},
+    )
+    val wallpaperBitmap = rememberHomeMetricCardWallpaperBitmap(
+        uriString = wallpaperState.uriString,
+        crop = wallpaperState.crop,
+    )
+    val hasWallpaper = wallpaperBitmap != null || !wallpaperState.videoUriString.isNullOrBlank()
+    val primaryColor = if (hasWallpaper) Color.White else MaterialTheme.colorScheme.onSurface
+    val secondaryColor = if (hasWallpaper) {
+        Color.White.copy(alpha = 0.78f)
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val cardContent: @Composable () -> Unit = {
+        Box {
+            HomeMetricCardWallpaperBackground(
+                bitmap = wallpaperBitmap,
+                videoUriString = wallpaperState.videoUriString,
+                videoCrop = wallpaperState.crop,
+                visualSettings = wallpaperState.visualSettings,
+            )
+            content(primaryColor, secondaryColor)
         }
-        SegmentedColumn(modifier = Modifier.fillMaxWidth()) {
-            item {
-                InfoCardItem(
-                    icon = Icons.Filled.Security,
-                    label = stringResource(R.string.home_selinux_status),
-                    content = selinuxDisplay,
-                )
-            }
-            item {
-                InfoCardItem(
-                    icon = Icons.Filled.FilterList,
-                    label = stringResource(R.string.home_seccomp_status),
-                    content = seccompDisplay,
-                )
-            }
-        }
+    }
+    if (onClick != null) {
+        TonalCard(modifier = modifier, onClick = onClick, content = cardContent)
+    } else {
+        TonalCard(modifier = modifier, content = cardContent)
     }
 }
 
@@ -486,14 +595,14 @@ private fun InfoCard(
 private fun StatusCardActivatedPreview() {
     StatusCard(
         state = previewHomeScreenState(ksuVersion = 12345, lkmMode = true),
-        actions = HomeActions({}, {})
+        actions = previewHomeActions
     )
 }
 
 @Preview(name = "Not Activated")
 @Composable
 private fun StatusCardNotActivatedPreview() {
-    StatusCard(state = previewHomeScreenState(ksuVersion = null, lkmMode = null), actions = HomeActions({}, {}))
+    StatusCard(state = previewHomeScreenState(ksuVersion = null, lkmMode = null), actions = previewHomeActions)
 }
 
 @Preview(name = "Permissive")
@@ -501,7 +610,7 @@ private fun StatusCardNotActivatedPreview() {
 private fun StatusCardPermissivePreview() {
     StatusCard(
         state = previewHomeScreenState(ksuVersion = null, lkmMode = null, selinuxStatus = "Permissive"),
-        actions = HomeActions({}, {})
+        actions = previewHomeActions
     )
 }
 
@@ -510,7 +619,7 @@ private fun StatusCardPermissivePreview() {
 private fun StatusCardJailbreakPreview() {
     StatusCard(
         state = previewHomeScreenState(ksuVersion = 12345, lkmMode = true, isLateLoadMode = true),
-        actions = HomeActions({}, {})
+        actions = previewHomeActions
     )
 }
 
@@ -527,6 +636,13 @@ private val previewUriHandler = object : UriHandler {
     override fun openUri(uri: String) {}
 }
 
+private val previewHomeActions = HomeActions(
+    onInstallClick = {},
+    onSuperuserClick = {},
+    onModuleClick = {},
+    onOpenUrl = {},
+)
+
 @Composable
 private fun HomeScreenPreviewContent(
     ksuVersion: Int?,
@@ -540,7 +656,7 @@ private fun HomeScreenPreviewContent(
             modifier = Modifier.padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            val actions = HomeActions({}, {})
+            val actions = previewHomeActions
             StatusCard(
                 state = previewHomeScreenState(
                     ksuVersion = ksuVersion,
@@ -552,7 +668,8 @@ private fun HomeScreenPreviewContent(
                 actions = actions
             )
             InfoCard(previewSystemInfo.copy(selinuxStatus = selinuxStatus))
-            SupportLinks(onOpenUrl = {})
+            DonateCard(onOpenUrl = {})
+            LearnMoreCard(onOpenUrl = {})
         }
     }
 }
@@ -591,19 +708,20 @@ private fun previewHomeScreenState(
     kernelVersion = KernelVersion(6, 1, 0),
     ksuVersion = ksuVersion,
     lkmMode = lkmMode,
-    isLkmBundled = lkmMode == true,
     isManager = true,
     isManagerPrBuild = false,
     isKernelPrBuild = false,
     requiresNewKernel = false,
-    requiresNewManager = false,
     isRootAvailable = ksuVersion != null,
+    rootRuntimeState = if (ksuVersion != null) RootRuntimeState.Running else RootRuntimeState.DriverDisconnected,
     isSafeMode = isSafeMode,
     isLateLoadMode = isLateLoadMode,
-    checkUpdateEnabled = false,
-    latestVersionInfo = me.weishu.kernelsu.ui.util.module.LatestVersionInfo(),
     currentManagerVersionCode = 10000,
+    showVersionMismatchWarningSetting = true,
+    superuserCount = 0,
+    moduleCount = 0,
     systemInfo = previewSystemInfo.copy(selinuxStatus = selinuxStatus),
     kernelUAPIVersion = 1,
     managerUAPIVersion = 1,
+    uapiMismatch = false
 )

@@ -1,7 +1,7 @@
 [versions]
-agp = "9.4.0"
-kotlin = "2.4.10"
-compose-bom = "2026.08.00"
+agp = "9.4.1"
+kotlin = "2.4.20"
+compose-bom = "2026.09.00"
 lifecycle = "2.11.0"
 activity-compose = "1.13.0"
 core-splashscreen = "1.2.0"
@@ -11,12 +11,13 @@ navigationevent = "1.1.2"
 commonmark = "0.30.0"
 webkit = "1.17.0"
 parcelablelist = "2.0.1"
-material3 = "1.5.0-alpha27"
+material3 = "1.5.0-alpha28"
 materialKolor = "5.0.1"
 ndk = "29.0.14206865"
 libsu = "6.0.0"
 apksign = "1.4"
-miuix = "0.9.3"
+miuix = "0.9.4"
+miuix-navigation3 = "0.9.3"
 okhttp = "5.5.0"
 hiddenapibypass = "6.1"
 appiconloader = "1.5.0"
@@ -74,7 +75,8 @@ lsposed-cxx = { module = "org.lsposed.libcxx:libcxx", version.ref = "ndk" }
 
 miuix-ui = { module = "top.yukonga.miuix.kmp:miuix-ui-android", version.ref = "miuix" }
 miuix-icons = { module = "top.yukonga.miuix.kmp:miuix-icons-android", version.ref = "miuix" }
-miuix-navigation3-ui = { module = "top.yukonga.miuix.kmp:miuix-navigation3-ui-android", version.ref = "miuix" }
+miuix-nav = { module = "top.yukonga.miuix.kmp:miuix-nav-android", version.ref = "miuix" }
+miuix-navigation3-ui = { module = "top.yukonga.miuix.kmp:miuix-navigation3-ui-android", version.ref = "miuix-navigation3" }
 miuix-preference = { module = "top.yukonga.miuix.kmp:miuix-preference-android", version.ref = "miuix" }
 miuix-blur = { module = "top.yukonga.miuix.kmp:miuix-blur-android", version.ref = "miuix" }
 

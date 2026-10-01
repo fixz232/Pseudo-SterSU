@@ -1,4 +1,5 @@
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -41,6 +42,7 @@ def merge_config(file_cfg: dict, args: argparse.Namespace) -> dict:
         "app_build_type": "debug",
         "ksud_build_type": "debug",
         "arch": [],
+        "manager_package": "io.github.fixz.stersu",
         "output_name": "",
         "strip": False,
     }
@@ -58,6 +60,8 @@ def merge_config(file_cfg: dict, args: argparse.Namespace) -> dict:
         cfg["arch"] = normalize_arch_values(args.arch)
     if args.output_name:
         cfg["output_name"] = args.output_name
+    if getattr(args, "manager_package", None):
+        cfg["manager_package"] = args.manager_package
     if args.strip is not None:
         cfg["strip"] = args.strip
 
@@ -107,15 +111,37 @@ def find_strip_tool() -> Optional[Path]:
                 if versions:
                     ndk_root = str(versions[0])
 
+    def strip_tool_in(toolchain_bin: Path) -> Optional[Path]:
+        for name in ("llvm-strip", "llvm-strip.exe", "strip", "strip.exe"):
+            candidate = toolchain_bin / name
+            try:
+                if candidate.exists():
+                    return candidate
+            except OSError:
+                continue
+        return None
+
     if ndk_root:
-        toolchain_bin = Path(ndk_root) / "toolchains" / "llvm" / "prebuilt"
-        if toolchain_bin.exists():
-            for prebuilt in toolchain_bin.iterdir():
-                bin_dir = prebuilt / "bin"
-                for name in ("llvm-strip", "llvm-strip.exe", "strip", "strip.exe"):
-                    candidate = bin_dir / name
-                    if candidate.exists():
-                        return candidate
+        # 同一个 NDK 目录里可能同时存在 linux-x86_64 与 windows-x86_64 预编译工具链，
+        # 先按主机标签直接取对应目录，避免把 Linux 可执行文件当成本机 strip 调用。
+        host_tags = ["linux-x86_64"]
+        if os.name == "nt":
+            host_tags = ["windows-x86_64"]
+        elif sys.platform == "darwin":
+            host_tags = ["darwin-x86_64", "darwin-arm64"]
+        toolchain_root = Path(ndk_root) / "toolchains" / "llvm" / "prebuilt"
+        for tag in host_tags:
+            found = strip_tool_in(toolchain_root / tag / "bin")
+            if found is not None:
+                return found
+        try:
+            prebuilt_dirs = [path for path in toolchain_root.iterdir() if path.is_dir()]
+        except OSError:
+            prebuilt_dirs = []
+        for prebuilt in prebuilt_dirs:
+            found = strip_tool_in(prebuilt / "bin")
+            if found is not None:
+                return found
 
     # Fall back to PATH.
     for name in ("llvm-strip", "strip"):
@@ -164,6 +190,13 @@ def run_cmd(args: List[str], fail_msg: str) -> None:
         raise RuntimeError(f"{fail_msg}\nCommand: {' '.join(args)}\n{output}")
 
 
+def run_cmd_capture(args: List[str]) -> str:
+    proc = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    if proc.returncode != 0:
+        raise RuntimeError(proc.stdout.strip())
+    return proc.stdout.strip()
+
+
 def find_latest_apk(app_build_type: str) -> Path:
     pattern = workspace_root() / "manager" / "app" / "build" / "outputs" / "apk" / app_build_type
     apks = sorted(pattern.glob("*.apk"), key=lambda p: p.stat().st_mtime)
@@ -179,6 +212,7 @@ ARCH_TO_TRIPLE = {
     "armeabi-v7a": "armv7-linux-androideabi",
     "x86": "i686-linux-android",
     "x86_64": "x86_64-linux-android",
+    "riscv64": "riscv64-linux-android",
 }
 
 
@@ -307,6 +341,138 @@ def validate_signing_config(signing: Dict[str, str]) -> None:
         raise FileNotFoundError(f"Keystore not found: {signing['keystore_path']}")
 
 
+def _read_u32_le(buf: bytes, offset: int) -> int:
+    return int.from_bytes(buf[offset:offset + 4], "little")
+
+
+def _read_u64_le(buf: bytes, offset: int) -> int:
+    return int.from_bytes(buf[offset:offset + 8], "little")
+
+
+def find_eocd(data: bytes) -> int:
+    sig = b"PK\x05\x06"
+    start = max(0, len(data) - 0x10000 - 22)
+    for pos in range(len(data) - 22, start - 1, -1):
+        if data[pos:pos + 4] != sig:
+            continue
+        comment_len = int.from_bytes(data[pos + 20:pos + 22], "little")
+        if pos + 22 + comment_len == len(data):
+            return pos
+    raise ValueError("EOCD not found")
+
+
+def parse_apk_v2_signature(apk_path: Path) -> Tuple[int, str]:
+    data = apk_path.read_bytes()
+    eocd = find_eocd(data)
+    central_dir_offset = _read_u32_le(data, eocd + 16)
+    footer_offset = central_dir_offset - 24
+    if footer_offset < 8 or data[footer_offset + 8:central_dir_offset] != b"APK Sig Block 42":
+        raise ValueError("APK Signing Block not found")
+
+    block_size = _read_u64_le(data, footer_offset)
+    block_start = central_dir_offset - block_size - 8
+    if block_start < 0 or _read_u64_le(data, block_start) != block_size:
+        raise ValueError("APK Signing Block size mismatch")
+
+    pos = block_start + 8
+    pairs_end = footer_offset
+    cert_info: Optional[Tuple[int, str]] = None
+    has_v3 = False
+
+    while pos < pairs_end:
+        pair_size = _read_u64_le(data, pos)
+        pos += 8
+        if pair_size < 4 or pos + pair_size > pairs_end:
+            raise ValueError("Invalid APK Signing Block pair")
+
+        pair_id = _read_u32_le(data, pos)
+        value_start = pos + 4
+        value_end = pos + pair_size
+        value = data[value_start:value_end]
+
+        if pair_id == 0x7109871A:
+            cert_info = parse_v2_signer_cert(value)
+        elif pair_id in (0xF05368C0, 0x1B93AD61):
+            has_v3 = True
+
+        pos = value_end
+
+    if has_v3:
+        raise ValueError("Unexpected APK v3/v3.1 signature found")
+    if cert_info is None:
+        raise ValueError("APK v2 signature not found")
+    return cert_info
+
+
+def parse_v2_signer_cert(value: bytes) -> Tuple[int, str]:
+    pos = 0
+    pos += 4  # signer sequence length
+    pos += 4  # signer length
+    pos += 4  # signed data length
+
+    digests_len = _read_u32_le(value, pos)
+    pos += 4 + digests_len
+
+    pos += 4  # certificates length
+    cert_len = _read_u32_le(value, pos)
+    pos += 4
+    cert = value[pos:pos + cert_len]
+    if len(cert) != cert_len:
+        raise ValueError("APK signer certificate is truncated")
+
+    return cert_len, hashlib.sha256(cert).hexdigest()
+
+
+def infer_apk_package(apk_path: Path, fallback: str = "") -> str:
+    aapt2 = find_android_tool("aapt2")
+    if aapt2 is not None:
+        try:
+            out = run_cmd_capture([str(aapt2), "dump", "packagename", str(apk_path)])
+            if out:
+                return out.splitlines()[0].strip()
+        except Exception:
+            pass
+
+    aapt = find_android_tool("aapt")
+    if aapt is not None:
+        try:
+            out = run_cmd_capture([str(aapt), "dump", "badging", str(apk_path)])
+            match = re.search(r"package: name='([^']+)'", out)
+            if match:
+                return match.group(1)
+        except Exception:
+            pass
+
+    if fallback:
+        return fallback
+    raise RuntimeError("Unable to infer APK package name; pass --manager-package")
+
+
+def write_manager_identity(apk_path: Path, package_name: str, output_path: Path) -> Tuple[int, str]:
+    cert_size, cert_hash = parse_apk_v2_signature(apk_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(
+        "\n".join(
+            [
+                f"KSU_MANAGER_PACKAGE := {package_name}",
+                f"KSU_EXPECTED_SIZE := 0x{cert_size:04x}",
+                f"KSU_EXPECTED_HASH := {cert_hash}",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    return cert_size, cert_hash
+
+
+def print_manager_identity(package_name: str, cert_size: int, cert_hash: str, output_path: Path) -> None:
+    print("Manager ID :")
+    print(f"  KSU_MANAGER_PACKAGE={package_name}")
+    print(f"  KSU_EXPECTED_SIZE=0x{cert_size:04x}")
+    print(f"  KSU_EXPECTED_HASH={cert_hash}")
+    print(f"Identity  : {output_path}")
+
+
 def do_repack(args: argparse.Namespace) -> int:
     ws_root = workspace_root()
     config_path = Path(args.config).resolve() if args.config else ws_root / "repack-config.json"
@@ -414,6 +580,10 @@ def do_repack(args: argparse.Namespace) -> int:
             ],
             "apksigner failed",
         )
+
+        package_name = infer_apk_package(signed_path, cfg.get("manager_package", ""))
+        identity_path = out_dir / "manager_identity.mk"
+        cert_size, cert_hash = write_manager_identity(signed_path, package_name, identity_path)
     finally:
         # Remove intermediate files regardless of success/failure.
         for tmp in (unsigned_path, aligned_path):
@@ -429,6 +599,20 @@ def do_repack(args: argparse.Namespace) -> int:
     print(f"Strip     : {'yes (' + str(strip_tool) + ')' if strip_tool else ('requested but unavailable' if do_strip else 'no')}")
     print(f"Arch      : {', '.join(arch_filters)}")
     print(f"Output    : {signed_path}")
+    print_manager_identity(package_name, cert_size, cert_hash, identity_path)
+    return 0
+
+
+def do_identity(args: argparse.Namespace) -> int:
+    apk_path = Path(args.apk).resolve()
+    if not apk_path.exists():
+        raise FileNotFoundError(f"APK not found: {apk_path}")
+
+    package_name = infer_apk_package(apk_path, args.manager_package or "")
+    output_path = Path(args.output).resolve() if args.output else apk_path.with_suffix(".manager_identity.mk")
+    cert_size, cert_hash = write_manager_identity(apk_path, package_name, output_path)
+    print(f"APK       : {apk_path}")
+    print_manager_identity(package_name, cert_size, cert_hash, output_path)
     return 0
 
 
@@ -452,6 +636,7 @@ def build_parser() -> argparse.ArgumentParser:
     repack.add_argument("-A", "--key-alias", help="Key alias override")
     repack.add_argument("-P", "--keystore-pass", help="Keystore password override")
     repack.add_argument("-S", "--key-pass", help="Private key password override")
+    repack.add_argument("--manager-package", help="Manager package name for kernel trust identity")
     repack.add_argument("-n", "--output-name", help="Base name for output APK files (default: input APK stem)")
     strip_group = repack.add_mutually_exclusive_group()
     strip_group.add_argument(
@@ -470,6 +655,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     repack.add_argument("-o", "--out-dir", help="Output directory override (default: dist)")
     repack.set_defaults(func=do_repack)
+
+    identity = subparsers.add_parser("identity", help="Export kernel trust identity for a signed APK")
+    identity.add_argument("apk", help="Signed APK path")
+    identity.add_argument("--manager-package", help="Manager package name fallback")
+    identity.add_argument("-o", "--output", help="Output makefile path")
+    identity.set_defaults(func=do_identity)
 
     return parser
 

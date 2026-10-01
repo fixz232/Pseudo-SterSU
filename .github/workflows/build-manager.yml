@@ -9,13 +9,13 @@ on:
       - '.github/workflows/ddk-lkm.yml'
       - '.github/workflows/ksud.yml'
       - '.github/workflows/ksud-extra.yml'
+      - '.github/workflows/ksuinit.yml'
       - '.github/scripts/setup-rust-build.sh'
+      - '.github/riscv64-cargo.toml'
       - 'repack_apk.py'
       - 'manager/**'
       - 'kernel/**'
       - 'userspace/**'
-      - 'Cargo.lock'
-      - 'Cargo.toml'
   pull_request:
     branches: [ "main", "dev" ]
     paths:
@@ -24,13 +24,13 @@ on:
       - '.github/workflows/ddk-lkm.yml'
       - '.github/workflows/ksud.yml'
       - '.github/workflows/ksud-extra.yml'
+      - '.github/workflows/ksuinit.yml'
       - '.github/scripts/setup-rust-build.sh'
+      - '.github/riscv64-cargo.toml'
       - 'repack_apk.py'
       - 'manager/**'
       - 'kernel/**'
       - 'userspace/**'
-      - 'Cargo.lock'
-      - 'Cargo.toml'
   workflow_call:
 
 jobs:
@@ -107,6 +107,7 @@ jobs:
         include:
           - target: aarch64-linux-android
           - target: x86_64-linux-android
+          - target: riscv64-linux-android
     uses: ./.github/workflows/ksud.yml
     with:
       target: ${{ matrix.target }}
@@ -145,7 +146,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -215,7 +216,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -246,6 +247,12 @@ jobs:
           name: ksud-x86_64-linux-android
           path: artifacts/ksud-x86_64-linux-android
 
+      - name: Download RISC-V ksud
+        uses: actions/download-artifact@v8
+        with:
+          name: ksud-riscv64-linux-android
+          path: artifacts/ksud-riscv64-linux-android
+
       - name: Place manager apk and ksud artifacts
         run: |
           mkdir -p manager/app/build/outputs/apk/release
@@ -255,12 +262,16 @@ jobs:
 
           mkdir -p target/aarch64-linux-android/release
           mkdir -p target/x86_64-linux-android/release
+          mkdir -p target/riscv64-linux-android/release
           ARM64_KSUD=$(find artifacts/ksud-aarch64-linux-android -type f -name ksud | head -n 1)
           X86_64_KSUD=$(find artifacts/ksud-x86_64-linux-android -type f -name ksud | head -n 1)
+          RISCV64_KSUD=$(find artifacts/ksud-riscv64-linux-android -type f -name ksud | head -n 1)
           test -n "$ARM64_KSUD"
           test -n "$X86_64_KSUD"
+          test -n "$RISCV64_KSUD"
           cp -f "$ARM64_KSUD" target/aarch64-linux-android/release/ksud
           cp -f "$X86_64_KSUD" target/x86_64-linux-android/release/ksud
+          cp -f "$RISCV64_KSUD" target/riscv64-linux-android/release/ksud
 
       - name: Prepare signing inputs
         if: ${{ github.event_name == 'pull_request' || (github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')) || github.ref_type == 'tag' }}
@@ -296,18 +307,60 @@ jobs:
             -t release \
             -a arm64-v8a \
             -a x86_64 \
+            -a riscv64 \
             -K "$SIGN_KEYSTORE_FILE" \
             -A "$SIGN_KEY_ALIAS" \
             -P "$SIGN_KEYSTORE_PASSWORD" \
             -S "$SIGN_KEY_PASSWORD" \
+            --manager-package io.github.fixz.stersu \
             --strip
+
+      - name: Verify production Manager identity
+        if: ${{ github.event_name != 'pull_request' && ((github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') || github.ref_type == 'tag') }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python3 scripts/verify_apkesu_kernel_identity.py
+          APK="$(find dist -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          test -n "$APK"
+
+          BUILD_TOOLS="$(find "$ANDROID_SDK_ROOT/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          APKSIGNER="$BUILD_TOOLS/apksigner"
+          AAPT2="$BUILD_TOOLS/aapt2"
+          test -x "$APKSIGNER"
+          test -x "$AAPT2"
+
+          EXPECTED_PACKAGE="$(sed -n 's/^KSU_MANAGER_PACKAGE[[:space:]]*:=[[:space:]]*//p' dist/manager_identity.mk | head -n 1)"
+          EXPECTED_HASH="$(sed -n 's/^KSU_EXPECTED_HASH[[:space:]]*:=[[:space:]]*//p' dist/manager_identity.mk | head -n 1)"
+          VERSION_CODE="$(sed -n 's/^versionCode=//p' version.properties | head -n 1)"
+          VERSION_NAME="$(sed -n 's/^versionName=//p' version.properties | head -n 1)"
+          ACTUAL_HASH="$("$APKSIGNER" verify --print-certs "$APK" | sed -n 's/^.*certificate SHA-256 digest: //p' | head -n 1)"
+          BADGING="$("$AAPT2" dump badging "$APK" | head -n 1)"
+
+          test "$ACTUAL_HASH" = "$EXPECTED_HASH"
+          printf '%s\n' "$BADGING" | grep -Fq "name='$EXPECTED_PACKAGE'"
+          printf '%s\n' "$BADGING" | grep -Fq "versionCode='$VERSION_CODE'"
+          printf '%s\n' "$BADGING" | grep -Fq "versionName='$VERSION_NAME'"
+          cp -f dist/manager_identity.mk dist/manager_identity.verified.mk
+          echo "Verified production Manager: package=$EXPECTED_PACKAGE version=$VERSION_NAME ($VERSION_CODE) cert=$ACTUAL_HASH"
 
       - name: Upload build artifact
         if: ${{ github.event_name == 'pull_request' || (github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')) || github.ref_type == 'tag' }}
         uses: actions/upload-artifact@v7
         with:
           name: manager
-          path: dist/*.apk
+          path: |
+            dist/*.apk
+            dist/manager_identity.verified.mk
+
+      - name: Bot session cache
+        if: github.event_name != 'pull_request' && steps.need_upload.outputs.UPLOAD == 'true'
+        id: bot_session_cache
+        uses: actions/cache@v5
+        with:
+          path: scripts/ksubot.session
+          key: ${{ runner.os }}-bot-session
 
       - name: Upload to telegram
         if: github.event_name != 'pull_request' && steps.need_upload.outputs.UPLOAD == 'true'

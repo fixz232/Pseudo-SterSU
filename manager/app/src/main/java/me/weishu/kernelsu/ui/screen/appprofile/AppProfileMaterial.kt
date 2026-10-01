@@ -59,6 +59,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.weishu.kernelsu.Natives
 import me.weishu.kernelsu.R
+import me.weishu.kernelsu.data.model.AppInfo
 import me.weishu.kernelsu.ui.component.AppIconImage
 import me.weishu.kernelsu.ui.component.material.ExpressiveScaffold
 import me.weishu.kernelsu.ui.component.material.ExpressiveToggleButton
@@ -73,7 +74,6 @@ import me.weishu.kernelsu.ui.component.profile.RootProfileConfig
 import me.weishu.kernelsu.ui.component.profile.TemplateConfig
 import me.weishu.kernelsu.ui.component.statustag.StatusTag
 import me.weishu.kernelsu.ui.util.ownerNameForUid
-import me.weishu.kernelsu.ui.viewmodel.SuperUserViewModel
 
 /**
  * @author weishu
@@ -154,7 +154,7 @@ private fun AppProfileInner(
     profile: Natives.Profile,
     isUidGroup: Boolean = false,
     isSpecialApp: Boolean = false,
-    affectedApps: List<SuperUserViewModel.AppInfo> = emptyList(),
+    affectedApps: List<AppInfo> = emptyList(),
     onViewTemplate: (id: String) -> Unit = {},
     onManageTemplate: () -> Unit = {},
     onProfileChange: (Natives.Profile) -> Unit,
@@ -305,7 +305,7 @@ private fun AppProfileInner(
                     }
                 }
                 if (isUidGroup) {
-                    val appItems = affectedApps.map<SuperUserViewModel.AppInfo, @Composable () -> Unit> { app ->
+                    val appItems = affectedApps.map<AppInfo, @Composable () -> Unit> { app ->
                         {
                             SegmentedListItem(
                                 headlineContent = { Text(app.label) },

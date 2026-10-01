@@ -1,7 +1,17 @@
 package me.weishu.kernelsu.ui.screen.install
 
 import androidx.compose.runtime.Immutable
+import me.weishu.kernelsu.ui.util.BootPatchMode
 import me.weishu.kernelsu.ui.util.LkmSelection
+
+internal enum class InstallKmiSource {
+    None,
+    Detecting,
+    Automatic,
+    Manual,
+    Failed,
+    CurrentDevice,
+}
 
 @Immutable
 internal data class InstallUiState(
@@ -14,7 +24,12 @@ internal data class InstallUiState(
     val currentKmi: String,
     val slotSuffix: String,
     val installMethodOptions: List<InstallMethod>,
+    val rootAvailable: Boolean,
     val canSelectPartition: Boolean,
+    val canInstall: Boolean,
+    val patchMode: BootPatchMode,
+    val targetKmi: String,
+    val targetKmiSource: InstallKmiSource,
     val advancedOptionsShown: Boolean,
     val allowShell: Boolean,
     val enableAdb: Boolean,
@@ -28,6 +43,9 @@ internal data class InstallScreenActions(
     val onSelectMethod: (InstallMethod) -> Unit,
     val onDownloadFile: () -> Unit,
     val onSelectBootImage: () -> Unit,
+    val onSelectPatchMode: (BootPatchMode) -> Unit,
+    val onSelectPatchKmi: () -> Unit,
+    val onSelectAnyKernel: () -> Unit,
     val onUploadLkm: () -> Unit,
     val onClearLkm: () -> Unit,
     val onSelectPartition: (Int) -> Unit,

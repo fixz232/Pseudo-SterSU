@@ -1,31 +1,133 @@
 package me.weishu.kernelsu.data.repository
 
+import android.content.Context
+import me.weishu.kernelsu.Natives
+import me.weishu.kernelsu.ksuApp
+import me.weishu.kernelsu.ui.theme.ThemePreset
+import me.weishu.kernelsu.ui.util.InterfaceStylePackage
+import me.weishu.kernelsu.ui.theme.CustomThemePreset
+import me.weishu.kernelsu.ui.theme.ThemeSyncStrategy
+import me.weishu.kernelsu.ui.component.NightBackgroundEffect
+import me.weishu.kernelsu.ui.component.decoration.UiDecorationConfig
+import me.weishu.kernelsu.ui.component.decoration.CustomUiDecorationPreset
+import me.weishu.kernelsu.ui.util.CustomNavigationIconSet
+import me.weishu.kernelsu.ui.util.CustomNavigationIconSlot
+import me.weishu.kernelsu.ui.util.CustomNavigationIconState
+import me.weishu.kernelsu.ui.util.MediaVisualSettings
+import me.weishu.kernelsu.ui.util.CustomPageBackgroundSet
+import me.weishu.kernelsu.ui.util.CustomPageBackgroundTarget
+import me.weishu.kernelsu.ui.util.CustomWallpaperCrop
+import me.weishu.kernelsu.ui.util.KPatchNextStatus
+import me.weishu.kernelsu.ui.util.KpmCaps
+import me.weishu.kernelsu.ui.util.StartupAnimationSettings
+import me.weishu.kernelsu.ui.webmanager.WEB_MANAGER_AUTO_START_KEY
+
+const val SHOW_VERSION_MISMATCH_WARNING_KEY = "show_version_mismatch_warning"
+const val SHOW_GKI_WARNING_KEY = "show_gki_warning"
+const val SHOW_HOME_SUPPORT_CARD_KEY = "show_home_support_card"
+const val SHOW_HOME_LEARN_CARD_KEY = "show_home_learn_card"
+const val MIUIX_CLASSIC_HOME_LAYOUT_KEY = "miuix_classic_home_layout"
+const val GRAPHICS_RENDERER_FEATURE_ENABLED_KEY = "graphics_renderer_feature_enabled"
+const val CUSTOM_HOME_TITLE_KEY = "custom_home_title"
+internal const val SOFT_REBOOT_KEY = "soft_reboot"
+
+/** Jailbreak mode requires a soft reboot; LKM mode can opt in through Settings. */
+fun isSoftRebootPreferred(): Boolean =
+    Natives.isLateLoadMode || ksuApp.getSharedPreferences("settings", Context.MODE_PRIVATE)
+        .getBoolean(SOFT_REBOOT_KEY, false)
+
 interface SettingsRepository {
     var uiMode: String
-    var checkUpdate: Boolean
     var checkModuleUpdate: Boolean
+    var showVersionMismatchWarning: Boolean
+    var showGkiWarning: Boolean
+    var showHomeSupportCard: Boolean
+    var showHomeLearnCard: Boolean
+    var miuixClassicHomeLayoutEnabled: Boolean
+    var graphicsRendererFeatureEnabled: Boolean
     var themeMode: Int
     var miuixMonet: Boolean
     var keyColor: Int
     var colorStyle: String
     var colorSpec: String
+    var monetSurfaceOpacity: Float
+    var themePreset: String
     var enablePredictiveBack: Boolean
+    var enableSwipeDismiss: Boolean
+    var pagerInterceptionMode: Int
     var enableBlur: Boolean
     var enableFloatingBottomBar: Boolean
     var enableFloatingBottomBarBlur: Boolean
-    var enableNavigationBadge: Boolean
-    var navigationRailExpanded: Boolean
+    var autoHideNavigationBar: Boolean
+    var scrollHideNavigationBar: Boolean
+    var moduleTopBarAutoHideEnabled: Boolean
     var pageScale: Float
+    var fontScale: Float
+    var moduleDescriptionMaxLines: Int
+    var blurIntensity: Float
+    var switchStyle: String
+    var seasonStyle: String
+    var seasonCardMotionEnabled: Boolean
+    var rainStyle: String
+    var rainCardMotionEnabled: Boolean
+    var pixelStyle: String
+    var pixelCardMotionEnabled: Boolean
+    val uiDecorationConfig: UiDecorationConfig
+    fun saveUiDecorationConfig(config: UiDecorationConfig): Boolean
+    fun getCustomUiDecorationPresets(): List<CustomUiDecorationPreset>
+    fun saveCustomUiDecorationPreset(name: String, config: UiDecorationConfig): CustomUiDecorationPreset?
+    fun renameCustomUiDecorationPreset(presetId: String, name: String): Boolean
+    fun deleteCustomUiDecorationPreset(presetId: String): Boolean
+    fun importCustomUiDecorationPresets(presets: List<CustomUiDecorationPreset>): Int
+    fun getRecentUiDecorationComponents(): List<String>
+    var globalSnowEnabled: Boolean
+    var globalSnowEffect: String
+    var nightBackgroundEffect: String
+    var nightBackgroundPassthrough: Boolean
+    var nightBackgroundPassthroughOpacity: Float
+    var globalScrollEffectEnabled: Boolean
+    var globalScrollEffect: String
+    var backgroundScrollFollowEnabled: Boolean
+    var pageTransitionEffect: String
+    var themeSyncStrategy: ThemeSyncStrategy
     var enableWebDebugging: Boolean
-    var moduleSortEnabledFirst: Boolean
-    var moduleSortActionFirst: Boolean
-    var moduleRepoSortOrder: Int
-    var superuserShowSystemApps: Boolean
-    var superuserShowOnlyPrimaryUserApps: Boolean
-    var superuserSortOption: Int
-    var suLogFilters: Set<String>?
+    var webManagerAutoStart: Boolean
     var autoJailbreak: Boolean
     var useSoftReboot: Boolean
+    var launcherIcon: String
+    var customManagerName: String
+    var customHomeTitle: String
+    var customWallpaperUri: String?
+    var customWallpaperOpacity: Float
+    var customWallpaperVisualSettings: MediaVisualSettings
+    var customWallpaperCrop: CustomWallpaperCrop
+    var customWallpaperPassthroughEnabled: Boolean
+    var customWallpaperPassthroughOpacity: Float
+    var customVideoBackgroundUri: String?
+    var customVideoBackgroundDurationSeconds: Int
+    var customVideoBackgroundFrameRate: Int
+    val customPageBackgrounds: CustomPageBackgroundSet
+    var customStartupAnimationUri: String?
+    var startupAnimationSettings: StartupAnimationSettings
+    var customStartupSoundUri: String?
+    var customStartupSoundDurationSeconds: Int
+    var customStartupSoundVolume: Float
+    var customClickSoundUri: String?
+    var customClickSoundVolume: Float
+    var customBackgroundMusicUri: String?
+    var customBackgroundMusicVolume: Float
+    var deltaColorVariant: String
+    val customNavigationIcons: CustomNavigationIconSet
+    fun setCustomPageBackgroundWallpaper(target: CustomPageBackgroundTarget, uriString: String?)
+    fun setCustomPageBackgroundVideo(target: CustomPageBackgroundTarget, uriString: String?)
+    fun setCustomPageBackgroundOpacity(target: CustomPageBackgroundTarget, opacity: Float)
+    fun setCustomPageBackgroundCrop(target: CustomPageBackgroundTarget, crop: CustomWallpaperCrop)
+    fun setCustomPageBackgroundVideoDurationSeconds(target: CustomPageBackgroundTarget, seconds: Int)
+    fun setCustomPageBackgroundVisualSettings(target: CustomPageBackgroundTarget, settings: MediaVisualSettings)
+    fun clearCustomPageBackground(target: CustomPageBackgroundTarget)
+    fun setCustomNavigationIcon(slot: CustomNavigationIconSlot, uriString: String?)
+    fun setCustomNavigationIconCrop(slot: CustomNavigationIconSlot, crop: CustomWallpaperCrop)
+    fun setCustomNavigationIconPresentation(slot: CustomNavigationIconSlot, state: CustomNavigationIconState)
     val intentToken: String
 
     suspend fun getSuCompatStatus(): String
@@ -39,6 +141,10 @@ interface SettingsRepository {
     fun isKernelUmountEnabled(): Boolean
     fun setKernelUmountEnabled(enabled: Boolean): Boolean
 
+    suspend fun getWebViewZygoteUmountStatus(): String
+    fun isWebViewZygoteUmountEnabled(): Boolean
+    fun setWebViewZygoteUmountEnabled(enabled: Boolean): Boolean
+
     suspend fun getSelinuxHideStatus(): String
     fun isSelinuxHideEnabled(): Boolean
     fun setSelinuxHideEnabled(enabled: Boolean): Int
@@ -51,10 +157,32 @@ interface SettingsRepository {
     suspend fun getAdbRootPersistValue(): Long?
     fun setAdbRootEnabled(enabled: Boolean): Boolean
 
+    suspend fun getAvcSpoofStatus(): String
+    fun isAvcSpoofEnabled(): Boolean
+    fun setAvcSpoofEnabled(enabled: Boolean): Boolean
+
     fun isDefaultUmountModules(): Boolean
     fun setDefaultUmountModules(enabled: Boolean): Boolean
 
+    suspend fun getKPatchNextStatus(): KPatchNextStatus
+    fun setKPatchNextEnabled(enabled: Boolean): Boolean
+    suspend fun getKpmCaps(): KpmCaps
+
+    suspend fun getEpkesuHideStatus(): Boolean
+    fun setEpkesuHideEnabled(enabled: Boolean): Boolean
+
     fun isLkmMode(): Boolean
+
+    /** Switches style and its shared appearance values in one preferences transaction. */
+    fun applyInterfaceStyle(mode: String, preset: ThemePreset?, preservedColorMode: Int)
+    fun applyInterfaceStylePackage(style: InterfaceStylePackage)
+    fun applyThemePreset(preset: ThemePreset)
+    fun saveCustomThemePreset(name: String): CustomThemePreset?
+    fun applyCustomThemePreset(presetId: String): Boolean
+    fun renameCustomThemePreset(presetId: String, name: String): Boolean
+    fun deleteCustomThemePreset(presetId: String): Boolean
+    fun getCustomThemePresets(): List<CustomThemePreset>
+    fun resetThemeToDefault()
 
     fun execKsudFeatureSave()
 }

@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="app_name" translatable="false">SterSU</string>
     <string name="home">Ana Sayfa</string>
     <string name="home_not_installed">Kurulmadı</string>
     <string name="home_click_to_install">Yüklemek için dokunun</string>
     <string name="home_working">Çalışıyor</string>
     <string name="home_working_version">Sürüm: %s</string>
     <string name="home_unsupported">Desteklenmiyor</string>
-    <string name="home_unsupported_reason">KernelSU şimdilik sadece GKI çekirdeklerini destekliyor</string>
+    <string name="home_unsupported_reason">SterSU şimdilik sadece GKI çekirdeklerini destekliyor</string>
     <string name="home_kernel">Çekirdek Versiyonu</string>
     <string name="home_manager_version">Yönetici sürümü</string>
     <string name="home_fingerprint">Parmak izi</string>
@@ -41,12 +42,11 @@
     <string name="safe_mode">Güvenli mod</string>
     <string name="reboot_to_apply">Değişikliklerin uygulanması için cihazı yeniden başlat</string>
     <string name="module_magisk_conflict">Magisk ile çakışma nedeniyle modüller kullanılamıyor!</string>
-    <string name="home_learn_kernelsu">KernelSU\'yu öğrenin</string>
-    <string name="home_learn_kernelsu_url">https://kernelsu.org/guide/what-is-kernelsu.html</string>
-    <string name="home_click_to_learn_kernelsu">KernelSU\'nun nasıl kurulacağını ve modüllerin nasıl kullanılacağını öğrenin.</string>
+    <string name="home_learn_kernelsu">SterSU\'yu öğrenin</string>
+    <string name="home_learn_kernelsu_url">https://github.com/fixz232/ApkeSU.git</string>
+    <string name="home_click_to_learn_kernelsu">SterSU\'nun nasıl kurulacağını ve modüllerin nasıl kullanılacağını öğrenin.</string>
     <string name="home_support_title">Bizi Destekleyin</string>
-    <string name="home_support_content">KernelSU ücretsiz ve açık kaynaklı bir yazılımdır ve her zaman öyle kalacaktır. Ancak bağış yaparak bize destek olduğunuzu gösterebilirsiniz.</string>
-    <string name="about_source_code"><![CDATA[%1$s adresinde kaynak kodunu görüntüleyin.<br/>%2$s kanalımıza katılın.]]></string>
+    <string name="home_support_content">SterSU ücretsiz ve açık kaynaklı bir yazılımdır ve her zaman öyle kalacaktır. Ancak bağış yaparak bize destek olduğunuzu gösterebilirsiniz.</string>
     <string name="profile" translatable="false">Uygulama profili</string>
     <string name="profile_default">Varsayılan</string>
     <string name="profile_template">Şablon</string>
@@ -61,20 +61,15 @@
     <string name="profile_selinux_context">SELinux içeriği</string>
     <string name="profile_umount_modules">Modüllerin bağlantısını kes</string>
     <string name="failed_to_update_app_profile">%s için uygulama profili güncellenemedi</string>
-    <string name="home_lkm_update_available">Yerleşik LKM\'nin daha yeni bir sürümü mevcut. Güncellemek için dokunun.</string>
-    <string name="home_lkm_custom">Özel</string>
-    <string name="require_manager_version">Yönetici güncellemesi gerekli.</string>
-    <string name="require_kernel_version">Çekirdek güncellemesi gerekli. Yüklemek için dokunun.</string>
-    <string name="require_kernel_version_gki">Çekirdek güncellemesi gerekli.</string>
+    <string name="require_kernel_version">Mevcut SterSU sürümü %1$d, yöneticinin düzgün çalışabilmesi için çok düşük. Lütfen %2$d sürümüne veya daha yüksek bir sürüme güncelleyin!</string>
     <string name="settings_umount_modules_default">Varsayılan olarak modüllerin bağlantısını kes</string>
     <string name="settings_umount_modules_default_summary">Uygulama profilindeki \"Modüllerin bağlantısını kes\" seçeneği için varsayılan değer. Etkinleştirilirse, profil ayarı yapılmamış uygulamalar için modüllerin sistemde yaptığı tüm değişiklikler kaldırılacaktır.</string>
-    <string name="profile_umount_modules_summary">Bu seçeneği etkinleştirmek, KernelSU\'nun bu uygulama için modüller tarafından değiştirilen dosyaları geri yüklemesine izin verir.</string>
+    <string name="profile_umount_modules_summary">Bu seçeneği etkinleştirmek, SterSU\'nun bu uygulama için modüller tarafından değiştirilen dosyaları geri yüklemesine izin verir.</string>
     <string name="profile_selinux_domain">İsim alanı</string>
     <string name="profile_selinux_rules">Kurallar</string>
     <string name="module_update">Güncelle</string>
     <string name="module_downloading">Modül indiriliyor: %s</string>
     <string name="module_start_downloading">İndirme başladı: %s</string>
-    <string name="new_version_available">Yeni sürüm: %s kullanılabilir, güncellemek için tıklayın!</string>
     <string name="launch_app">Uygulamayı başlat</string>
     <string name="force_stop_app">Uygulamayı durmaya zorla</string>
     <string name="restart_app">Uygulamayı yeniden başlat</string>
@@ -99,8 +94,6 @@
     <string name="app_profile_template_import_success">Başarıyla içe aktarıldı</string>
     <string name="app_profile_template_save_failed">Şablon kaydedilemedi</string>
     <string name="app_profile_template_import_empty">Pano boş!</string>
-    <string name="settings_check_update">Güncellemeleri kontrol et</string>
-    <string name="settings_check_update_summary">Uygulamayı açarken güncellemeleri otomatik denetle.</string>
     <string name="grant_root_failed">Root izni verilemedi!</string>
     <string name="open">Aç</string>
     <string name="enable_web_debugging">WebView hata ayıklaması</string>
@@ -119,13 +112,11 @@
     <string name="install_next">Sonraki</string>
     <string name="select_kmi">KMI seçin</string>
     <string name="select_file_tip">%1$s bölüm imajı önerilir</string>
-    <string name="settings_uninstall_temporary">Geçici olarak kaldır</string>
     <string name="settings_uninstall_permanent">Kalıcı olarak kaldır</string>
     <string name="settings_restore_stock_image">Stok imajı geri yükle</string>
-    <string name="settings_uninstall_temporary_message">KernelSU\'yu geçici olarak kaldır, bir sonraki yeniden başlatmadan sonra orijinal durumuna geri yükle.</string>
     <string name="settings_uninstall">Kaldır</string>
-    <string name="settings_uninstall_permanent_message">KernelSU\'yu (root ve tüm modülleri) tamamen ve kalıcı olarak kaldırır</string>
-    <string name="settings_restore_stock_image_message">Stok fabrika imajını geri yükler (eğer yedek varsa), bu işlem genellikle OTA güncellemesinden önce yapılır; KernelSU\'yu kaldırmanız gerekiyorsa lütfen \"Kalıcı olarak kaldır\" seçeneğini kullanın.</string>
+    <string name="settings_uninstall_permanent_message">SterSU\'yu (root ve tüm modülleri) tamamen ve kalıcı olarak kaldırır</string>
+    <string name="settings_restore_stock_image_message">Stok fabrika imajını geri yükler (eğer yedek varsa), bu işlem genellikle OTA güncellemesinden önce yapılır; SterSU\'yu kaldırmanız gerekiyorsa lütfen \"Kalıcı olarak kaldır\" seçeneğini kullanın.</string>
     <string name="flash_success">Flaşlama başarılı</string>
     <string name="selected_lkm">Seçili LKM: %s</string>
     <string name="flashing">Flaşlanıyor</string>
@@ -146,7 +137,8 @@
     <string name="settings_sucompat">Klasik SU komutu</string>
     <string name="settings_sucompat_summary">Uygulama Profilinde Süper Kullanıcı izni verilen uygulamaların /system/bin/su yürütülerek süper kullanıcı kabuğu almasına izin verir; yalnızca yeni işlemler için etkilidir.</string>
     <string name="settings_kernel_umount">Kernel bağlantısını kes</string>
-    <string name="settings_kernel_umount_summary">KernelSU tarafından kontrol edilen çekirdek seviyesinde bağlantı kesme davranışı.</string>
+    <string name="settings_kernel_umount_summary">SterSU tarafından kontrol edilen çekirdek seviyesinde bağlantı kesme davranışı.</string>
+    <string name="home_version_mismatch">Yönetici sürümü (%1$d) ile SterSU sürücüsü sürümü (%2$d) uyuşmuyor.</string>
     <string name="reboot_soft">Soft restart</string>
     <string name="jailbreak_mode">Jailbreak modu</string>
     <string name="home_jailbreak">Jailbreak</string>
@@ -231,8 +223,8 @@
     <string name="settings_enable_blur_summary">Üst ve alt çubuklar için bulanıklaştırma efektini etkinleştir</string>
     <string name="settings_floating_bottom_bar">Yüzen alt çubuk</string>
     <string name="settings_floating_bottom_bar_summary">Apple tarzı kayan alt çubuğu kullan</string>
-    <string name="settings_enable_glass">Liquid glass</string>
-    <string name="settings_enable_glass_summary">Yüzen alt çubuk için liquid glass efektini etkinleştir</string>
+    <string name="settings_enable_glass">液态玻璃</string>
+    <string name="settings_enable_glass_summary">Yüzen alt çubuk için 液态玻璃 efektini etkinleştir</string>
     <string name="show_only_primary_user_apps">Yalnızca birincil kullanıcı uygulamalarını göster</string>
     <string name="settings_auto_jailbreak">Otomatik jailbreak</string>
     <string name="settings_auto_jailbreak_summary">Önyükleme sırasında Permissive SELinux algılandığında, ayrıcalıkları yükseltmek için otomatik olarak Magica kullanılır. Bunun için bu uygulamaya otomatik başlatma izni verilmesi gerekir.</string>
@@ -251,7 +243,5 @@
     <string name="download">İndir</string>
     <string name="download_cancel">İptal</string>
     <string name="download_install">Yükle</string>
-    <string name="profile_flags_desc_no_new_privs">Bu root profili bağlamında KernelSU aracılığıyla daha fazla ayrıcalık yükseltmesini engeller.</string>
-    <string name="install_force_backup">Stok imaj olarak yedekle</string>
-    <string name="install_force_backup_summary">Lütfen seçtiğiniz boot imajının stok imaj olduğundan emin olun</string>
+    <string name="profile_flags_desc_no_new_privs">Bu root profili bağlamında SterSU aracılığıyla daha fazla ayrıcalık yükseltmesini engeller.</string>
 </resources>

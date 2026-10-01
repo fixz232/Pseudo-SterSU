@@ -21,8 +21,7 @@ import androidx.navigation3.ui.LocalNavAnimatedContentScope
  */
 @Composable
 fun rememberContentReady(): Boolean {
-    val scope = LocalNavAnimatedContentScope.current
-    val transitionRunning = scope.transition.isRunning
+    val transitionRunning = LocalNavAnimatedContentScope.current.transition.isRunning
     val ready = remember { mutableStateOf(false) }
 
     LaunchedEffect(transitionRunning) {

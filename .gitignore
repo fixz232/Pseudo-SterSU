@@ -5,7 +5,11 @@ AGENTS.md
 .DS_Store
 /target
 .cargo/config.toml
+/userspace/ksud/bin/aarch64/ksuinit
 __pycache__
-/dist
+/dist/*
+!/dist/manager_identity.mk
 /repack-config.json
+.codex-*
+/release-local/
 /userspace/ksud/.lkm_image_bootstrap.o

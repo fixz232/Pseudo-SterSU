@@ -69,6 +69,8 @@ import me.weishu.kernelsu.ui.component.miuix.SearchBarFake
 import me.weishu.kernelsu.ui.component.miuix.SearchBox
 import me.weishu.kernelsu.ui.component.miuix.SearchPager
 import me.weishu.kernelsu.ui.component.miuix.WarningCard
+import me.weishu.kernelsu.ui.component.liquid.globalLiquidGlassSurface
+import me.weishu.kernelsu.ui.component.liquid.liquidGlassMiuixCardColors
 import me.weishu.kernelsu.ui.component.statustag.StatusTag
 import me.weishu.kernelsu.ui.theme.LocalEnableBlur
 import me.weishu.kernelsu.ui.util.BlurredBar
@@ -150,6 +152,7 @@ fun SulogScreenMiuix(
     )
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             BlurredBar(backdrop) {
                 searchStatus.TopAppBarAnim(backgroundColor = barColor) {
@@ -322,7 +325,9 @@ fun SulogScreenMiuix(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 12.dp)
-                                    .padding(bottom = 12.dp),
+                                    .padding(bottom = 12.dp)
+                                    .sulogLiquidGlassSurface(),
+                                colors = liquidGlassMiuixCardColors(),
                             ) {
                                 OverlayDropdownPreference(
                                     title = stringResource(R.string.sulog_log_files),
@@ -364,15 +369,6 @@ private fun SulogStatusSection(
     state: SulogScreenState,
     actions: SulogActions,
 ) {
-    // Skip entirely when no banner is shown; an empty Row would still take up
-    // its bottom padding above the file selector.
-    val showBanner = when (state.sulogStatus) {
-        "unsupported", "managed" -> true
-        "supported" -> !state.isSulogEnabled
-        else -> false
-    }
-    if (!showBanner) return
-
     Row(
         modifier = Modifier
             .padding(horizontal = 12.dp)
@@ -398,9 +394,6 @@ private fun SulogStatusSection(
                         TextButton(
                             text = stringResource(R.string.sulog_enable_action),
                             onClick = actions.onEnableSulog,
-                            minHeight = 28.dp,
-                            cornerRadius = 50.dp,
-                            insideMargin = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
                             colors = ButtonDefaults.textButtonColors(
                                 color = if (isDynamicColor) colorScheme.onErrorContainer else colorScheme.error,
                                 textColor = colorScheme.onError,
@@ -447,7 +440,9 @@ private fun SulogEntryCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp)
-            .padding(bottom = 12.dp),
+            .padding(bottom = 12.dp)
+            .sulogLiquidGlassSurface(),
+        colors = liquidGlassMiuixCardColors(),
         onClick = onClick,
         showIndication = true,
         insideMargin = PaddingValues(16.dp),
@@ -524,6 +519,15 @@ private fun SulogEntryCard(
             )
         }
     }
+}
+
+@Composable
+private fun Modifier.sulogLiquidGlassSurface(): Modifier {
+    return globalLiquidGlassSurface(
+        surfaceAlpha = 0.66f,
+        blurRadius = 8.dp,
+        strokeAlpha = 0.70f,
+    )
 }
 
 @Composable

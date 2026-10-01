@@ -17,10 +17,10 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun DropdownItem(
-    modifier: Modifier = Modifier,
     text: String,
     optionSize: Int,
     index: Int,
+    modifier: Modifier = Modifier,
     dropdownColors: DropdownColors = DropdownDefaults.dropdownColors(),
     onSelectedIndexChange: (Int) -> Unit
 ) {

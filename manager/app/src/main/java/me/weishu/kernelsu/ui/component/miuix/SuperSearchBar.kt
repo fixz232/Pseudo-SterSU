@@ -16,6 +16,9 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -65,6 +68,8 @@ import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import me.weishu.kernelsu.ui.component.SearchStatus
+import me.weishu.kernelsu.ui.component.liquid.globalLiquidGlassSurface
+import me.weishu.kernelsu.ui.component.liquid.isLiquidGlassTheme
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.InputField
 import top.yukonga.miuix.kmp.basic.Text
@@ -122,14 +127,14 @@ fun SearchStatus.SearchPager(
         } else {
             max(searchStatus.offsetY, 0.dp)
         },
-        animationSpec = tween(300, easing = LinearOutSlowInEasing),
+        animationSpec = tween(220, easing = FastOutSlowInEasing),
         label = "SearchPagerTopPadding"
     ) {
         onSearchStatusChange(searchStatus.onAnimationComplete())
     }
     val surfaceAlpha by animateFloatAsState(
         if (searchStatus.shouldExpand()) 1f else 0f,
-        animationSpec = tween(200, easing = FastOutSlowInEasing),
+        animationSpec = tween(180, easing = FastOutSlowInEasing),
         label = "SearchPagerSurfaceAlpha"
     )
     val surfaceColor = colorScheme.surface
@@ -142,9 +147,14 @@ fun SearchStatus.SearchPager(
             .semantics { onClick { false } }
             .then(
                 if (!searchStatus.isCollapsed()) {
-                    Modifier.pointerInput(Unit) {
-                        detectTapGestures { }
-                    }
+                    Modifier
+                        .pointerInput(Unit) {
+                            detectTapGestures { }
+                        }
+                        .draggable(
+                            state = rememberDraggableState { },
+                            orientation = Orientation.Horizontal,
+                        )
                 } else Modifier
             )
     ) {
@@ -261,7 +271,20 @@ fun SearchBar(
             .padding(horizontal = 12.dp)
             .padding(top = searchBarTopPadding, bottom = 6.dp)
             .heightIn(min = 45.dp)
-            .background(colorScheme.surfaceContainerHigh, CircleShape)
+            .then(
+                if (isLiquidGlassTheme()) {
+                    Modifier.globalLiquidGlassSurface(
+                        shape = CircleShape,
+                        surfaceAlpha = 0.58f,
+                        blurRadius = 9.dp,
+                        refractionHeight = 12.dp,
+                        refractionAmount = 8.dp,
+                        strokeAlpha = 0.64f,
+                    )
+                } else {
+                    Modifier.background(colorScheme.surfaceContainerHigh, CircleShape)
+                }
+            )
             .focusRequester(focusRequester),
         decorationBox = { innerTextField ->
             Row(

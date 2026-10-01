@@ -63,6 +63,9 @@ import androidx.compose.ui.unit.sp
 import me.weishu.kernelsu.R
 import me.weishu.kernelsu.data.model.TemplateInfo
 import me.weishu.kernelsu.ui.component.ListPopupDefaults
+import me.weishu.kernelsu.ui.component.liquid.globalLiquidGlassSurface
+import me.weishu.kernelsu.ui.component.liquid.isLiquidGlassTheme
+import me.weishu.kernelsu.ui.component.liquid.liquidGlassMiuixCardColors
 import me.weishu.kernelsu.ui.component.miuix.DropdownItem
 import me.weishu.kernelsu.ui.theme.LocalEnableBlur
 import me.weishu.kernelsu.ui.util.BlurredBar
@@ -137,7 +140,7 @@ fun AppProfileTemplateScreenMiuix(
     }
     val offsetHeight by animateDpAsState(
         targetValue = if (fabVisible) 0.dp else 100.dp + WindowInsets.systemBars.asPaddingValues().calculateBottomPadding(),
-        animationSpec = tween(durationMillis = 350)
+        animationSpec = tween(durationMillis = 240)
     )
     val enableBlur = LocalEnableBlur.current
     val backdrop = rememberBlurBackdrop(enableBlur)
@@ -145,6 +148,7 @@ fun AppProfileTemplateScreenMiuix(
     val barColor = if (blurActive) Color.Transparent else colorScheme.surface
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopBar(
                 onBack = actions.onBack,
@@ -157,7 +161,7 @@ fun AppProfileTemplateScreenMiuix(
         },
         floatingActionButton = {
             FloatingActionButton(
-                containerColor = colorScheme.primary,
+                containerColor = if (isLiquidGlassTheme()) Color.Transparent else colorScheme.primary,
                 shadowElevation = 0.dp,
                 onClick = actions.onCreateTemplate,
                 modifier = Modifier
@@ -169,13 +173,26 @@ fun AppProfileTemplateScreenMiuix(
                                 WindowInsets.captionBar.asPaddingValues().calculateBottomPadding() + 20.dp,
                         end = 20.dp
                     )
-                    .border(0.05.dp, colorScheme.outline.copy(alpha = 0.5f), CircleShape),
+                    .then(
+                        if (isLiquidGlassTheme()) {
+                            Modifier.globalLiquidGlassSurface(
+                                shape = CircleShape,
+                                surfaceAlpha = 0.64f,
+                                blurRadius = 9.dp,
+                                refractionHeight = 14.dp,
+                                refractionAmount = 10.dp,
+                                strokeAlpha = 0.72f,
+                            )
+                        } else {
+                            Modifier.border(0.05.dp, colorScheme.outline.copy(alpha = 0.5f), CircleShape)
+                        }
+                    ),
                 content = {
                     Icon(
                         Icons.Rounded.Add,
                         null,
                         Modifier.size(40.dp),
-                        tint = colorScheme.onPrimary
+                        tint = if (isLiquidGlassTheme()) colorScheme.primary else colorScheme.onPrimary
                     )
                 },
             )
@@ -278,7 +295,14 @@ private fun TemplateItem(
     onClick: () -> Unit,
 ) {
     Card(
-        modifier = Modifier.padding(bottom = 12.dp),
+        modifier = Modifier
+            .padding(bottom = 12.dp)
+            .globalLiquidGlassSurface(
+                surfaceAlpha = 0.66f,
+                blurRadius = 8.dp,
+                strokeAlpha = 0.70f,
+            ),
+        colors = liquidGlassMiuixCardColors(),
         onClick = onClick,
         showIndication = true,
         pressFeedbackType = PressFeedbackType.Sink

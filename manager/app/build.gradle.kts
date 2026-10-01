@@ -1,56 +1,64 @@
 @file:Suppress("UnstableApiUsage")
 
-import com.google.protobuf.gradle.id
-
 plugins {
     alias(libs.plugins.agp.app)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.lsplugin.apksign)
-    alias(libs.plugins.protobuf)
     id("kotlin-parcelize")
 }
 
-val androidCompileSdkVersion = rootProject.extra["androidCompileSdkVersion"] as Int
-val androidCompileSdkVersionMinor = rootProject.extra["androidCompileSdkVersionMinor"] as Int
-val androidCompileNdkVersion = rootProject.extra["androidCompileNdkVersion"] as String
-val androidBuildToolsVersion = rootProject.extra["androidBuildToolsVersion"] as String
-val androidMinSdkVersion = rootProject.extra["androidMinSdkVersion"] as Int
-val androidTargetSdkVersion = rootProject.extra["androidTargetSdkVersion"] as Int
-val androidSourceCompatibility = rootProject.extra["androidSourceCompatibility"] as JavaVersion
-val androidTargetCompatibility = rootProject.extra["androidTargetCompatibility"] as JavaVersion
-val managerVersionCode = rootProject.extra["managerVersionCode"] as Int
-val managerVersionName = rootProject.extra["managerVersionName"] as String
+providers.gradleProperty("APKESU_BUILD_DIR").orNull?.let { customBuildDir ->
+    layout.buildDirectory.set(file(customBuildDir))
+}
 
-val isPrBuild = project.findProperty("IS_PR_BUILD")?.toString()?.toBoolean() ?: false
-val defaultManagerPackageName = if (isPrBuild) "me.weishu.kernelsu.pr" else "me.weishu.kernelsu"
-val defaultManagerName = if (isPrBuild) "KernelSU PR" else "KernelSU"
-val managerPackageName = project.findProperty("KSU_PACKAGE_NAME")?.toString() ?: defaultManagerPackageName
-val managerName = project.findProperty("KSU_NAME")?.toString() ?: defaultManagerName
+val androidCompileSdkVersion: Int by rootProject.extra
+val androidCompileSdkVersionMinor: Int by rootProject.extra
+val androidCompileNdkVersion: String by rootProject.extra
+val androidBuildToolsVersion: String by rootProject.extra
+val androidMinSdkVersion: Int by rootProject.extra
+val androidTargetSdkVersion: Int by rootProject.extra
+val androidSourceCompatibility: JavaVersion by rootProject.extra
+val androidTargetCompatibility: JavaVersion by rootProject.extra
+val managerVersionCode: Int by rootProject.extra
+val managerVersionName: String by rootProject.extra
+
+val bundledKsudFiles = listOf(
+    file("src/main/jniLibs/arm64-v8a/libksud.so"),
+    file("src/main/jniLibs/x86_64/libksud.so"),
+)
+
+val verifyBundledKsudVersion by tasks.registering {
+    group = "verification"
+    description = "Verifies that bundled ksud binaries match the Manager version"
+    inputs.files(bundledKsudFiles)
+    inputs.property("managerVersionCode", managerVersionCode)
+    inputs.property("managerVersionName", managerVersionName)
+
+    doLast {
+        val expectedCode = managerVersionCode.toString()
+        for (ksudFile in bundledKsudFiles) {
+            check(ksudFile.isFile) {
+                "Missing ${ksudFile.path}; build ksud before building the Manager"
+            }
+            val binaryText = String(ksudFile.readBytes(), Charsets.ISO_8859_1)
+            check(expectedCode in binaryText && managerVersionName in binaryText) {
+                "${ksudFile.path} does not match Manager $managerVersionName ($managerVersionCode); " +
+                    "rebuild and copy ksud before building the Manager"
+            }
+        }
+    }
+}
+
+tasks.matching { it.name == "preBuild" }.configureEach {
+    dependsOn(verifyBundledKsudVersion)
+}
 
 apksign {
     storeFileProperty = "KEYSTORE_FILE"
     storePasswordProperty = "KEYSTORE_PASSWORD"
     keyAliasProperty = "KEY_ALIAS"
     keyPasswordProperty = "KEY_PASSWORD"
-}
-
-protobuf {
-    protoc {
-        artifact = libs.protobuf.protoc.get().toString()
-    }
-    generateProtoTasks {
-        ofNonTest().forEach { task ->
-            task.builtins {
-                id("java") {
-                    option("lite")
-                }
-                id("kotlin") {
-                    option("lite")
-                }
-            }
-        }
-    }
 }
 
 val baseCFlags = listOf(
@@ -62,6 +70,7 @@ val baseCppFlags = baseCFlags + "-fno-rtti"
 
 android {
     namespace = "me.weishu.kernelsu"
+    val isPrBuild = project.findProperty("IS_PR_BUILD")?.toString()?.toBoolean() ?: false
 
     buildTypes {
         debug {
@@ -75,6 +84,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             vcsInfo.include = false
+            if (isPrBuild) applicationIdSuffix = ".dev"
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             externalNativeBuild {
                 cmake {
@@ -93,7 +103,7 @@ android {
                     arguments += listOf(
                         "-DCMAKE_CXX_FLAGS_RELEASE=$configFlags",
                         "-DCMAKE_C_FLAGS_RELEASE=$configFlags",
-                        "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,--gc-sections -Wl,--exclude-libs,ALL -Wl,--icf=all -s -Wl,--hash-style=sysv -Wl,-z,norelro"
+                        "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,--gc-sections -Wl,--exclude-libs,ALL -Wl,--icf=all -s -Wl,--hash-style=sysv -Wl,-z,relro -Wl,-z,now"
                     )
                 }
             }
@@ -103,7 +113,6 @@ android {
     buildFeatures {
         aidl = true
         buildConfig = true
-        resValues = true
         compose = true
         prefab = true
     }
@@ -130,8 +139,15 @@ android {
     }
 
     androidResources {
-        generateLocaleConfig = true
+        generateLocaleConfig = false
     }
+
+    bundle {
+        language {
+            enableSplit = false
+        }
+    }
+
     compileSdk {
         version =
             release(androidCompileSdkVersion) {
@@ -142,14 +158,13 @@ android {
     ndkVersion = androidCompileNdkVersion
 
     defaultConfig {
+        applicationId = "io.github.fixz.stersu"
         minSdk = androidMinSdkVersion
         targetSdk = androidTargetSdkVersion
         versionCode = managerVersionCode
         versionName = managerVersionName
-        applicationId = managerPackageName
 
         buildConfigField("boolean", "IS_PR_BUILD", isPrBuild.toString())
-        resValue("string", "app_name", managerName)
 
         externalNativeBuild {
             cmake {
@@ -160,13 +175,14 @@ android {
         }
 
         ndk {
-            abiFilters += listOf("arm64-v8a", "x86_64")
+            abiFilters += listOf("arm64-v8a", "x86_64", "riscv64")
         }
     }
 
     lint {
         abortOnError = true
         checkReleaseBuilds = false
+        disable += "MissingTranslation"
     }
 
     compileOptions {
@@ -182,9 +198,7 @@ androidComponents {
 }
 
 base {
-    archivesName.set(
-        "${managerName.replace(" ", "_")}_${managerVersionName}_${managerVersionCode}"
-    )
+    archivesName.set("SterSU_${managerVersionName}_${managerVersionCode}")
 }
 
 dependencies {
@@ -204,7 +218,6 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.viewmodel.navigation3)
-
     implementation(libs.androidx.navigation3.runtime)
     implementation(libs.androidx.navigationevent.compose)
 
@@ -230,6 +243,7 @@ dependencies {
 
     implementation(libs.miuix.ui)
     implementation(libs.miuix.icons)
+    implementation(libs.miuix.nav)
     implementation(libs.miuix.navigation3.ui)
     implementation(libs.miuix.preference)
     implementation(libs.miuix.blur)
@@ -241,6 +255,12 @@ dependencies {
 
     implementation(libs.appiconloader)
 
+    implementation(libs.commons.compress)
+    implementation(libs.xz)
+    implementation(libs.protobuf.kotlin.lite)
+
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20250517")
     implementation(libs.commons.compress)
     implementation(libs.xz)
     implementation(libs.protobuf.kotlin.lite)

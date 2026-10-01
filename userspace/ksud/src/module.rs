@@ -16,10 +16,10 @@ use regex_lite::Regex;
 use std::{
     collections::{BTreeMap, HashMap},
     env::var as env_var,
-    fs::{File, Permissions, canonicalize, remove_dir_all, set_permissions},
+    fs::{File, OpenOptions, Permissions, canonicalize, remove_dir_all, set_permissions},
     io::Cursor,
     path::{Path, PathBuf},
-    process::Command,
+    process::{Command, Stdio},
     str::FromStr,
 };
 use std::{
@@ -67,8 +67,6 @@ pub fn get_common_script_envs(module_id: Option<&str>) -> Vec<(&'static str, Str
         ("KSU_KERNEL_VER_CODE", ksucalls::get_version().to_string()),
         ("KSU_VER_CODE", defs::VERSION_CODE.to_string()),
         ("KSU_VER", defs::VERSION_NAME.to_string()),
-        ("KSU_UAPI_VER", ksucalls::uapi_version().to_string()),
-        ("KSU_RUNTIME_MODE", ksucalls::runtime_mode().to_string()),
         (
             "PATH",
             format!(
@@ -105,10 +103,14 @@ fn exec_install_script(module_file: &str, is_metamodule: bool, module_id: &str) 
     let result = Command::new(assets::BUSYBOX_PATH)
         .args(["sh", "-c", &install_script])
         .envs(get_common_script_envs(Some(module_id)))
+        .env("BOOTMODE", "true")
         .env("OUTFD", "1")
         .env("ZIPFILE", realpath)
         .status()?;
-    ensure!(result.success(), "Failed to install module script");
+    ensure!(
+        result.success(),
+        "Failed to install module script: {result}"
+    );
     Ok(())
 }
 
@@ -144,7 +146,6 @@ pub fn foreach_module(
             warn!("{} is not a directory, skip", path.display());
             continue;
         }
-
         if module_type == Active && path.join(defs::DISABLE_FILE_NAME).exists() {
             info!("{} is disabled, skip", path.display());
             continue;
@@ -166,36 +167,206 @@ fn foreach_active_module(f: impl FnMut(&Path) -> Result<()>) -> Result<()> {
 
 pub fn load_sepolicy_rule() -> Result<()> {
     foreach_active_module(|path| {
-        let rule_file = path.join("sepolicy.rule");
-        if !rule_file.exists() {
-            return Ok(());
-        }
-        info!("load policy: {}", rule_file.display());
-
-        if sepolicy::apply_file(&rule_file).is_err() {
-            warn!("Failed to load sepolicy.rule for {}", rule_file.display());
-        }
+        load_sepolicy_rule_from(path);
         Ok(())
     })?;
 
+    if let Some(metamodule_path) = metamodule::get_metamodule_path()
+        && !metamodule_path.starts_with(defs::MODULE_DIR)
+    {
+        load_sepolicy_rule_from(&metamodule_path);
+    }
     Ok(())
 }
 
-pub fn exec_script<T: AsRef<Path>>(path: T, wait: bool) -> Result<()> {
-    info!("exec {}", path.as_ref().display());
+fn load_sepolicy_rule_from(path: &Path) {
+    let rule_file = path.join("sepolicy.rule");
+    if !rule_file.exists() {
+        return;
+    }
+    info!("load policy: {}", rule_file.display());
 
-    let is_module_script = path.as_ref().starts_with(defs::MODULE_DIR);
-    // Extract module_id from path if it matches /data/adb/modules/{id}/...
-    let module_id = if is_module_script {
-        path.as_ref()
-            .strip_prefix(defs::MODULE_DIR)
-            .ok()
-            .and_then(|p| p.components().next())
-            .and_then(|c| c.as_os_str().to_str())
-            .map(ToString::to_string)
-    } else {
-        None
+    if sepolicy::apply_file(&rule_file).is_err() {
+        warn!("Failed to load sepolicy.rule for {}", rule_file.display());
+    }
+}
+
+fn safe_log_name(name: &str) -> String {
+    name.chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-') {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect()
+}
+
+fn script_log_path(path: &Path, module_id: Option<&str>) -> Option<PathBuf> {
+    let script = path.file_name()?.to_str()?;
+    let owner = module_id.unwrap_or("common");
+    Some(
+        Path::new(defs::LOG_DIR)
+            .join("module_scripts")
+            .join(safe_log_name(owner))
+            .join(format!("{}.log", safe_log_name(script))),
+    )
+}
+
+fn attach_script_log(command: &mut Command, path: &Path, module_id: Option<&str>, wait: bool) {
+    let Some(log_path) = script_log_path(path, module_id) else {
+        return;
     };
+
+    if let Some(parent) = log_path.parent()
+        && let Err(e) = std::fs::create_dir_all(parent)
+    {
+        warn!("failed to create script log dir {}: {e}", parent.display());
+        return;
+    }
+
+    match OpenOptions::new().create(true).append(true).open(&log_path) {
+        Ok(mut log) => {
+            if let Err(e) = writeln!(log, "\n=== exec {} wait={wait} ===", path.display()) {
+                warn!(
+                    "failed to write script log header {}: {e}",
+                    log_path.display()
+                );
+            }
+            match log.try_clone() {
+                Ok(stdout_log) => {
+                    command.stdout(Stdio::from(stdout_log));
+                    command.stderr(Stdio::from(log));
+                }
+                Err(e) => warn!("failed to clone script log {}: {e}", log_path.display()),
+            }
+        }
+        Err(e) => warn!("failed to open script log {}: {e}", log_path.display()),
+    }
+}
+
+#[derive(Clone, Copy)]
+enum ScriptPreExec {
+    None,
+    Detach,
+}
+
+#[derive(Clone, Copy)]
+enum ScriptOutput {
+    Inherit,
+    Log,
+}
+
+#[derive(Clone, Copy)]
+enum ScriptFailure {
+    Ignore,
+    ReturnError,
+}
+
+fn build_script_command(
+    path: &Path,
+    module_id: Option<&str>,
+    wait: bool,
+    pre_exec: ScriptPreExec,
+    output: ScriptOutput,
+) -> Command {
+    let mut command = Command::new(assets::BUSYBOX_PATH);
+    #[cfg(unix)]
+    if matches!(pre_exec, ScriptPreExec::Detach) {
+        unsafe {
+            command.pre_exec(|| {
+                detach_process_group(true);
+                switch_cgroups();
+                Ok(())
+            });
+        }
+    }
+
+    command
+        .current_dir(path.parent().unwrap())
+        .arg("sh")
+        .arg(path)
+        .envs(get_common_script_envs(module_id));
+    if matches!(output, ScriptOutput::Log) {
+        attach_script_log(&mut command, path, module_id, wait);
+    }
+    command
+}
+
+fn run_script_blocking(
+    path: &Path,
+    module_id: Option<&str>,
+    pre_exec: ScriptPreExec,
+    output: ScriptOutput,
+    failure: ScriptFailure,
+) -> Result<()> {
+    let mut command = build_script_command(path, module_id, true, pre_exec, output);
+    let status = command
+        .status()
+        .map_err(|e| anyhow!("Failed to exec {}: {e}", path.display()))?;
+    if !status.success() {
+        if matches!(failure, ScriptFailure::ReturnError) {
+            bail!("{} exited with status {status}", path.display());
+        }
+        warn!("{} exited with status {status}", path.display());
+    }
+    Ok(())
+}
+
+fn maybe_start_zygisk_next_daemon(path: &Path, module_id: Option<&str>) {
+    if module_id != Some("zygisksu")
+        || path.file_name().and_then(|name| name.to_str()) != Some("service.sh")
+    {
+        return;
+    }
+
+    let Some(module_dir) = path.parent() else {
+        return;
+    };
+    let zygiskd = module_dir.join("bin/zygiskd");
+    if !zygiskd.exists() {
+        return;
+    }
+
+    match Command::new(&zygiskd)
+        .arg("status")
+        .envs(get_common_script_envs(module_id))
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+    {
+        Ok(status) if status.success() => return,
+        Ok(status) => warn!("Zygisk Next status check exited with {status}, starting daemon"),
+        Err(e) => warn!("failed to check Zygisk Next daemon status: {e}"),
+    }
+
+    let mut command = Command::new(&zygiskd);
+    command
+        .current_dir(module_dir)
+        .arg("daemon")
+        .envs(get_common_script_envs(module_id));
+    attach_script_log(&mut command, path, module_id, false);
+
+    #[cfg(unix)]
+    unsafe {
+        command.pre_exec(|| {
+            detach_process_group(true);
+            switch_cgroups();
+            Ok(())
+        });
+    }
+
+    if let Err(e) = command.spawn() {
+        warn!("failed to start Zygisk Next daemon: {e}");
+    }
+}
+
+pub fn exec_script<T: AsRef<Path>>(path: T, wait: bool) -> Result<()> {
+    let path = path.as_ref();
+    info!("exec {}", path.display());
+
+    let module_id = module_id_from_script_path(path);
 
     // Validate and log module_id extraction
     let validated_module_id = module_id
@@ -208,49 +379,106 @@ pub fn exec_script<T: AsRef<Path>>(path: T, wait: bool) -> Result<()> {
             Err(e) => {
                 warn!(
                     "Invalid module ID '{id}' extracted from script path '{}': {e}",
-                    path.as_ref().display(),
+                    path.display(),
                 );
                 None
             }
         });
 
-    if is_module_script && module_id.is_none() {
+    if module_id.is_none() {
         debug!(
             "Failed to extract module_id from script path '{}'. Script will run without KSU_MODULE environment variable.",
-            path.as_ref().display()
+            path.display()
         );
     }
 
-    let mut command = &mut Command::new(assets::BUSYBOX_PATH);
+    if wait {
+        return run_script_blocking(
+            path,
+            validated_module_id,
+            ScriptPreExec::Detach,
+            ScriptOutput::Log,
+            ScriptFailure::Ignore,
+        );
+    }
+
     #[cfg(unix)]
     {
-        command = unsafe {
-            command.pre_exec(|| {
-                detach_process_group(true);
-                // ignore the error?
-                switch_cgroups();
-                Ok(())
-            })
-        };
-    }
-    command = command
-        .current_dir(path.as_ref().parent().unwrap())
-        .arg("sh")
-        .arg(path.as_ref())
-        .envs(get_common_script_envs(validated_module_id));
+        let script_path = path.to_path_buf();
+        let module_id = validated_module_id.map(str::to_string);
+        if !create_daemon_with(true, || Ok(()))? {
+            return Ok(());
+        }
 
-    let result = if wait {
-        command.status().map(|_| ())
-    } else {
-        command.spawn().map(|_| ())
-    };
-    result.map_err(|e| anyhow!("Failed to exec {}: {e}", path.as_ref().display()))
+        if let Err(e) = run_script_blocking(
+            &script_path,
+            module_id.as_deref(),
+            ScriptPreExec::None,
+            ScriptOutput::Log,
+            ScriptFailure::Ignore,
+        ) {
+            warn!("detached script {} failed: {e}", script_path.display());
+        }
+        maybe_start_zygisk_next_daemon(&script_path, module_id.as_deref());
+        unsafe { libc::_exit(0) }
+    }
+
+    #[cfg(not(unix))]
+    {
+        let mut command = build_script_command(
+            path,
+            validated_module_id,
+            false,
+            ScriptPreExec::Detach,
+            ScriptOutput::Log,
+        );
+        command
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| anyhow!("Failed to exec {}: {e}", path.display()))
+    }
+}
+
+fn module_id_from_script_path(path: &Path) -> Option<String> {
+    if path.starts_with(defs::MODULE_DIR) {
+        return path
+            .strip_prefix(defs::MODULE_DIR)
+            .ok()
+            .and_then(|p| p.components().next())
+            .and_then(|c| c.as_os_str().to_str())
+            .map(ToString::to_string);
+    }
+
+    path.parent()
+        .and_then(|module_path| read_module_prop(module_path).ok())
+        .and_then(|props| props.get("id").cloned())
+}
+
+fn should_skip_kpatch_next() -> bool {
+    !ksucalls::is_lkm_mode() || ksucalls::is_late_load()
+}
+
+fn is_kpatch_next_module(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|id| id == crate::kpatch_next::KPATCH_NEXT_MODULE_ID)
 }
 
 pub fn exec_stage_script(stage: &str, block: bool) -> Result<()> {
     let metamodule_dir = metamodule::get_metamodule_path().and_then(|path| canonicalize(path).ok());
 
     foreach_active_module(|module| {
+        // KPatch-Next is an LKM-only backend. This central guard also covers
+        // modules installed by an older Manager whose service.sh predates the
+        // generated shell guard, so a GKI boot cannot start stale KPatch code.
+        if is_kpatch_next_module(module) && should_skip_kpatch_next() {
+            warn!(
+                "skip KPatch-Next {stage} script outside LKM mode: {}",
+                module.display()
+            );
+            return Ok(());
+        }
+
         if metamodule_dir.as_ref().is_some_and(|meta_dir| {
             canonicalize(module).is_ok_and(|resolved| resolved == *meta_dir)
         }) {
@@ -444,6 +672,10 @@ pub fn regenerate_preinit_rc() -> Result<()> {
                     continue;
                 };
                 let id = id.to_string();
+                if id == crate::kpatch_next::KPATCH_NEXT_MODULE_ID && should_skip_kpatch_next() {
+                    modules.insert(id, None);
+                    continue;
+                }
                 if module_path.join(defs::DISABLE_FILE_NAME).exists()
                     || module_path.join(defs::REMOVE_FILE_NAME).exists()
                 {
@@ -667,8 +899,6 @@ fn install_module_to_system(zip: &str) -> Result<()> {
 }
 
 pub fn install_module(zip: &str) -> Result<()> {
-    ksucalls::ensure_uapi_version_matched()?;
-
     let result = install_module_to_system(zip);
     if let Err(ref e) = result {
         println!("- Error: {e}");
@@ -720,10 +950,15 @@ pub fn uninstall_module(id: &str) -> Result<()> {
 
 pub fn run_action(id: &str) -> Result<()> {
     validate_module_id(id)?;
-    ksucalls::ensure_uapi_version_matched()?;
 
     let action_script_path = format!("/data/adb/modules/{id}/action.sh");
-    exec_script(&action_script_path, true)
+    run_script_blocking(
+        Path::new(&action_script_path),
+        Some(id),
+        ScriptPreExec::Detach,
+        ScriptOutput::Inherit,
+        ScriptFailure::ReturnError,
+    )
 }
 
 pub fn enable_module(id: &str) -> Result<()> {
@@ -748,6 +983,8 @@ pub fn enable_module(id: &str) -> Result<()> {
 }
 
 pub fn disable_module(id: &str) -> Result<()> {
+    validate_module_id(id)?;
+
     let module_path = Path::new(defs::MODULE_DIR).join(id);
     ensure!(module_path.exists(), "Module {id} not found");
 
@@ -961,8 +1198,15 @@ fn list_module(path: &str) -> Vec<HashMap<String, String>> {
     modules
 }
 
+pub fn get_modules() -> Vec<HashMap<String, String>> {
+    if let Err(e) = handle_updated_modules() {
+        warn!("handle updated modules before list failed: {e}");
+    }
+    list_module(defs::MODULE_DIR)
+}
+
 pub fn list_modules() -> Result<()> {
-    let modules = list_module(defs::MODULE_DIR);
+    let modules = get_modules();
     println!("{}", serde_json::to_string_pretty(&modules)?);
     Ok(())
 }

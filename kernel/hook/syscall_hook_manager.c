@@ -1,4 +1,5 @@
 #include "linux/printk.h"
+#include <linux/compiler.h>
 #include <linux/spinlock.h>
 #include <linux/kprobes.h>
 #include <linux/tracepoint.h>
@@ -8,10 +9,8 @@
 #include <trace/events/syscalls.h>
 
 #include <linux/version.h>
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 7, 0)
-#include <linux/compat.h>
 #include <linux/sched/task_stack.h>
-#endif
+#include <linux/compat.h>
 
 #include "arch.h"
 #include "klog.h" // IWYU pragma: keep
@@ -21,6 +20,14 @@
 #include "hook/setuid_hook.h"
 #include "hook/syscall_hook.h"
 #include "hook/syscall_event_bridge.h"
+#if defined(__riscv)
+#include "hook/riscv64/syscall_regs.h"
+#endif
+
+static bool ksu_hook_manager_ready;
+static bool ksu_hook_manager_syscall_handlers;
+static bool ksu_hook_manager_tracepoint;
+static bool ksu_hook_manager_kretprobes;
 
 #ifdef CONFIG_KRETPROBES
 
@@ -97,7 +104,7 @@ static void ksu_sys_enter_handler(void *data, struct pt_regs *regs, long id)
 {
 #if defined(__x86_64__)
     if (unlikely(in_compat_syscall()))
-#elif defined(__aarch64__)
+#elif defined(__aarch64__) || defined(__riscv)
     if (unlikely(is_compat_task()))
 #endif
         return;
@@ -116,6 +123,9 @@ static void ksu_sys_enter_handler(void *data, struct pt_regs *regs, long id)
 #elif defined(__aarch64__)
         PT_REGS_ORIG_SYSCALL(current_regs) = id;
         current_regs->syscallno = ksu_dispatcher_nr;
+#elif defined(__riscv)
+        /* orig_a0 retains argument zero; a0 is the -ENOSYS return slot. */
+        ksu_riscv_redirect_syscall(current_regs, id, ksu_dispatcher_nr);
 #endif
     }
 }
@@ -126,9 +136,15 @@ void __init ksu_syscall_hook_manager_init(void)
     int ret;
     pr_info("hook_manager: ksu_hook_manager_init called\n");
 
+    WRITE_ONCE(ksu_hook_manager_ready, false);
+    WRITE_ONCE(ksu_hook_manager_syscall_handlers, false);
+    WRITE_ONCE(ksu_hook_manager_tracepoint, false);
+    WRITE_ONCE(ksu_hook_manager_kretprobes, false);
+
 #ifdef CONFIG_KRETPROBES
     syscall_regfunc_rp = init_kretprobe("syscall_regfunc", syscall_regfunc_handler);
     syscall_unregfunc_rp = init_kretprobe("syscall_unregfunc", syscall_unregfunc_handler);
+    WRITE_ONCE(ksu_hook_manager_kretprobes, syscall_regfunc_rp && syscall_unregfunc_rp);
 #endif
 
     // Register syscall hooks via dispatcher
@@ -137,6 +153,13 @@ void __init ksu_syscall_hook_manager_init(void)
     ksu_register_syscall_hook(__NR_execveat, ksu_hook_execveat);
     ksu_register_syscall_hook(__NR_newfstatat, ksu_hook_newfstatat);
     ksu_register_syscall_hook(__NR_faccessat, ksu_hook_faccessat);
+    WRITE_ONCE(ksu_hook_manager_syscall_handlers,
+               ksu_has_syscall_hook(__NR_setresuid) && ksu_has_syscall_hook(__NR_execve) &&
+                   ksu_has_syscall_hook(__NR_execveat) && ksu_has_syscall_hook(__NR_newfstatat) &&
+                   ksu_has_syscall_hook(__NR_faccessat));
+
+    if (!READ_ONCE(ksu_hook_manager_syscall_handlers))
+        pr_err("hook_manager: not all syscall handlers were registered\n");
 
 #ifdef CONFIG_HAVE_SYSCALL_TRACEPOINTS
     ret = register_trace_prio_sys_enter(ksu_sys_enter_handler, NULL, INT_MIN);
@@ -146,17 +169,23 @@ void __init ksu_syscall_hook_manager_init(void)
     if (ret) {
         pr_err("hook_manager: failed to register sys_enter tracepoint: %d\n", ret);
     } else {
+        WRITE_ONCE(ksu_hook_manager_tracepoint, true);
         pr_info("hook_manager: sys_enter tracepoint registered\n");
     }
 #endif
 
     ksu_setuid_hook_init();
     ksu_sucompat_init();
+    WRITE_ONCE(ksu_hook_manager_ready, true);
 }
 
 void __exit ksu_syscall_hook_manager_exit(void)
 {
     pr_info("hook_manager: ksu_hook_manager_exit called\n");
+    WRITE_ONCE(ksu_hook_manager_ready, false);
+    WRITE_ONCE(ksu_hook_manager_tracepoint, false);
+    WRITE_ONCE(ksu_hook_manager_kretprobes, false);
+    WRITE_ONCE(ksu_hook_manager_syscall_handlers, false);
 #ifdef CONFIG_HAVE_SYSCALL_TRACEPOINTS
     unregister_trace_sys_enter(ksu_sys_enter_handler, NULL);
     tracepoint_synchronize_unregister();
@@ -178,4 +207,24 @@ void __exit ksu_syscall_hook_manager_exit(void)
 
     ksu_sucompat_exit();
     ksu_setuid_hook_exit();
+}
+
+bool ksu_syscall_hook_manager_is_ready(void)
+{
+    return READ_ONCE(ksu_hook_manager_ready);
+}
+
+bool ksu_syscall_hook_manager_has_syscall_handlers(void)
+{
+    return READ_ONCE(ksu_hook_manager_syscall_handlers);
+}
+
+bool ksu_syscall_hook_manager_tracepoint_registered(void)
+{
+    return READ_ONCE(ksu_hook_manager_tracepoint);
+}
+
+bool ksu_syscall_hook_manager_kretprobes_registered(void)
+{
+    return READ_ONCE(ksu_hook_manager_kretprobes);
 }

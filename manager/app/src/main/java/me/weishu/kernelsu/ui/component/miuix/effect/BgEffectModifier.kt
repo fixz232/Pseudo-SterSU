@@ -2,7 +2,6 @@
 
 package me.weishu.kernelsu.ui.component.miuix.effect
 
-import android.annotation.SuppressLint
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.withFrameNanos
@@ -12,10 +11,12 @@ import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.node.invalidateDraw
+import androidx.compose.ui.platform.InspectorInfo
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 internal fun Modifier.bgEffectDraw(
     painter: BgEffectPainter,
     preset: BgEffectConfig.Config,
@@ -40,7 +41,7 @@ internal fun Modifier.bgEffectDraw(
     alpha = alpha,
 )
 
-@SuppressLint("ModifierNodeInspectableProperties")
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 private data class BgEffectElement(
     val painter: BgEffectPainter,
     val preset: BgEffectConfig.Config,
@@ -81,8 +82,23 @@ private data class BgEffectElement(
             alpha = alpha,
         )
     }
+
+    override fun InspectorInfo.inspectableProperties() {
+        name = "bgEffectDraw"
+        properties["painter"] = painter
+        properties["preset"] = preset
+        properties["deviceType"] = deviceType
+        properties["isDarkTheme"] = isDarkTheme
+        properties["surface"] = surface
+        properties["effectBackground"] = effectBackground
+        properties["isFullSize"] = isFullSize
+        properties["playing"] = playing
+        properties["colorStage"] = colorStage
+        properties["alpha"] = alpha
+    }
 }
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 private class BgEffectNode(
     private var painter: BgEffectPainter,
     private var preset: BgEffectConfig.Config,
@@ -161,7 +177,6 @@ private class BgEffectNode(
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun ContentDrawScope.draw() {
         drawRect(surface)
         if (effectBackground) {

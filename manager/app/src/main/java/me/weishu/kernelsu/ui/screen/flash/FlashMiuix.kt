@@ -39,6 +39,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.weishu.kernelsu.R
 import me.weishu.kernelsu.ui.component.KeyEventBlocker
+import me.weishu.kernelsu.ui.component.liquid.globalLiquidGlassSurface
+import me.weishu.kernelsu.ui.component.liquid.isLiquidGlassTheme
 import me.weishu.kernelsu.ui.theme.LocalEnableBlur
 import me.weishu.kernelsu.ui.util.BlurredBar
 import me.weishu.kernelsu.ui.util.rememberBlurBackdrop
@@ -82,6 +84,7 @@ fun FlashScreenMiuix(
     }
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopBar(
                 state.flashingStatus,
@@ -101,7 +104,21 @@ fun FlashScreenMiuix(
                                     WindowInsets.captionBar.asPaddingValues().calculateBottomPadding() + 20.dp,
                             end = 20.dp
                         )
-                        .border(0.05.dp, colorScheme.outline.copy(alpha = 0.5f), CircleShape),
+                        .then(
+                            if (isLiquidGlassTheme()) {
+                                Modifier.globalLiquidGlassSurface(
+                                    shape = CircleShape,
+                                    surfaceAlpha = 0.64f,
+                                    blurRadius = 9.dp,
+                                    refractionHeight = 14.dp,
+                                    refractionAmount = 10.dp,
+                                    strokeAlpha = 0.72f,
+                                )
+                            } else {
+                                Modifier.border(0.05.dp, colorScheme.outline.copy(alpha = 0.5f), CircleShape)
+                            }
+                        ),
+                    containerColor = if (isLiquidGlassTheme()) Color.Transparent else colorScheme.primary,
                     onClick = actions.onReboot,
                     shadowElevation = 0.dp,
                     content = {
@@ -109,7 +126,7 @@ fun FlashScreenMiuix(
                             Icons.Rounded.Refresh,
                             reboot,
                             Modifier.size(40.dp),
-                            tint = colorScheme.onPrimary
+                            tint = if (isLiquidGlassTheme()) colorScheme.primary else colorScheme.onPrimary
                         )
                     },
                 )

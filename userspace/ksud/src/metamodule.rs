@@ -26,7 +26,7 @@ pub fn is_metamodule(props: &HashMap<String, String>) -> bool {
 /// Get metamodule path if it exists
 /// The metamodule is stored in /data/adb/modules/{id} with a symlink at /data/adb/metamodule
 pub fn get_metamodule_path() -> Option<PathBuf> {
-    let path = Path::new(defs::METAMODULE_DIR);
+    let path = Path::new(defs::METAMODULE_DIR.trim_end_matches('/'));
 
     // Check if symlink exists and resolve it
     if path.is_symlink()
@@ -261,6 +261,7 @@ pub fn exec_mount_script(module_dir: &str) -> Result<()> {
 
     let result = Command::new(assets::BUSYBOX_PATH)
         .args(["sh", mount_script.to_str().unwrap()])
+        .current_dir(mount_script.parent().unwrap())
         .envs(crate::module::get_common_script_envs(
             get_metamodule_id().as_deref(),
         ))

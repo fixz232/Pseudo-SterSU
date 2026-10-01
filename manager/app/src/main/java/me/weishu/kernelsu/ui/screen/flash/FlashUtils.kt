@@ -1,14 +1,10 @@
 package me.weishu.kernelsu.ui.screen.flash
 
+import android.content.Context
 import android.net.Uri
-import android.os.Environment
-import android.os.Handler
-import android.os.Looper
 import android.os.Parcelable
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Adb
 import androidx.compose.material.icons.rounded.DeleteForever
-import androidx.compose.material.icons.rounded.RemoveModerator
 import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -30,17 +26,18 @@ import kotlinx.coroutines.withContext
 import kotlinx.parcelize.Parcelize
 import me.weishu.kernelsu.R
 import me.weishu.kernelsu.ui.util.FlashResult
+import me.weishu.kernelsu.ui.util.BootPatchMode
 import me.weishu.kernelsu.ui.util.LkmSelection
 import me.weishu.kernelsu.ui.util.downloadBoot
+import me.weishu.kernelsu.ui.util.flashAnyKernelZip
 import me.weishu.kernelsu.ui.util.flashModule
 import me.weishu.kernelsu.ui.util.installBoot
 import me.weishu.kernelsu.ui.util.restoreBoot
+import me.weishu.kernelsu.ui.util.saveTextToDownloads
 import me.weishu.kernelsu.ui.util.uninstallPermanently
-import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlin.time.Duration.Companion.milliseconds
 
 enum class FlashingStatus {
     FLASHING,
@@ -49,11 +46,6 @@ enum class FlashingStatus {
 }
 
 enum class UninstallType(val icon: ImageVector, val title: Int, val message: Int) {
-    TEMPORARY(
-        Icons.Rounded.RemoveModerator,
-        R.string.settings_uninstall_temporary,
-        R.string.settings_uninstall_temporary_message
-    ),
     PERMANENT(
         Icons.Rounded.DeleteForever,
         R.string.settings_uninstall_permanent,
@@ -63,8 +55,7 @@ enum class UninstallType(val icon: ImageVector, val title: Int, val message: Int
         Icons.Rounded.RestartAlt,
         R.string.settings_restore_stock_image,
         R.string.settings_restore_stock_image_message
-    ),
-    NONE(Icons.Rounded.Adb, 0, 0)
+    )
 }
 
 @Parcelize
@@ -73,6 +64,7 @@ sealed class FlashIt : Parcelable {
     data class FlashBoot(
         val boot: Uri? = null,
         val lkm: LkmSelection,
+        val patchMode: BootPatchMode = BootPatchMode.Normal,
         val ota: Boolean,
         val partition: String? = null,
         val allowShell: Boolean = false,
@@ -85,6 +77,7 @@ sealed class FlashIt : Parcelable {
         val url: String,
         val partition: String,
         val lkm: LkmSelection,
+        val patchMode: BootPatchMode = BootPatchMode.Normal,
         val allowShell: Boolean = false,
         val enableAdb: Boolean = false,
         val backup: Boolean = false,
@@ -94,10 +87,25 @@ sealed class FlashIt : Parcelable {
     data class FlashModules(val uris: List<Uri>) : FlashIt()
 
     @Parcelize
+    data class FlashAnyKernel(val uri: Uri) : FlashIt()
+
+    @Parcelize
     data object FlashRestore : FlashIt()
 
     @Parcelize
     data object FlashUninstall : FlashIt()
+}
+
+fun FlashIt.needsJailbreakFlashWarning(): Boolean {
+    return when (this) {
+        is FlashIt.FlashBoot,
+        is FlashIt.DownloadBoot,
+        is FlashIt.FlashAnyKernel,
+        FlashIt.FlashRestore,
+        FlashIt.FlashUninstall -> true
+
+        is FlashIt.FlashModules -> false
+    }
 }
 
 fun flashModulesSequentially(
@@ -115,7 +123,7 @@ fun flashModulesSequentially(
     return FlashResult(0, "", true)
 }
 
-fun flashIt(
+suspend fun flashIt(
     flashIt: FlashIt,
     onStdout: (String) -> Unit,
     onStderr: (String) -> Unit
@@ -124,6 +132,7 @@ fun flashIt(
         is FlashIt.FlashBoot -> installBoot(
             flashIt.boot,
             flashIt.lkm,
+            flashIt.patchMode,
             flashIt.ota,
             flashIt.partition,
             flashIt.allowShell,
@@ -134,18 +143,23 @@ fun flashIt(
         )
 
         is FlashIt.DownloadBoot -> downloadBoot(
-            flashIt.url,
-            flashIt.partition,
-            flashIt.lkm,
-            flashIt.allowShell,
-            flashIt.enableAdb,
-            flashIt.backup,
-            onStdout,
-            onStderr
+            url = flashIt.url,
+            partition = flashIt.partition,
+            lkm = flashIt.lkm,
+            patchMode = flashIt.patchMode,
+            allowShell = flashIt.allowShell,
+            enableAdb = flashIt.enableAdb,
+            forceBackup = flashIt.backup,
+            onStdout = onStdout,
+            onStderr = onStderr,
         )
 
         is FlashIt.FlashModules -> {
             flashModulesSequentially(flashIt.uris, onStdout, onStderr)
+        }
+
+        is FlashIt.FlashAnyKernel -> {
+            flashAnyKernelZip(flashIt.uri, onStdout, onStderr)
         }
 
         FlashIt.FlashRestore -> restoreBoot(onStdout, onStderr)
@@ -153,73 +167,33 @@ fun flashIt(
     }
 }
 
-@Composable
-fun FlashEffect(
-    flashIt: FlashIt,
-    text: String,
-    logContent: StringBuilder,
-    onTextUpdate: (String) -> Unit,
-    onShowRebootChange: (Boolean) -> Unit,
-    onFlashingStatusChange: (FlashingStatus) -> Unit,
-    enabled: Boolean = true
-) {
-    LaunchedEffect(enabled) {
-        if (!enabled || text.isNotEmpty()) {
-            return@LaunchedEffect
-        }
-        var currentText = text
-        val mainHandler = Handler(Looper.getMainLooper())
-        withContext(Dispatchers.IO) {
-            flashIt(flashIt, onStdout = {
-                val tempText = "$it\n"
-                if (tempText.startsWith("[H[J")) { // clear command
-                    currentText = tempText.substring(6)
-                } else {
-                    currentText += tempText
-                }
-                mainHandler.post {
-                    onTextUpdate(currentText)
-                }
-                logContent.append(it).append("\n")
-            }, onStderr = {
-                logContent.append(it).append("\n")
-            }).apply {
-                if (code != 0) {
-                    currentText += "Error code: $code.\n $err Please save and check the log.\n"
-                    mainHandler.post {
-                        onTextUpdate(currentText)
-                    }
-                }
-                if (showReboot) {
-                    currentText += "\n\n\n"
-                    mainHandler.post {
-                        onTextUpdate(currentText)
-                        onShowRebootChange(true)
-                    }
-                }
-                mainHandler.post {
-                    onFlashingStatusChange(if (code == 0) FlashingStatus.SUCCESS else FlashingStatus.FAILED)
-                }
-            }
-        }
-    }
-}
-
 fun saveLog(
-    logContent: StringBuilder,
+    context: Context,
+    logContent: String,
     scope: CoroutineScope,
+    savedMessage: String,
+    failedMessage: String,
     showMessage: (String) -> Unit
 ): () -> Unit {
     return {
         scope.launch {
-            val format = SimpleDateFormat("yyyy-MM-dd-HH-mm-ss", Locale.getDefault())
-            val date = format.format(Date())
-            val file = File(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                "KernelSU_install_log_${date}.log"
-            )
-            file.writeText(logContent.toString())
-            showMessage("Log saved to ${file.absolutePath}")
+            val result = runCatching {
+                withContext(Dispatchers.IO) {
+                    val format = SimpleDateFormat("yyyy-MM-dd-HH-mm-ss", Locale.getDefault())
+                    val date = format.format(Date())
+                    saveTextToDownloads(
+                        context = context,
+                        displayName = "SterSU_install_log_${date}.log",
+                        text = logContent,
+                    )
+                }
+            }
+            result.onSuccess { path ->
+                showMessage("$savedMessage: $path")
+            }.onFailure { throwable ->
+                val reason = throwable.localizedMessage ?: throwable.javaClass.simpleName
+                showMessage("$failedMessage: $reason")
+            }
         }
     }
 }
@@ -235,7 +209,7 @@ fun JailbreakFlashWarningDialog(
 
     LaunchedEffect(Unit) {
         while (countdown > 0) {
-            delay(1000.milliseconds)
+            delay(1000)
             countdown--
         }
     }

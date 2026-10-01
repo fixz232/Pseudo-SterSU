@@ -1,7 +1,9 @@
 package me.weishu.kernelsu.ui.viewmodel
 
+import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.util.Log
+import androidx.core.content.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -15,8 +17,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import me.weishu.kernelsu.Natives
-import me.weishu.kernelsu.data.repository.SettingsRepository
-import me.weishu.kernelsu.data.repository.SettingsRepositoryImpl
+import me.weishu.kernelsu.data.model.AppInfo
 import me.weishu.kernelsu.data.repository.SuperUserRepository
 import me.weishu.kernelsu.data.repository.SuperUserRepositoryImpl
 import me.weishu.kernelsu.ksuApp
@@ -31,38 +32,18 @@ import java.util.Locale
 
 internal const val RECENTLY_INSTALLED_WINDOW_MILLIS = 60 * 60 * 1000L
 
-enum class AppSortType {
-    NAME, PACKAGE_NAME, INSTALL_TIME, UPDATE_TIME;
+internal const val SORT_BY_NAME = 0
+internal const val SORT_BY_PACKAGE_NAME = 1
+internal const val SORT_BY_INSTALL_TIME = 2
+internal const val SORT_BY_UPDATE_TIME = 3
 
-    companion object {
-        fun fromOrdinal(ordinal: Int): AppSortType =
-            entries.getOrElse(ordinal) { NAME }
-    }
-}
-
-data class AppSortConfig(
-    val sortType: AppSortType = AppSortType.NAME,
-    val reversed: Boolean = false,
-) {
-    fun toInt(): Int = sortType.ordinal * 2 + if (reversed) 1 else 0
-
-    fun withType(type: AppSortType): AppSortConfig = copy(sortType = type)
-    fun toggleReversed(): AppSortConfig = copy(reversed = !reversed)
-
-    companion object {
-        fun fromInt(value: Int): AppSortConfig = AppSortConfig(
-            sortType = AppSortType.fromOrdinal(value / 2),
-            reversed = value % 2 != 0,
-        )
-    }
-}
+private const val PREFS_SORT_OPTION = "superuser_sort_option"
 
 internal fun buildRecentlyInstalledGroups(
     groups: List<GroupedApps>,
     nowMillis: Long = System.currentTimeMillis(),
 ): List<GroupedApps> {
     val cutoffMillis = nowMillis - RECENTLY_INSTALLED_WINDOW_MILLIS
-    val collator = Collator.getInstance(Locale.getDefault())
 
     return groups.mapNotNull { group ->
         val latestInstallTime = group.apps.maxOfOrNull { it.packageInfo.firstInstallTime } ?: return@mapNotNull null
@@ -73,13 +54,12 @@ internal fun buildRecentlyInstalledGroups(
         }
     }.sortedWith(
         compareByDescending<Pair<GroupedApps, Long>> { it.second }
-            .thenBy(collator) { it.first.primary.label }
+            .thenBy { it.first.primary.label.lowercase() }
     ).map { it.first }
 }
 
 class SuperUserViewModel(
-    private val repo: SuperUserRepository = SuperUserRepositoryImpl(),
-    private val settingsRepo: SettingsRepository = SettingsRepositoryImpl()
+    private val repo: SuperUserRepository = SuperUserRepositoryImpl()
 ) : ViewModel() {
 
     companion object {
@@ -99,10 +79,9 @@ class SuperUserViewModel(
         }
     }
 
-    typealias AppInfo = me.weishu.kernelsu.data.model.AppInfo
-
     private val _uiState = MutableStateFlow(SuperUserUiState())
     val uiState: StateFlow<SuperUserUiState> = _uiState.asStateFlow()
+    private val prefs = ksuApp.getSharedPreferences("settings", Context.MODE_PRIVATE)
 
     private val refreshMutex = Mutex()
     private val searchQuery = MutableStateFlow("")
@@ -119,18 +98,21 @@ class SuperUserViewModel(
     }
 
     fun initializePreferences() {
+        val showSystemApps = prefs.getBoolean("show_system_apps", false)
+        val showOnlyPrimaryUserApps = prefs.getBoolean("show_only_primary_user_apps", false)
+        val sortOption = prefs.getInt(PREFS_SORT_OPTION, 0)
         _uiState.update {
             it.copy(
-                showSystemApps = settingsRepo.superuserShowSystemApps,
-                showOnlyPrimaryUserApps = settingsRepo.superuserShowOnlyPrimaryUserApps,
-                sortConfig = AppSortConfig.fromInt(settingsRepo.superuserSortOption),
+                showSystemApps = showSystemApps,
+                showOnlyPrimaryUserApps = showOnlyPrimaryUserApps,
+                sortOption = sortOption,
             )
         }
     }
 
-    fun updateSortConfig(config: AppSortConfig): Job {
-        settingsRepo.superuserSortOption = config.toInt()
-        _uiState.update { it.copy(sortConfig = config) }
+    fun updateSortOption(option: Int): Job {
+        prefs.edit { putInt(PREFS_SORT_OPTION, option) }
+        _uiState.update { it.copy(sortOption = option) }
         sortJob?.cancel()
         return viewModelScope.launch {
             val current = _uiState.value.groupedApps
@@ -142,21 +124,21 @@ class SuperUserViewModel(
     private fun refilterVisibleApps(): Job = viewModelScope.launch {
         // Re-filter when a filter setting changes
         val grouped = withContext(Dispatchers.IO) {
-            buildGroups(filterApps(apps))
+            buildGroups(filterAndSort(apps))
         }
         updateVisibleApps(grouped)
     }
 
     fun toggleShowSystemApps(): Job {
         val newValue = !_uiState.value.showSystemApps
-        settingsRepo.superuserShowSystemApps = newValue
+        prefs.edit { putBoolean("show_system_apps", newValue) }
         _uiState.update { it.copy(showSystemApps = newValue) }
         return refilterVisibleApps()
     }
 
     fun toggleShowOnlyPrimaryUserApps(): Job {
         val newValue = !_uiState.value.showOnlyPrimaryUserApps
-        settingsRepo.superuserShowOnlyPrimaryUserApps = newValue
+        prefs.edit { putBoolean("show_only_primary_user_apps", newValue) }
         _uiState.update { it.copy(showOnlyPrimaryUserApps = newValue) }
         return refilterVisibleApps()
     }
@@ -177,7 +159,9 @@ class SuperUserViewModel(
         if (text.isEmpty()) return emptyList()
 
         return groups.mapNotNull { group ->
+            val uidMatched = group.uid.toString().contains(text, true)
             val matchedIdentifiers = group.apps.filter {
+                uidMatched ||
                 it.label.contains(text, true) ||
                         it.displayIdentifier.contains(text, true) ||
                         PinyinUtil.toPinyin(it.label).contains(text, true)
@@ -235,10 +219,10 @@ class SuperUserViewModel(
     }
 
     private suspend fun updateVisibleApps(grouped: List<GroupedApps>, resort: Boolean = true) {
-        val sortConfig = _uiState.value.sortConfig
+        val sortOption = _uiState.value.sortOption
         val searchText = _uiState.value.searchStatus.searchText
         val (sorted, searchResults, recentlyInstalledResults) = withContext(Dispatchers.IO) {
-            val s = if (resort) sortGroups(grouped, sortConfig) else grouped
+            val s = if (resort) sortGroups(grouped, sortOption) else grouped
             Triple(s, filterSearchResults(s, searchText), buildRecentlyInstalledGroups(s))
         }
         _uiState.update {
@@ -253,7 +237,15 @@ class SuperUserViewModel(
         }
     }
 
-    private fun filterApps(list: List<AppInfo>): List<AppInfo> {
+    private fun filterAndSort(list: List<AppInfo>): List<AppInfo> {
+        val comparator = compareBy<AppInfo> {
+            when {
+                it.allowSu -> 0
+                it.hasCustomProfile -> 1
+                else -> 2
+            }
+        }.then(compareBy(Collator.getInstance(Locale.getDefault()), AppInfo::label))
+
         val currentState = _uiState.value
 
         return list.filter {
@@ -264,12 +256,13 @@ class SuperUserViewModel(
                 return@filter true
             }
             val userFilter = !currentState.showOnlyPrimaryUserApps || it.uid / 100000 == 0
-            val isSystemApp = it.packageInfo.applicationInfo!!.flags.and(ApplicationInfo.FLAG_SYSTEM) != 0
+            val appInfo = it.packageInfo.applicationInfo ?: return@filter false
+            val isSystemApp = appInfo.flags.and(ApplicationInfo.FLAG_SYSTEM) != 0
             val typeFilter = it.uid == 2000
                     || currentState.showSystemApps
                     || !isSystemApp
             userFilter && typeFilter
-        }
+        }.sortedWith(comparator)
     }
 
     private fun buildCachedGroups(apps: List<AppInfo>): List<GroupedApps> {
@@ -278,7 +271,9 @@ class SuperUserViewModel(
 
     private fun buildGroups(
         apps: List<AppInfo>,
-        umount: (Int) -> Boolean = { Natives.uidShouldUmount(it) },
+        umount: (Int) -> Boolean = {
+            runCatching { Natives.uidShouldUmount(it) }.getOrDefault(false)
+        },
     ): List<GroupedApps> {
         val collator = Collator.getInstance(Locale.getDefault())
         val comparator = compareBy<AppInfo> {
@@ -287,7 +282,7 @@ class SuperUserViewModel(
                 it.hasCustomProfile -> 1
                 else -> 2
             }
-        }.thenBy(collator) { it.label }
+        }.then(Comparator { a, b -> collator.compare(a.label, b.label) })
         return apps.groupBy { it.uid }.map { (uid, list) ->
             val sorted = list.sortedWith(comparator)
             val primary = pickPrimary(sorted)
@@ -310,18 +305,22 @@ class SuperUserViewModel(
         group.anyAllowSu -> 0
         group.anyCustom -> 1
         group.apps.size > 1 -> 2
+        group.shouldUmount -> 4
         else -> 3
     }
 
-    private fun sortGroups(groups: List<GroupedApps>, config: AppSortConfig): List<GroupedApps> {
+    private fun sortGroups(groups: List<GroupedApps>, sortOption: Int): List<GroupedApps> {
+        val sortType = sortOption / 2
+        val reverse = sortOption % 2 != 0
+
         val collator = Collator.getInstance(Locale.getDefault())
-        val base: Comparator<GroupedApps> = when (config.sortType) {
-            AppSortType.PACKAGE_NAME -> compareBy { it.primary.displayIdentifier }
-            AppSortType.INSTALL_TIME -> compareBy { it.primary.packageInfo.firstInstallTime }
-            AppSortType.UPDATE_TIME -> compareBy { it.primary.packageInfo.lastUpdateTime }
-            AppSortType.NAME -> Comparator { a, b -> collator.compare(a.primary.label, b.primary.label) }
+        val base: Comparator<GroupedApps> = when (sortType) {
+            SORT_BY_PACKAGE_NAME -> compareBy { it.primary.displayIdentifier }
+            SORT_BY_INSTALL_TIME -> compareBy { it.primary.packageInfo.firstInstallTime }
+            SORT_BY_UPDATE_TIME -> compareBy { it.primary.packageInfo.lastUpdateTime }
+            else -> Comparator { a, b -> collator.compare(a.primary.label, b.primary.label) }
         }
-        val secondary = if (config.reversed) base.reversed() else base
+        val secondary = if (reverse) base.reversed() else base
 
         return groups.sortedWith(Comparator { a, b ->
             val ra = groupRank(a)
@@ -338,7 +337,9 @@ class SuperUserViewModel(
                 val (cachedGroups, grouped) = withContext(Dispatchers.IO) {
                     val cached = buildCachedGroups(newApps)
                     val umountByUid = cached.associate { it.uid to it.shouldUmount }
-                    cached to buildGroups(filterApps(newApps)) { umountByUid[it] ?: Natives.uidShouldUmount(it) }
+                    cached to buildGroups(filterAndSort(newApps)) {
+                        umountByUid[it] ?: runCatching { Natives.uidShouldUmount(it) }.getOrDefault(false)
+                    }
                 }
 
                 // Update cache for static method
@@ -373,15 +374,19 @@ class SuperUserViewModel(
                 val (cachedGroups, grouped) = withContext(Dispatchers.IO) {
                     val cached = buildCachedGroups(updatedApps)
                     val umountByUid = cached.associate { it.uid to it.shouldUmount }
-                    val visible = buildGroups(filterApps(updatedApps)) {
-                        umountByUid[it] ?: Natives.uidShouldUmount(it)
+                    val visible = buildGroups(filterAndSort(updatedApps)) {
+                        umountByUid[it] ?: runCatching { Natives.uidShouldUmount(it) }.getOrDefault(false)
                     }
                     val result = if (resort) {
                         visible
                     } else {
                         val byUid = visible.associateBy { it.uid }
                         _uiState.value.groupedApps.map { group ->
-                            byUid[group.uid] ?: group.copy(shouldUmount = Natives.uidShouldUmount(group.uid))
+                            byUid[group.uid] ?: group.copy(
+                                shouldUmount = runCatching {
+                                    Natives.uidShouldUmount(group.uid)
+                                }.getOrDefault(false)
+                            )
                         }
                     }
                     cached to result

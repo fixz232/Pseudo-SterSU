@@ -2,7 +2,6 @@ package me.weishu.kernelsu.ui.screen.executemoduleaction
 
 import android.widget.Toast
 import androidx.activity.compose.LocalActivity
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -24,11 +23,10 @@ fun ExecuteModuleActionScreen(moduleId: String, fromShortcut: Boolean = false) {
     val context = LocalContext.current
     val activity = LocalActivity.current
     val scope = rememberCoroutineScope()
+    val materialSnackbarHost = remember { androidx.compose.material3.SnackbarHostState() }
     var text by rememberSaveable { mutableStateOf("") }
     val logContent = remember { StringBuilder() }
     var isComplete by rememberSaveable { mutableStateOf(false) }
-    val uiMode = LocalUiMode.current
-    val snackbarHost = remember { SnackbarHostState() }
     val exitExecute = {
         if (fromShortcut && activity != null) {
             activity.finishAndRemoveTask()
@@ -39,11 +37,7 @@ fun ExecuteModuleActionScreen(moduleId: String, fromShortcut: Boolean = false) {
 
     fun showMessage(message: String) {
         scope.launch {
-            if (uiMode == UiMode.Material) {
-                snackbarHost.showSnackbar(message)
-            } else {
-                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-            }
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -61,6 +55,7 @@ fun ExecuteModuleActionScreen(moduleId: String, fromShortcut: Boolean = false) {
         text = text,
         logContent = logContent,
         fromShortcut = fromShortcut,
+        autoCloseOnComplete = moduleId == "zygisk_lsposed",
         onTextUpdate = { text = it },
         onComplete = { isComplete = true },
         onExit = exitExecute
@@ -72,12 +67,12 @@ fun ExecuteModuleActionScreen(moduleId: String, fromShortcut: Boolean = false) {
     )
     val actions = ExecuteModuleActionScreenActions(
         onBack = dropUnlessResumed { navigator.pop() },
-        onSaveLog = saveLog(logContent, scope) { showMessage(it) },
+        onSaveLog = saveLog(context, logContent, scope) { showMessage(it) },
         onClose = exitExecute,
     )
 
-    when (uiMode) {
+    when (LocalUiMode.current) {
         UiMode.Miuix -> ExecuteModuleActionScreenMiuix(state, actions)
-        UiMode.Material -> ExecuteModuleActionScreenMaterial(state, actions, snackbarHost)
+        UiMode.Material -> ExecuteModuleActionScreenMaterial(state, actions, materialSnackbarHost)
     }
 }

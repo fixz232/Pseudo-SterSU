@@ -3,6 +3,7 @@
 
 package me.weishu.kernelsu.ui.component.liquid
 
+import android.os.Build
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.util.fastCoerceAtMost
@@ -17,6 +18,7 @@ fun BackdropEffectScope.lens(
     chromaticAberration: Float = 0f,
 ) {
     if (!isRuntimeShaderSupported()) return
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return
     if (refractionHeight <= 0f || refractionAmount <= 0f) return
 
     if (padding < refractionAmount) {

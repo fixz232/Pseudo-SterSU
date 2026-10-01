@@ -41,6 +41,15 @@ object BootKernelVersion {
     private val xzMagic = byteArrayOf(0xFD.toByte(), 0x37, 0x7A, 0x58, 0x5A, 0x00)
     private val lz4FrameMagic = byteArrayOf(0x04, 0x22, 0x4D, 0x18)
 
+    fun isKernellessBootImage(file: File): Boolean {
+        return runCatching {
+            FileChannel.open(file.toPath(), StandardOpenOption.READ).use { channel ->
+                val header = readRange(channel, 0, HEADER_READ_SIZE.toLong()) ?: return@use false
+                startsWith(header, BOOT_MAGIC.toByteArray()) && header.u32le(8) == 0L
+            }
+        }.getOrDefault(false)
+    }
+
     fun parseKmiFromBoot(file: File): String? {
         FileChannel.open(file.toPath(), StandardOpenOption.READ).use { channel ->
             val header = readRange(channel, 0, HEADER_READ_SIZE.toLong()) ?: return null

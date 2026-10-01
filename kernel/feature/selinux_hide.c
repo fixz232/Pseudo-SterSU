@@ -318,22 +318,34 @@ static int my_sel_open_handle_status(struct inode *inode, struct file *filp)
     return ret;
 }
 
-static void hook_selinux_status_open();
+static int hook_selinux_status_open();
 static void ksu_selinux_hide_unhook();
 static int ksu_selinux_hide_enable()
 {
+    bool status_ready;
     int ret;
     pr_info("selinux_hide: init selinux hide\n");
     if (!backup_sepolicy) {
         pr_err("no backup sepolicy available, please save feature and reboot to retry!\n");
         return -EAGAIN;
     }
+    mutex_lock(&selinux_state.status_lock);
+    status_ready = fake_status != NULL;
+    mutex_unlock(&selinux_state.status_lock);
+    if (!status_ready) {
+        pr_err("selinux_hide: fake status is not initialized\n");
+        return -ENODATA;
+    }
     selinux_write_op = find_kernel_symbol_exact("write_op");
     if (!selinux_write_op) {
         pr_err("selinux_hide: no write_op found!\n");
         return -ENOSYS;
     }
-    hook_selinux_status_open();
+    ret = hook_selinux_status_open();
+    if (ret) {
+        pr_err("selinux_hide: failed to hook selinux status: %d\n", ret);
+        return ret;
+    }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0)
     security_dump_masked_av_fn = find_kernel_symbol_exact("security_dump_masked_av");
@@ -379,7 +391,7 @@ static int ksu_selinux_hide_enable()
 
 unhook:
     ksu_selinux_hide_unhook();
-    return -ENOSYS;
+    return ret;
 }
 
 static void ksu_selinux_hide_unhook()
@@ -435,6 +447,8 @@ static int selinux_hide_feature_set(u64 value)
             ret = ksu_selinux_hide_enable();
             if (!ret) {
                 ksu_selinux_hide_running = true;
+            } else if (ret != -EAGAIN) {
+                ksu_selinux_hide_enabled = false;
             }
         }
     } else {
@@ -473,15 +487,15 @@ void ksu_selinux_hide_handle_post_fs_data()
     }
 }
 
-static void hook_selinux_status_open()
+static int hook_selinux_status_open()
 {
     if (orig_sel_open_handle_status)
-        return;
+        return 0;
     if (!sel_open_handle_status_slot) {
         struct file_operations *ops = find_kernel_symbol_exact("sel_handle_status_ops");
         if (!ops) {
             pr_err("selinux_hide: sel_handle_status_ops not found, fake status will not work\n");
-            return;
+            return -ENOENT;
         }
         sel_open_handle_status_slot = &ops->open;
     }
@@ -492,7 +506,9 @@ static void hook_selinux_status_open()
         pr_err("selinux_hide: init: patch_text sel_open_handle_status err: %d\n", ret);
         sel_open_handle_status_slot = NULL;
         orig_sel_open_handle_status = NULL;
+        return ret;
     }
+    return 0;
 }
 
 void __init ksu_selinux_hide_init()
@@ -505,7 +521,9 @@ void __init ksu_selinux_hide_init()
     } else {
         static_key_enable(&fake_status_initialize_key.key);
     }
-    hook_selinux_status_open();
+    if (hook_selinux_status_open()) {
+        pr_warn("selinux_hide: status hook unavailable during init; retrying when enabled\n");
+    }
 }
 
 void __exit ksu_selinux_hide_exit()
@@ -514,6 +532,13 @@ void __exit ksu_selinux_hide_exit()
     if (ksu_selinux_hide_running) {
         ksu_selinux_hide_disable();
         ksu_selinux_hide_running = false;
+    }
+    ksu_selinux_hide_enabled = false;
+    if (backup_sepolicy) {
+        sidtab_destroy(backup_sepolicy->sidtab);
+        kfree(backup_sepolicy->sidtab);
+        ksu_destroy_sepolicy(backup_sepolicy);
+        backup_sepolicy = NULL;
     }
     mutex_unlock(&selinux_hide_mutex);
     ksu_unregister_feature_handler(KSU_FEATURE_SELINUX_HIDE);
@@ -526,15 +551,11 @@ void __exit ksu_selinux_hide_exit()
 
 void ksu_selinux_hide_drop_backup_if_unused()
 {
-    mutex_lock(&selinux_hide_mutex);
-    if (!ksu_selinux_hide_running && backup_sepolicy) {
-        pr_info("selinux_hide is not enabled - drop backup_sepolicy\n");
-        sidtab_destroy(backup_sepolicy->sidtab);
-        kfree(backup_sepolicy->sidtab);
-        ksu_destroy_sepolicy(backup_sepolicy);
-        backup_sepolicy = NULL;
-    }
-    mutex_unlock(&selinux_hide_mutex);
+    /*
+     * This feature can be enabled after boot_completed. Keep the pristine
+     * policy for the full boot so a later enable does not fail with -EAGAIN.
+     * The module exit path releases it when an unload actually occurs.
+     */
 }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0)

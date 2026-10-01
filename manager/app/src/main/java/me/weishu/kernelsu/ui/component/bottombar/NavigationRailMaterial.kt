@@ -30,8 +30,6 @@ import androidx.compose.material3.WideNavigationRailItem
 import androidx.compose.material3.WideNavigationRailValue
 import androidx.compose.material3.rememberWideNavigationRailState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -39,40 +37,26 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import me.weishu.kernelsu.Natives
 import me.weishu.kernelsu.R
-import me.weishu.kernelsu.data.repository.SettingsRepositoryImpl
 import me.weishu.kernelsu.ui.LocalMainPagerState
+import me.weishu.kernelsu.ui.util.LocalCustomNavigationIcons
+import me.weishu.kernelsu.ui.util.rootAvailable
 
 @Composable
 fun NavigationRailMaterial(
     navigationBadge: NavigationBadgeState,
+    destinations: List<MainDestination>,
     modifier: Modifier = Modifier,
 ) {
-    val fullFeatured = Natives.isFullFeatured()
+    val isManager = Natives.isManager
+    val fullFeatured = isManager && !Natives.requireNewKernel() && rootAvailable()
+    val mainPagerState = LocalMainPagerState.current
+    val customIcons = LocalCustomNavigationIcons.current
+
     if (!fullFeatured) return
 
-    val mainPagerState = LocalMainPagerState.current
-
-    val items = listOf(
-        Triple(R.string.home, Icons.Filled.Home, Icons.Outlined.Home),
-        Triple(R.string.superuser, Icons.Filled.Shield, Icons.Outlined.Shield),
-        Triple(R.string.module, Icons.Filled.Extension, Icons.Outlined.Extension),
-        Triple(R.string.settings, Icons.Filled.Settings, Icons.Outlined.Settings)
-    )
-
-    val settingsRepo = remember { SettingsRepositoryImpl() }
-    val state = rememberWideNavigationRailState(
-        initialValue = if (settingsRepo.navigationRailExpanded) {
-            WideNavigationRailValue.Expanded
-        } else {
-            WideNavigationRailValue.Collapsed
-        },
-    )
+    val state = rememberWideNavigationRailState()
     val scope = rememberCoroutineScope()
     val expanded = state.targetValue == WideNavigationRailValue.Expanded
-    LaunchedEffect(state.targetValue) {
-        settingsRepo.navigationRailExpanded =
-            state.targetValue == WideNavigationRailValue.Expanded
-    }
 
     WideNavigationRail(
         modifier = modifier.fillMaxHeight(),
@@ -103,8 +87,9 @@ fun NavigationRailMaterial(
             }
         },
     ) {
-        items.forEachIndexed { index, (label, selectedIcon, unselectedIcon) ->
+        destinations.forEachIndexed { index, destination ->
             val selected = mainPagerState.selectedPage == index
+            val label = customIcons.labelFor(destination, stringResource(destination.label))
             WideNavigationRailItem(
                 railExpanded = expanded,
                 selected = selected,
@@ -115,12 +100,13 @@ fun NavigationRailMaterial(
                 },
                 icon = {
                     NavigationIconWithBadge(
-                        icon = if (selected) selectedIcon else unselectedIcon,
-                        contentDescription = stringResource(label),
-                        badge = badgeFor(index, navigationBadge),
+                        destination = destination,
+                        state = customIcons.stateFor(destination),
+                        contentDescription = label,
+                        badge = badgeFor(destination, navigationBadge),
                     )
                 },
-                label = { Text(stringResource(label)) }
+                label = { Text(label) }
             )
         }
     }

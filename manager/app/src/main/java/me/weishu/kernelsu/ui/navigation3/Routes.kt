@@ -4,12 +4,12 @@ import android.os.Parcelable
 import androidx.navigation3.runtime.NavKey
 import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
+import me.weishu.kernelsu.data.model.TemplateInfo
 import me.weishu.kernelsu.ui.screen.flash.FlashIt
 import me.weishu.kernelsu.ui.screen.modulerepo.RepoModuleArg
 import me.weishu.kernelsu.ui.util.FlashItSerializer
 import me.weishu.kernelsu.ui.util.RepoModuleArgSerializer
 import me.weishu.kernelsu.ui.util.TemplateInfoSerializer
-import me.weishu.kernelsu.ui.viewmodel.TemplateViewModel
 
 /**
  * Type-safe navigation keys for Navigation3.
@@ -38,6 +38,18 @@ sealed interface Route : NavKey, Parcelable {
 
     @Parcelize
     @Serializable
+    data class SettingsCategory(val category: String) : Route
+
+    @Parcelize
+    @Serializable
+    data object LanguageSettings : Route
+
+    @Parcelize
+    @Serializable
+    data object PreInstallStyleSettings : Route
+
+    @Parcelize
+    @Serializable
     data object About : Route
 
     @Parcelize
@@ -46,7 +58,206 @@ sealed interface Route : NavKey, Parcelable {
 
     @Parcelize
     @Serializable
+    data object SuperUserTools : Route
+
+    @Parcelize
+    @Serializable
+    data object AppIdManager : Route
+
+    @Parcelize
+    @Serializable
+    data object DynamicManager : Route
+
+    @Parcelize
+    @Serializable
+    data object AppFreeze : Route
+
+    @Parcelize
+    @Serializable
     data object ColorPalette : Route
+
+    @Parcelize
+    @Serializable
+    data object LauncherIcon : Route
+
+    @Parcelize
+    @Serializable
+    data object NavigationIcons : Route
+
+    @Parcelize
+    @Serializable
+    data object Backgrounds : Route
+
+    @Parcelize
+    @Serializable
+    data object SoundEffects : Route
+
+    @Parcelize
+    @Serializable
+    data object StartupAnimation : Route
+
+    @Parcelize
+    @Serializable
+    data object HomeCardWallpapers : Route
+
+    @Parcelize
+    @Serializable
+    data object HomeLayout : Route
+
+    @Parcelize
+    @Serializable
+    data object InstallCardWallpapers : Route
+
+    @Parcelize
+    @Serializable
+    data object VisualEffects : Route
+
+    @Parcelize
+    @Serializable
+    data object UiDecorationLibrary : Route
+
+    @Parcelize
+    @Serializable
+    data object CardStyleCreator : Route
+
+    @Parcelize
+    @Serializable
+    data object SwitchStyleCreator : Route
+
+    @Parcelize
+    @Serializable
+    data object HiddenPathConfig : Route
+
+    @Parcelize
+    @Serializable
+    data object SusfsPathConfig : Route
+
+    @Parcelize
+    @Serializable
+    data object SusfsApplications : Route
+
+    @Parcelize
+    @Serializable
+    data object SusfsGuide : Route
+
+    @Parcelize
+    @Serializable
+    data object ForegroundToolProtection : Route
+
+    @Parcelize
+    @Serializable
+    data object AiChat : Route
+
+    @Parcelize
+    @Serializable
+    data object AiModuleStudio : Route
+
+    @Parcelize
+    @Serializable
+    data object RescueProtection : Route
+
+    @Parcelize
+    @Serializable
+    data object CpuSpoof : Route
+
+    @Parcelize
+    @Serializable
+    data object DeviceIdentity : Route
+
+    @Parcelize
+    @Serializable
+    data object GraphicsRenderer : Route
+
+    @Parcelize
+    @Serializable
+    data object Kpm : Route
+
+    @Parcelize
+    @Serializable
+    data object ImageTool : Route
+
+    @Parcelize
+    @Serializable
+    data object ThemeStore : Route
+
+    @Parcelize
+    @Serializable
+    data object ThemeStoreCustomize : Route
+
+    @Parcelize
+    @Serializable
+    data object PluginStore : Route
+
+    @Parcelize
+    @Serializable
+    data object InterfaceStyleStore : Route
+
+    @Parcelize
+    @Serializable
+    data object StoreInterfaceStyles : Route
+
+    @Parcelize
+    @Serializable
+    data object ThemeStoreAssets : Route
+
+    @Parcelize
+    @Serializable
+    data object ThemeStoreFonts : Route
+
+    @Parcelize
+    @Serializable
+    data object ThemeStoreBackgrounds : Route
+
+    @Parcelize
+    @Serializable
+    data object ThemeStoreTransfer : Route
+
+    @Parcelize
+    @Serializable
+    data object ThemeStoreMy : Route
+
+    @Parcelize
+    @Serializable
+    data object ThemeStoreLibrary : Route
+
+    @Parcelize
+    @Serializable
+    data class CloudThemeDetail(val themeId: String) : Route
+
+    @Parcelize
+    @Serializable
+    data object CloudThemeRanking : Route
+
+    @Parcelize
+    @Serializable
+    data object CloudThemeCreator : Route
+
+    @Parcelize
+    @Serializable
+    data object CloudThemeCreatorSubmission : Route
+
+    @Parcelize
+    @Serializable
+    data object CloudThemeCreatorGuide : Route
+
+    @Parcelize
+    @Serializable
+    data object ModuleTools : Route
+
+    @Parcelize
+    @Serializable
+    data object ModuleWallpaperBackup : Route
+
+    @Parcelize
+    @Serializable
+    data class ModuleWallpaperEditor(
+        val moduleId: String,
+        val displayName: String? = null,
+        val displayAuthor: String? = null,
+        val displayVersion: String? = null,
+        val displayDescription: String? = null,
+        val allowBatch: Boolean = true,
+    ) : Route
 
     @Parcelize
     @Serializable
@@ -55,7 +266,7 @@ sealed interface Route : NavKey, Parcelable {
     @Parcelize
     @Serializable
     data class TemplateEditor(
-        @Serializable(with = TemplateInfoSerializer::class) val template: TemplateViewModel.TemplateInfo,
+        @Serializable(with = TemplateInfoSerializer::class) val template: TemplateInfo,
         val readOnly: Boolean
     ) : Route
 

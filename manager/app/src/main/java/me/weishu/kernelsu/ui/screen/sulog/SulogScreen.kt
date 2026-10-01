@@ -25,7 +25,6 @@ import me.weishu.kernelsu.ui.viewmodel.SulogViewModel
 @Composable
 fun SulogScreen() {
     val navigator = LocalNavigator.current
-    val uiMode = LocalUiMode.current
     val viewModel = viewModel<SulogViewModel>()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -56,9 +55,9 @@ fun SulogScreen() {
         onSelectFile = viewModel::refresh,
     )
 
-    when (uiMode) {
-        UiMode.Material -> SulogScreenMaterial(state, actions)
+    when (LocalUiMode.current) {
         UiMode.Miuix -> SulogScreenMiuix(state, actions)
+        UiMode.Material -> SulogScreenMaterial(state, actions)
     }
 }
 

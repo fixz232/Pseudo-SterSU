@@ -30,6 +30,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import me.weishu.kernelsu.R
+import me.weishu.kernelsu.ui.component.liquid.globalLiquidGlassSurface
+import me.weishu.kernelsu.ui.component.liquid.liquidGlassMiuixCardColors
 import me.weishu.kernelsu.ui.component.miuix.EditText
 import me.weishu.kernelsu.ui.component.profile.RootProfileConfig
 import me.weishu.kernelsu.ui.theme.LocalEnableBlur
@@ -68,6 +70,7 @@ fun TemplateEditorScreenMiuix(
     val barColor = if (blurActive) Color.Transparent else colorScheme.surface
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopBar(
                 title = if (state.isCreation) {
@@ -104,7 +107,9 @@ fun TemplateEditorScreenMiuix(
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(12.dp),
+                            .padding(12.dp)
+                            .templateEditorLiquidGlassSurface(),
+                        colors = liquidGlassMiuixCardColors(),
                     ) {
                         TextEdit(
                             label = stringResource(id = R.string.app_profile_template_name),
@@ -151,6 +156,15 @@ fun TemplateEditorScreenMiuix(
             }
         }
     }
+}
+
+@Composable
+private fun Modifier.templateEditorLiquidGlassSurface(): Modifier {
+    return globalLiquidGlassSurface(
+        surfaceAlpha = 0.68f,
+        blurRadius = 8.dp,
+        strokeAlpha = 0.72f,
+    )
 }
 
 
@@ -240,4 +254,3 @@ private fun TextEdit(
         enabled = enabled,
     )
 }
-

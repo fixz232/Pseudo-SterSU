@@ -5,12 +5,33 @@
 #include <pwd.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <cstdlib>
 
 #include <android/log.h>
 #include <cstring>
 
 #include "ksu.h"
 #include "logging.h"
+
+static bool copyJStringToFixed(JNIEnv *env, jstring src, char *dst, size_t dst_size) {
+    if (!src || !dst || dst_size == 0) {
+        return false;
+    }
+
+    jsize len = env->GetStringUTFLength(src);
+    if (len < 0 || static_cast<size_t>(len) >= dst_size) {
+        return false;
+    }
+
+    auto chars = env->GetStringUTFChars(src, nullptr);
+    if (!chars) {
+        return false;
+    }
+
+    memcpy(dst, chars, static_cast<size_t>(len) + 1);
+    env->ReleaseStringUTFChars(src, chars);
+    return true;
+}
 
 extern "C"
 JNIEXPORT jint JNICALL
@@ -21,6 +42,12 @@ Java_me_weishu_kernelsu_Natives_getVersion(JNIEnv *env, jobject) {
     }
     // try legacy method as fallback
     return legacy_get_info().first;
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_me_weishu_kernelsu_Natives_refreshInfo(JNIEnv *env, jobject) {
+    refresh_info();
 }
 
 extern "C"
@@ -43,6 +70,37 @@ Java_me_weishu_kernelsu_Natives_getSuperuserCount(JNIEnv *env, jobject) {
     };
     bool result = get_allow_list(&cmd);
     return result ? cmd.total_count : 0;
+}
+
+extern "C"
+JNIEXPORT jintArray JNICALL
+Java_me_weishu_kernelsu_Natives_getAllowList(JNIEnv *env, jobject) {
+    struct ksu_new_get_allow_list_cmd header = {
+        .count = 0
+    };
+
+    if (!get_allow_list(&header) || header.total_count == 0) {
+        return env->NewIntArray(0);
+    }
+
+    size_t cmd_size = sizeof(ksu_new_get_allow_list_cmd) + sizeof(__u32) * header.total_count;
+    auto *cmd = static_cast<ksu_new_get_allow_list_cmd *>(calloc(1, cmd_size));
+    if (!cmd) {
+        return env->NewIntArray(0);
+    }
+
+    cmd->count = header.total_count;
+    if (!get_allow_list(cmd)) {
+        free(cmd);
+        return env->NewIntArray(0);
+    }
+
+    jintArray result = env->NewIntArray(cmd->count);
+    if (result) {
+        env->SetIntArrayRegion(result, 0, cmd->count, reinterpret_cast<jint *>(cmd->uids));
+    }
+    free(cmd);
+    return result ? result : env->NewIntArray(0);
 }
 
 extern "C"
@@ -79,6 +137,12 @@ extern "C"
 JNIEXPORT jboolean JNICALL
 Java_me_weishu_kernelsu_Natives_isPrBuild(JNIEnv *env, jclass clazz) {
     return is_pr_build();
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_me_weishu_kernelsu_Natives_disableCurrentSeccomp(JNIEnv *env, jobject thiz) {
+    return disable_current_seccomp();
 }
 
 static void fillIntArray(JNIEnv *env, jobject list, int *data, int count) {
@@ -141,19 +205,12 @@ static void fillArrayWithList(JNIEnv *env, jobject list, int *data, int count) {
 extern "C"
 JNIEXPORT jobject JNICALL
 Java_me_weishu_kernelsu_Natives_getAppProfile(JNIEnv *env, jobject, jstring pkg, jint uid) {
-    if (env->GetStringLength(pkg) > KSU_MAX_PACKAGE_NAME) {
-        return nullptr;
-    }
-
-    p_key_t key = {};
-    auto cpkg = env->GetStringUTFChars(pkg, nullptr);
-    strcpy(key, cpkg);
-    env->ReleaseStringUTFChars(pkg, cpkg);
-
     app_profile profile = {};
     profile.version = KSU_APP_PROFILE_VER;
 
-    strcpy(profile.key, key);
+    if (!copyJStringToFixed(env, pkg, profile.key, sizeof(profile.key))) {
+        return nullptr;
+    }
     profile.curr_uid = uid;
 
     bool useDefaultProfile = get_app_profile(&profile) != 0;
@@ -185,7 +242,7 @@ Java_me_weishu_kernelsu_Natives_getAppProfile(JNIEnv *env, jobject, jstring pkg,
     if (useDefaultProfile) {
         // no profile found, so just use default profile:
         // don't allow root and use default profile!
-        LOGD("use default profile for: %s, %d", key, uid);
+        LOGD("use default profile for: %s, %d", profile.key, uid);
 
         // allow_su = false
         // non root use default = true
@@ -239,6 +296,10 @@ Java_me_weishu_kernelsu_Natives_getAppProfile(JNIEnv *env, jobject, jstring pkg,
 extern "C"
 JNIEXPORT jboolean JNICALL
 Java_me_weishu_kernelsu_Natives_setAppProfile(JNIEnv *env, jobject clazz, jobject profile) {
+    if (!profile) {
+        return false;
+    }
+
     auto cls = env->FindClass("me/weishu/kernelsu/Natives$Profile");
 
     auto keyField = env->GetFieldID(cls, "name", "Ljava/lang/String;");
@@ -263,14 +324,6 @@ Java_me_weishu_kernelsu_Natives_setAppProfile(JNIEnv *env, jobject clazz, jobjec
     if (!key) {
         return false;
     }
-    if (env->GetStringLength((jstring) key) > KSU_MAX_PACKAGE_NAME) {
-        return false;
-    }
-
-    auto cpkg = env->GetStringUTFChars((jstring) key, nullptr);
-    p_key_t p_key = {};
-    strcpy(p_key, cpkg);
-    env->ReleaseStringUTFChars((jstring) key, cpkg);
 
     auto currentUid = env->GetIntField(profile, currentUidField);
 
@@ -285,7 +338,9 @@ Java_me_weishu_kernelsu_Natives_setAppProfile(JNIEnv *env, jobject clazz, jobjec
     app_profile p = {};
     p.version = KSU_APP_PROFILE_VER;
 
-    strcpy(p.key, p_key);
+    if (!copyJStringToFixed(env, (jstring) key, p.key, sizeof(p.key))) {
+        return false;
+    }
     p.allow_su = allowSu;
     p.curr_uid = currentUid;
 
@@ -293,9 +348,10 @@ Java_me_weishu_kernelsu_Natives_setAppProfile(JNIEnv *env, jobject clazz, jobjec
         p.rp_config.use_default = env->GetBooleanField(profile, rootUseDefaultField);
         auto templateName = env->GetObjectField(profile, rootTemplateField);
         if (templateName) {
-            auto ctemplateName = env->GetStringUTFChars((jstring) templateName, nullptr);
-            strcpy(p.rp_config.template_name, ctemplateName);
-            env->ReleaseStringUTFChars((jstring) templateName, ctemplateName);
+            if (!copyJStringToFixed(env, (jstring) templateName, p.rp_config.template_name,
+                                    sizeof(p.rp_config.template_name))) {
+                return false;
+            }
         }
 
         p.rp_config.profile.uid = uid;
@@ -311,9 +367,10 @@ Java_me_weishu_kernelsu_Natives_setAppProfile(JNIEnv *env, jobject clazz, jobjec
 
         p.rp_config.profile.capabilities.effective = capListToBits(env, capabilities);
 
-        auto cdomain = env->GetStringUTFChars((jstring) domain, nullptr);
-        strcpy(p.rp_config.profile.selinux_domain, cdomain);
-        env->ReleaseStringUTFChars((jstring) domain, cdomain);
+        if (!copyJStringToFixed(env, (jstring) domain, p.rp_config.profile.selinux_domain,
+                                sizeof(p.rp_config.profile.selinux_domain))) {
+            return false;
+        }
 
         p.rp_config.profile.namespaces = env->GetIntField(profile, namespacesField);
 
@@ -355,14 +412,80 @@ Java_me_weishu_kernelsu_Natives_setKernelUmountEnabled(JNIEnv *env, jobject thiz
 
 extern "C"
 JNIEXPORT jboolean JNICALL
+Java_me_weishu_kernelsu_Natives_isWebViewZygoteUmountEnabled(JNIEnv *env, jobject thiz) {
+    return is_webview_zygote_umount_enabled();
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_me_weishu_kernelsu_Natives_setWebViewZygoteUmountEnabled(JNIEnv *env, jobject thiz, jboolean enabled) {
+    return set_webview_zygote_umount_enabled(enabled);
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
 Java_me_weishu_kernelsu_Natives_isSelinuxHideEnabled(JNIEnv *env, jobject thiz) {
     return is_selinux_hide_enabled();
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_me_weishu_kernelsu_Natives_isSelinuxHideSupported(JNIEnv *env, jobject thiz) {
+    return is_selinux_hide_supported();
 }
 
 extern "C"
 JNIEXPORT jint JNICALL
 Java_me_weishu_kernelsu_Natives_setSelinuxHideEnabled(JNIEnv *env, jobject thiz, jboolean enabled) {
     return set_selinux_hide_enabled(enabled);
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_me_weishu_kernelsu_Natives_isAvcSpoofEnabled(JNIEnv *env, jobject thiz) {
+    return is_avc_spoof_enabled();
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_me_weishu_kernelsu_Natives_setAvcSpoofEnabled(JNIEnv *env, jobject thiz, jboolean enabled) {
+    return set_avc_spoof_enabled(enabled);
+}
+
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_me_weishu_kernelsu_Natives_getKernelHookStatus(JNIEnv *env, jobject thiz) {
+    return static_cast<jlong>(get_kernel_hook_status());
+}
+
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_me_weishu_kernelsu_Natives_getGkiSeccompHookStatus(JNIEnv *env, jobject thiz) {
+    return static_cast<jlong>(get_gki_seccomp_hook_status());
+}
+
+extern "C"
+JNIEXPORT jint JNICALL
+Java_me_weishu_kernelsu_Natives_getGkiSeccompHookLastError(JNIEnv *env, jobject thiz) {
+    return static_cast<jint>(get_gki_seccomp_hook_last_error());
+}
+
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_me_weishu_kernelsu_Natives_getGkiSeccompHookCallCount(JNIEnv *env, jobject thiz) {
+    return static_cast<jlong>(get_gki_seccomp_hook_call_count());
+}
+
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_me_weishu_kernelsu_Natives_getGkiSeccompHookReleaseCount(JNIEnv *env, jobject thiz) {
+    return static_cast<jlong>(get_gki_seccomp_hook_release_count());
+}
+
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_me_weishu_kernelsu_Natives_getGkiSeccompHookFailureCount(JNIEnv *env, jobject thiz) {
+    return static_cast<jlong>(get_gki_seccomp_hook_failure_count());
 }
 
 extern "C"
@@ -375,7 +498,7 @@ Java_me_weishu_kernelsu_Natives_getUserName(JNIEnv *env, jobject thiz, jint uid)
     return nullptr;
 }
 
-int fork_dont_care_and_exec_ksud(const char *path, const char *pkg) {
+int fork_dont_care_and_exec_ksud(const char *path, const char *pkg, int manager_uid) {
     int pid = fork();
     if (pid < 0) {
         PLOGE("fork");
@@ -392,6 +515,11 @@ int fork_dont_care_and_exec_ksud(const char *path, const char *pkg) {
         return pid;
     }
 
+    if (setgid(0) != 0) {
+        PLOGE("setgid");
+        _exit(1);
+    }
+
     if (setuid(0) != 0) {
         PLOGE("setuid");
         _exit(1);
@@ -405,7 +533,10 @@ int fork_dont_care_and_exec_ksud(const char *path, const char *pkg) {
         _exit(0);
     }
 
-    execl(path, "ksud", "late-load", "--magica", "5555", "--package-name", pkg, nullptr);
+    char manager_uid_arg[16];
+    snprintf(manager_uid_arg, sizeof(manager_uid_arg), "%d", manager_uid);
+    execl(path, "ksud", "late-load", "--magica", "5555", "--package-name", pkg,
+          "--manager-uid", manager_uid_arg, nullptr);
     PLOGE("exec magica");
     _exit(1);
 }
@@ -413,11 +544,13 @@ int fork_dont_care_and_exec_ksud(const char *path, const char *pkg) {
 extern "C"
 JNIEXPORT void JNICALL
 Java_me_weishu_kernelsu_magica_AppZygotePreload_forkDontCareAndExecKsud(JNIEnv *env, jclass clazz,
-                                                                        jstring ksud_path, jstring pkg_name) {
+                                                                        jstring ksud_path,
+                                                                        jstring pkg_name,
+                                                                        jint manager_uid) {
     auto path = env->GetStringUTFChars(ksud_path, nullptr);
     auto pkg = env->GetStringUTFChars(pkg_name, nullptr);
-    LOGD("executing magica %s (pkg %s)", path, pkg);
-    fork_dont_care_and_exec_ksud(path, pkg);
+    LOGD("executing magica %s (pkg %s, uid %d)", path, pkg, manager_uid);
+    fork_dont_care_and_exec_ksud(path, pkg, manager_uid);
     env->ReleaseStringUTFChars(ksud_path, path);
     env->ReleaseStringUTFChars(pkg_name, pkg);
 }

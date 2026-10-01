@@ -13,6 +13,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.android.awaitFrame
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import me.weishu.kernelsu.ui.component.miuix.modifier.inspectDragGestures
@@ -114,7 +115,9 @@ class DampedDragAnimation(
             awaitFrame()
             if (value != targetValue) {
                 val threshold = (valueRange.endInclusive - valueRange.start) * 0.025f
-                snapshotFlow { valueAnimation.value }.first { abs(it - valueAnimation.targetValue) < threshold }
+                snapshotFlow { valueAnimation.value }
+                    .filter { abs(it - valueAnimation.targetValue) < threshold }
+                    .first()
             }
             launch { pressProgressAnimation.animateTo(0f, pressProgressAnimationSpec) }
             launch { scaleXAnimation.animateTo(initialScale, scaleXAnimationSpec) }

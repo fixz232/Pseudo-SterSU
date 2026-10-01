@@ -1,15 +1,26 @@
 package me.weishu.kernelsu.ui.theme
 
+import android.content.Context
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.platform.LocalContext
 import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
-import me.weishu.kernelsu.data.repository.SettingsRepository
-import me.weishu.kernelsu.data.repository.SettingsRepositoryImpl
+import me.weishu.kernelsu.ui.InterfaceStyle
+import me.weishu.kernelsu.ui.LocalInterfaceStyle
 import me.weishu.kernelsu.ui.LocalUiMode
 import me.weishu.kernelsu.ui.UiMode
+import me.weishu.kernelsu.ui.component.pixel.LocalPixelStyle
+import me.weishu.kernelsu.ui.component.pixel.PixelStyle
+import me.weishu.kernelsu.ui.component.rain.LocalRainStyle
+import me.weishu.kernelsu.ui.component.rain.RainStyle
+import me.weishu.kernelsu.ui.component.rain.forceRainDarkTheme
+import me.weishu.kernelsu.ui.util.InterfaceStyleTheme
+import me.weishu.kernelsu.ui.util.LocalInterfaceStyleTheme
+import me.weishu.kernelsu.ui.util.AppFontState
+import me.weishu.kernelsu.ui.util.readAppFontState
 
 enum class ColorMode(val value: Int) {
     SYSTEM(0),
@@ -27,19 +38,19 @@ enum class ColorMode(val value: Int) {
     val isSystem: Boolean get() = value == 0 || value == 3
     val isDark: Boolean get() = value == 2 || value == 5 || value == 6
     val isAmoled: Boolean get() = value == 6
-    val isMonet: Boolean get() = value >= 3
+    val isMonet: Boolean get() = this == MONET_SYSTEM || this == MONET_LIGHT || this == MONET_DARK
 
     fun toNonMonetMode(): Int = when (this) {
         MONET_SYSTEM -> 0
         MONET_LIGHT -> 1
-        MONET_DARK, DARK_AMOLED -> 2
+        MONET_DARK -> 2
         else -> value
     }
 
     fun toMonetMode(): Int = when (this) {
         SYSTEM -> 3
         LIGHT -> 4
-        DARK -> 5
+        DARK, DARK_AMOLED -> 5
         else -> value
     }
 }
@@ -49,13 +60,14 @@ data class AppSettings(
     val keyColor: Int,
     val paletteStyle: PaletteStyle,
     val colorSpec: ColorSpec.SpecVersion,
+    val monetSurfaceOpacity: Float = ThemeAppearanceDefaults.MONET_SURFACE_OPACITY,
 )
 
 val PaletteStyle.supportsSpec2025: Boolean
     get() = this == PaletteStyle.TonalSpot ||
-            this == PaletteStyle.Neutral ||
-            this == PaletteStyle.Vibrant ||
-            this == PaletteStyle.Expressive
+        this == PaletteStyle.Neutral ||
+        this == PaletteStyle.Vibrant ||
+        this == PaletteStyle.Expressive
 
 fun ColorSpec.SpecVersion.effectiveFor(style: PaletteStyle): ColorSpec.SpecVersion =
     if (this == ColorSpec.SpecVersion.SPEC_2025 && !style.supportsSpec2025) {
@@ -65,12 +77,32 @@ fun ColorSpec.SpecVersion.effectiveFor(style: PaletteStyle): ColorSpec.SpecVersi
     }
 
 object ThemeController {
-    fun getAppSettings(repo: SettingsRepository = SettingsRepositoryImpl()): AppSettings {
-        val uiMode = repo.uiMode
-        var colorModeValue = repo.themeMode
+    fun getAppSettings(context: Context): AppSettings {
+        val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+        val storedUiMode = prefs.getString("ui_mode", UiMode.DEFAULT_VALUE)
+        val uiMode = InterfaceStyle.normalizeValue(storedUiMode)
+        if (storedUiMode != uiMode) {
+            prefs.edit().putString("ui_mode", uiMode).apply()
+        }
+        val defaultPreset = when (uiMode) {
+            InterfaceStyle.Skrootpro.value -> ThemePreset.SKROOTPRO
+            InterfaceStyle.Alpha.value -> ThemePreset.ALPHA
+            InterfaceStyle.Delta.value -> ThemePreset.DELTA
+            InterfaceStyle.LiquidGlass.value -> ThemePreset.LIQUID_GLASS
+            InterfaceStyle.Snow.value -> ThemePreset.SNOW
+            InterfaceStyle.Rain.value -> ThemePreset.RAIN
+            InterfaceStyle.Pixel.value -> ThemePreset.PIXEL
+            else -> ThemePreset.CLEAN_TOOL
+        }
+        val syncStrategy = ThemeSyncStrategy.fromValue(
+            prefs.getString(THEME_SYNC_STRATEGY_KEY, ThemeSyncStrategy.SHARED.value)
+        )
+        fun key(base: String) = themePreferenceKey(base, syncStrategy, uiMode)
 
-        if (uiMode == "miuix") {
-            val miuixMonet = repo.miuixMonet
+        var colorModeValue = prefs.getInt(key("color_mode"), defaultPreset.colorMode.value)
+
+        if (InterfaceStyle.isMiuixBased(uiMode)) {
+            val miuixMonet = prefs.getBoolean(key("miuix_monet"), false)
             val colorMode = ColorMode.fromValue(colorModeValue)
             colorModeValue = if (!miuixMonet && colorMode.isMonet) {
                 colorMode.toNonMonetMode()
@@ -82,39 +114,52 @@ object ThemeController {
         }
 
         val colorMode = ColorMode.fromValue(colorModeValue)
-        val keyColor = repo.keyColor
-        val paletteStyleStr = repo.colorStyle
+        val keyColor = prefs.getInt(key("key_color"), defaultPreset.keyColor)
+        val paletteStyleStr = prefs.getString(key("color_style"), defaultPreset.paletteStyle.name)
         val paletteStyle = try {
-            PaletteStyle.valueOf(paletteStyleStr)
+            PaletteStyle.valueOf(paletteStyleStr!!)
         } catch (_: Exception) {
-            PaletteStyle.TonalSpot
+            defaultPreset.paletteStyle
         }
-        val colorSpecStr = repo.colorSpec
+        val colorSpecStr = prefs.getString(key("color_spec"), defaultPreset.colorSpec.name)
         val colorSpec = try {
-            ColorSpec.SpecVersion.valueOf(colorSpecStr)
+            ColorSpec.SpecVersion.valueOf(colorSpecStr!!)
         } catch (_: Exception) {
-            ColorSpec.SpecVersion.SPEC_2025
+            defaultPreset.colorSpec
         }
 
-        return AppSettings(colorMode, keyColor, paletteStyle, colorSpec)
+        val monetSurfaceOpacity = sanitizeMonetSurfaceOpacity(
+            prefs.getFloat(
+                key("monet_surface_opacity"),
+                defaultPreset.monetSurfaceOpacity,
+            )
+        )
+
+        return AppSettings(colorMode, keyColor, paletteStyle, colorSpec, monetSurfaceOpacity)
     }
 }
 
 @Composable
 fun KernelSUTheme(
-    appSettings: AppSettings = ThemeController.getAppSettings(),
+    appSettings: AppSettings? = null,
+    appFontState: AppFontState? = null,
     uiMode: UiMode = LocalUiMode.current,
     content: @Composable () -> Unit
 ) {
+    val context = LocalContext.current
+    val currentAppSettings = appSettings ?: ThemeController.getAppSettings(context)
+    val currentAppFontState = appFontState ?: readAppFontState(context)
 
     when (uiMode) {
         UiMode.Miuix -> MiuixKernelSUTheme(
-            appSettings = appSettings,
+            appSettings = currentAppSettings,
+            appFontState = currentAppFontState,
             content = content
         )
 
         UiMode.Material -> MaterialKernelSUTheme(
-            appSettings = appSettings,
+            appSettings = currentAppSettings,
+            appFontState = currentAppFontState,
             content = content
         )
     }
@@ -123,6 +168,18 @@ fun KernelSUTheme(
 @Composable
 @ReadOnlyComposable
 fun isInDarkTheme(): Boolean {
+    if (
+        LocalInterfaceStyle.current == InterfaceStyle.Rain.value &&
+        forceRainDarkTheme(LocalRainStyle.current, LocalInterfaceStyleTheme.current)
+    ) {
+        return true
+    }
+    if (
+        LocalInterfaceStyle.current == InterfaceStyle.Pixel.value &&
+        LocalInterfaceStyleTheme.current?.forceDark == true
+    ) {
+        return true
+    }
     return when (LocalColorMode.current) {
         1, 4 -> false  // Force light mode
         2, 5, 6 -> true   // Force dark mode
@@ -130,12 +187,44 @@ fun isInDarkTheme(): Boolean {
     }
 }
 
+fun isInterfaceForcedDark(
+    interfaceStyle: String,
+    rainStyle: RainStyle,
+    pixelStyle: PixelStyle,
+    interfaceTheme: InterfaceStyleTheme? = null,
+): Boolean {
+    return when (interfaceStyle) {
+        InterfaceStyle.Rain.value -> forceRainDarkTheme(rainStyle, interfaceTheme)
+        InterfaceStyle.Pixel.value -> interfaceTheme?.engine == InterfaceStyle.Pixel.value &&
+            interfaceTheme.variant == pixelStyle.value && interfaceTheme.forceDark
+        else -> false
+    }
+}
+
+fun resolveEffectiveDarkMode(
+    colorMode: ColorMode,
+    systemDark: Boolean,
+    interfaceStyle: String,
+    rainStyle: RainStyle,
+    pixelStyle: PixelStyle,
+    interfaceTheme: InterfaceStyleTheme? = null,
+): Boolean {
+    return isInterfaceForcedDark(interfaceStyle, rainStyle, pixelStyle, interfaceTheme) ||
+        colorMode.isDark || colorMode.isSystem && systemDark
+}
+
 val LocalColorMode = staticCompositionLocalOf { 0 }
 
 val LocalEnableBlur = staticCompositionLocalOf { false }
+
+val LocalBlurIntensity = staticCompositionLocalOf { ThemeAppearanceDefaults.BLUR_INTENSITY }
 
 val LocalEnableFloatingBottomBar = staticCompositionLocalOf { false }
 
 val LocalEnableFloatingBottomBarBlur = staticCompositionLocalOf { false }
 
-val LocalEnableNavigationBadge = staticCompositionLocalOf { true }
+val LocalAutoHideNavigationBar = staticCompositionLocalOf { false }
+
+val LocalScrollHideNavigationBar = staticCompositionLocalOf { false }
+
+val LocalModuleTopBarAutoHide = staticCompositionLocalOf { false }

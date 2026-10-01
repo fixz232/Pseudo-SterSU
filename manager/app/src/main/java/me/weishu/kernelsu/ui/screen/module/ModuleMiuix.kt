@@ -2,9 +2,6 @@ package me.weishu.kernelsu.ui.screen.module
 
 import android.annotation.SuppressLint
 import android.app.Activity.RESULT_OK
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
@@ -16,16 +13,18 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,6 +44,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -54,19 +54,18 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -77,7 +76,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.FixedScale
@@ -87,7 +89,6 @@ import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextLayoutResult
@@ -97,6 +98,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Job
@@ -107,16 +109,31 @@ import me.weishu.kernelsu.data.model.Module
 import me.weishu.kernelsu.data.model.ModuleUpdateInfo
 import me.weishu.kernelsu.data.repository.isSoftRebootPreferred
 import me.weishu.kernelsu.ui.component.ListPopupDefaults
+import me.weishu.kernelsu.ui.component.LocalSwitchStyle
 import me.weishu.kernelsu.ui.component.ObserveAsEvents
 import me.weishu.kernelsu.ui.component.ScrollToTopOnChange
 import me.weishu.kernelsu.ui.component.SearchStatus
+import me.weishu.kernelsu.ui.component.StyledSwitch
+import me.weishu.kernelsu.ui.component.SwitchStyle
 import me.weishu.kernelsu.ui.component.dialog.rememberConfirmDialog
 import me.weishu.kernelsu.ui.component.dialog.rememberLoadingDialog
+import me.weishu.kernelsu.ui.component.liquid.globalLiquidGlassButton
+import me.weishu.kernelsu.ui.component.liquid.globalLiquidGlassSurface
+import me.weishu.kernelsu.ui.component.liquid.isLiquidGlassTheme
+import me.weishu.kernelsu.ui.component.snow.isSnowInterfaceStyle
+import me.weishu.kernelsu.ui.component.snow.snowMiuixCardColors
+import me.weishu.kernelsu.ui.component.snow.snowMiuixCardSurface
 import me.weishu.kernelsu.ui.component.miuix.SearchBarFake
 import me.weishu.kernelsu.ui.component.miuix.SearchBox
 import me.weishu.kernelsu.ui.component.miuix.SearchPager
+import me.weishu.kernelsu.ui.component.pixel.pixelMiuixCardSurface
+import me.weishu.kernelsu.ui.component.pixel.pixelAwareMiuixCardCornerRadius
+import me.weishu.kernelsu.ui.component.rebootlistpopup.RebootListPopupMiuix
+import me.weishu.kernelsu.ui.screen.settings.SettingsWallpaperCropDialog
 import me.weishu.kernelsu.ui.theme.LocalEnableBlur
+import me.weishu.kernelsu.ui.theme.LocalModuleTopBarAutoHide
 import me.weishu.kernelsu.ui.theme.isInDarkTheme
+import me.weishu.kernelsu.ui.theme.skrootproTopBarColors
 import me.weishu.kernelsu.ui.util.BlurredBar
 import me.weishu.kernelsu.ui.util.getFileName
 import me.weishu.kernelsu.ui.util.reboot
@@ -125,10 +142,10 @@ import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.DropdownImpl
 import top.yukonga.miuix.kmp.basic.FloatingActionButton
-import top.yukonga.miuix.kmp.basic.FloatingActionButtonDefaults
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
 import top.yukonga.miuix.kmp.basic.ListPopupColumn
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.PopupPositionProvider
@@ -138,17 +155,16 @@ import top.yukonga.miuix.kmp.basic.SnackbarDuration
 import top.yukonga.miuix.kmp.basic.SnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.basic.SnackbarResult
-import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.basic.rememberPullToRefreshState
+import top.yukonga.miuix.kmp.basic.Switch as MiuixSwitch
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Delete
-import top.yukonga.miuix.kmp.icon.extended.Download
-import top.yukonga.miuix.kmp.icon.extended.Sort
+import top.yukonga.miuix.kmp.icon.extended.MoreCircle
 import top.yukonga.miuix.kmp.icon.extended.Undo
 import top.yukonga.miuix.kmp.icon.extended.UploadCloud
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
@@ -193,6 +209,8 @@ fun ModulePagerMiuix(
     )
 
     val scrollBehavior = MiuixScrollBehavior()
+    var fabVisible by remember { mutableStateOf(true) }
+    var scrollDistance by remember { mutableFloatStateOf(0f) }
     val dynamicTopPadding by remember {
         derivedStateOf { 12.dp * (1f - scrollBehavior.state.collapsedFraction) }
     }
@@ -228,12 +246,12 @@ fun ModulePagerMiuix(
             }
 
             is ModuleEffect.SnackBar -> {
-                // Cancel the previous reboot snackbar so a new one replaces it instead of queueing
                 snackbarJob.value?.cancel()
                 snackbarHostState.newestSnackbarData()?.dismiss()
                 // Soft reboot keeps the jailbreak and still applies module changes
                 val softReboot = isSoftRebootPreferred()
                 snackbarJob.value = scope.launch {
+                    snackbarHostState.dismissVisibleSnackbars()
                     val result = snackbarHostState.showSnackbar(
                         message = event.message,
                         actionLabel = context.getString(if (softReboot) R.string.reboot_soft else R.string.reboot),
@@ -254,18 +272,61 @@ fun ModulePagerMiuix(
     }
 
     val listState = rememberLazyListState()
-    val refreshTick = remember { mutableIntStateOf(0) }
+    val nestedScrollConnection = remember(uiState.installButtonVisible) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val isScrolledToEnd =
+                    (listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index == listState.layoutInfo.totalItemsCount - 1
+                            && (listState.layoutInfo.visibleItemsInfo.lastOrNull()?.size
+                        ?: 0) < listState.layoutInfo.viewportEndOffset)
+                val delta = available.y
+                if (!isScrolledToEnd) {
+                    scrollDistance += delta
+                    if (scrollDistance < -50f) {
+                        if (fabVisible) fabVisible = false
+                        scrollDistance = 0f
+                    } else if (scrollDistance > 50f) {
+                        if (!fabVisible) fabVisible = true
+                        scrollDistance = 0f
+                    }
+                }
+                return Offset.Zero
+            }
+        }
+    }
+    val offsetHeight by animateDpAsState(
+        targetValue = if (fabVisible) 0.dp else 180.dp + WindowInsets.systemBars.asPaddingValues().calculateBottomPadding(),
+        animationSpec = tween(durationMillis = 240)
+    )
 
     val backdrop = rememberBlurBackdrop(enableBlur)
     val blurActive = backdrop != null
     val barColor = if (blurActive) Color.Transparent else colorScheme.surface
+    val topBarColors = skrootproTopBarColors(barColor, colorScheme.onSurface)
+    val topBarVisible = rememberModuleTopBarVisible(
+        enabled = LocalModuleTopBarAutoHide.current,
+        isScrollInProgress = listState.isScrollInProgress,
+    )
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
-            BlurredBar(backdrop) {
-                searchStatus.TopAppBarAnim(backgroundColor = barColor) {
-                    TopAppBar(
-                        color = barColor,
+            AnimatedVisibility(
+                visible = topBarVisible,
+                enter = expandVertically(
+                    expandFrom = Alignment.Top,
+                    animationSpec = tween(180),
+                ) + fadeIn(animationSpec = tween(150)),
+                exit = shrinkVertically(
+                    shrinkTowards = Alignment.Top,
+                    animationSpec = tween(160),
+                ) + fadeOut(animationSpec = tween(120)),
+            ) {
+                BlurredBar(backdrop) {
+                    searchStatus.TopAppBarAnim(backgroundColor = topBarColors.container) {
+                        TopAppBar(
+                        color = topBarColors.container,
+                        titleColor = topBarColors.content,
                         title = stringResource(R.string.module),
                         actions = {
                             Box {
@@ -275,8 +336,8 @@ fun ModulePagerMiuix(
                                     holdDownState = showTopPopup.value
                                 ) {
                                     Icon(
-                                        imageVector = MiuixIcons.Sort,
-                                        tint = colorScheme.onSurface,
+                                        imageVector = MiuixIcons.MoreCircle,
+                                        tint = topBarColors.content,
                                         contentDescription = null
                                     )
                                 }
@@ -313,15 +374,19 @@ fun ModulePagerMiuix(
                                     }
                                 )
                             }
+                            RebootListPopupMiuix(
+                                alignment = PopupPositionProvider.Align.TopEnd,
+                                tint = topBarColors.content,
+                            )
                         },
                         navigationIcon = {
                             IconButton(
-                                onClick = actions.onOpenRepo,
+                                onClick = actions.onOpenTools,
                             ) {
                                 Icon(
-                                    imageVector = MiuixIcons.Download,
-                                    tint = colorScheme.onSurface,
-                                    contentDescription = null
+                                    imageVector = Icons.Rounded.Build,
+                                    tint = topBarColors.content,
+                                    contentDescription = stringResource(R.string.module_tools_title)
                                 )
                             }
                         },
@@ -351,7 +416,8 @@ fun ModulePagerMiuix(
                                 SearchBarFake(searchStatus.label, dynamicTopPadding)
                             }
                         }
-                    )
+                        )
+                    }
                 }
             }
         },
@@ -398,8 +464,25 @@ fun ModulePagerMiuix(
                 }
                 FloatingActionButton(
                     modifier = Modifier
+                        .offset {
+                            IntOffset(x = 0, y = offsetHeight.roundToPx())
+                        }
                         .padding(bottom = bottomInnerPadding + 20.dp, end = 20.dp)
-                        .border(0.05.dp, colorScheme.outline.copy(alpha = 0.5f), CircleShape),
+                        .then(
+                            if (isLiquidGlassTheme()) {
+                                Modifier.globalLiquidGlassSurface(
+                                    shape = CircleShape,
+                                    surfaceAlpha = 0.64f,
+                                    blurRadius = 9.dp,
+                                    refractionHeight = 14.dp,
+                                    refractionAmount = 10.dp,
+                                    strokeAlpha = 0.72f,
+                                )
+                            } else {
+                                Modifier.border(0.05.dp, colorScheme.outline.copy(alpha = 0.5f), CircleShape)
+                            }
+                        ),
+                    containerColor = if (isLiquidGlassTheme()) Color.Transparent else colorScheme.primary,
                     shadowElevation = 0.dp,
                     onClick = {
                         // Select the zip files to install
@@ -414,7 +497,7 @@ fun ModulePagerMiuix(
                             Icons.Rounded.Add,
                             moduleInstall,
                             modifier = Modifier.size(40.dp),
-                            tint = colorScheme.onPrimary
+                            tint = if (isLiquidGlassTheme()) colorScheme.primary else colorScheme.onPrimary
                         )
                     },
                 )
@@ -447,12 +530,9 @@ fun ModulePagerMiuix(
         snackbarHost = {
             SnackbarHost(
                 state = snackbarHostState,
-                modifier = if (uiState.installButtonVisible) {
-                    Modifier
-                } else {
-                    // No FAB slot to stack above: keep the snackbar clear of the main bottom bar.
-                    Modifier.padding(bottom = bottomInnerPadding + 20.dp)
-                },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = bottomInnerPadding + 12.dp)
             )
         },
         contentWindowInsets = WindowInsets.systemBars.add(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal)
@@ -484,66 +564,89 @@ fun ModulePagerMiuix(
                 top = innerPadding.calculateTopPadding() + 6.dp,
                 start = innerPadding.calculateStartPadding(layoutDirection),
                 end = innerPadding.calculateEndPadding(layoutDirection),
-                bottom = bottomInnerPadding + FloatingActionButtonDefaults.MinHeight + 20.dp + 12.dp,
+                bottom = bottomInnerPadding,
             )
-            PullToRefresh(
-                isRefreshing = uiState.isRefreshing,
-                pullToRefreshState = pullToRefreshState,
-                onRefresh = {
-                    actions.onRefresh()
-                    refreshTick.intValue++
-                },
-                refreshTexts = refreshTexts,
-                contentPadding = contentPadding,
-            ) {
-                if (modules.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(
-                                top = innerPadding.calculateTopPadding(),
-                                start = innerPadding.calculateStartPadding(layoutDirection),
-                                end = innerPadding.calculateEndPadding(layoutDirection),
-                                bottom = bottomInnerPadding
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        // The refresh indicator doubles as the first-load hint;
-                        // only announce emptiness once loading has finished.
-                        if (uiState.hasLoaded) {
-                            Text(
-                                stringResource(R.string.module_empty),
-                                textAlign = TextAlign.Center,
-                                color = Color.Gray,
-                            )
-                        }
-                    }
-                } else {
-                    val latestModules = rememberUpdatedState(modules)
-                    val latestRefreshing = rememberUpdatedState(uiState.isRefreshing)
-                    ScrollToTopOnChange(
-                        listState,
-                        uiState.sortEnabledFirst,
-                        uiState.sortActionFirst,
-                        refreshTick.intValue,
-                        isBusy = { latestRefreshing.value },
-                    ) { latestModules.value }
-                    Box(modifier = if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier) {
-                        ModuleList(
+            if (modules.isEmpty() && !uiState.hasLoaded) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(
+                            top = innerPadding.calculateTopPadding(),
+                            start = innerPadding.calculateStartPadding(layoutDirection),
+                            end = innerPadding.calculateEndPadding(layoutDirection),
+                            bottom = bottomInnerPadding
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    InfiniteProgressIndicator()
+                }
+            } else {
+                PullToRefresh(
+                    isRefreshing = uiState.isRefreshing,
+                    pullToRefreshState = pullToRefreshState,
+                    onRefresh = actions.onRefresh,
+                    refreshTexts = refreshTexts,
+                    contentPadding = contentPadding,
+                ) {
+                    if (modules.isEmpty()) {
+                        Box(
                             modifier = Modifier
-                                .fillMaxHeight()
-                                .scrollEndHaptic()
-                                .overScrollVertical()
-                                .nestedScroll(scrollBehavior.nestedScrollConnection),
-                            modules = modules,
-                            updateInfoMap = uiState.updateInfo,
-                            actions = actions,
-                            onModuleAddShortcut = { module, type ->
-                                onModuleAddShortcut(module, type)
-                            },
-                            contentPadding = contentPadding,
-                            listState = listState,
-                        )
+                                .fillMaxSize()
+                                .padding(
+                                    top = innerPadding.calculateTopPadding(),
+                                    start = innerPadding.calculateStartPadding(layoutDirection),
+                                    end = innerPadding.calculateEndPadding(layoutDirection),
+                                    bottom = bottomInnerPadding
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (uiState.loadError != null) {
+                                MiuixModuleLoadError(onRetry = actions.onRefresh)
+                            } else {
+                                Text(
+                                    stringResource(R.string.module_empty),
+                                    textAlign = TextAlign.Center,
+                                    color = Color.Gray,
+                                )
+                            }
+                        }
+                    } else {
+                        val latestModules = rememberUpdatedState(modules)
+                        ScrollToTopOnChange(
+                            listState,
+                            uiState.sortEnabledFirst,
+                            uiState.sortActionFirst,
+                        ) { latestModules.value }
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            if (uiState.loadError != null) {
+                                MiuixModuleLoadError(
+                                    onRetry = actions.onRefresh,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier),
+                            ) {
+                                ModuleList(
+                                    modifier = Modifier
+                                        .fillMaxHeight()
+                                        .scrollEndHaptic()
+                                        .overScrollVertical()
+                                        .nestedScroll(scrollBehavior.nestedScrollConnection)
+                                        .nestedScroll(nestedScrollConnection),
+                                    modules = modules,
+                                    updateInfoMap = uiState.updateInfo,
+                                    actions = actions,
+                                    onModuleAddShortcut = { module, type ->
+                                        onModuleAddShortcut(module, type)
+                                    },
+                                    contentPadding = contentPadding,
+                                    listState = listState,
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -565,6 +668,13 @@ fun ModulePagerMiuix(
     )
 }
 
+private suspend fun SnackbarHostState.dismissVisibleSnackbars() {
+    while (true) {
+        val snackbarData = newestSnackbarData() ?: break
+        snackbarData.dismiss()
+    }
+}
+
 @Composable
 private fun ModuleShortcutDialog(
     show: Boolean,
@@ -574,23 +684,12 @@ private fun ModuleShortcutDialog(
     onDeleteShortcut: () -> Unit,
     onConfirmShortcut: () -> Unit,
 ) {
-    val context = LocalContext.current
-    val resources = LocalResources.current
-
-    fun copyShortcutUrl() {
-        val url = shortcutState.buildShortcutUrl() ?: return
-        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboard.setPrimaryClip(ClipData.newPlainText("KernelSU deep link", url))
-        Toast.makeText(context, resources.getString(R.string.module_shortcut_scheme_copied), Toast.LENGTH_SHORT).show()
-    }
-
     OverlayDialog(
         show = show,
         title = stringResource(R.string.module_shortcut_title),
         onDismissRequest = onDismissRequest,
         content = {
             Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
@@ -615,7 +714,7 @@ private fun ModuleShortcutDialog(
                                 .background(Color.White)
                         )
                         Image(
-                            painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                            painter = painterResource(id = R.mipmap.ic_launcher_foreground),
                             contentDescription = null,
                             contentScale = FixedScale(1.5f)
                         )
@@ -623,7 +722,9 @@ private fun ModuleShortcutDialog(
                 }
                 Row {
                     TextButton(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .globalLiquidGlassButton(),
                         text = stringResource(id = R.string.module_shortcut_icon_pick),
                         onClick = onPickShortcutIcon,
                     )
@@ -655,21 +756,20 @@ private fun ModuleShortcutDialog(
                     TextButton(
                         text = stringResource(id = R.string.module_shortcut_delete),
                         onClick = onDeleteShortcut,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .globalLiquidGlassButton(),
                     )
                 }
-                TextButton(
-                    text = stringResource(id = R.string.module_shortcut_copy_scheme),
-                    onClick = ::copyShortcutUrl,
-                    modifier = Modifier.fillMaxWidth(),
-                )
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     TextButton(
                         text = stringResource(id = android.R.string.cancel),
                         onClick = onDismissRequest,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .globalLiquidGlassButton(),
                     )
                     TextButton(
                         text = if (shortcutState.hasExistingShortcut) {
@@ -679,7 +779,9 @@ private fun ModuleShortcutDialog(
                         },
                         onClick = onConfirmShortcut,
                         colors = ButtonDefaults.textButtonColorsPrimary(),
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .globalLiquidGlassButton(),
                     )
                 }
             }
@@ -699,6 +801,7 @@ private fun ModuleList(
 ) {
     val loadingDialog = rememberLoadingDialog()
     val scope = rememberCoroutineScope()
+    val wallpaperPaused = listState.isScrollInProgress
     LazyColumn(
         state = listState,
         modifier = modifier.fillMaxHeight(),
@@ -748,7 +851,9 @@ private fun ModuleList(
                         if (module.hasWebUi) {
                             actions.onOpenWebUi(module)
                         }
-                    }
+                    },
+                    onEditWallpaper = { actions.onOpenWallpaperEditor(currentModuleState.value) },
+                    wallpaperPaused = wallpaperPaused,
                 )
             }
 
@@ -768,7 +873,9 @@ fun ModuleItem(
     onUpdate: () -> Unit,
     onExecuteAction: () -> Unit,
     onAddActionShortcut: (ShortcutType) -> Unit,
-    onOpenWebUi: () -> Unit
+    onOpenWebUi: () -> Unit,
+    onEditWallpaper: () -> Unit,
+    wallpaperPaused: Boolean,
 ) {
     val secondaryContainer = colorScheme.secondaryContainer.copy(alpha = 0.8f)
     val actionIconTint = colorScheme.onSurface.copy(alpha = if (isInDarkTheme()) 0.7f else 0.9f)
@@ -778,285 +885,529 @@ fun ModuleItem(
     val textDecoration = if (module.remove) TextDecoration.LineThrough else null
     val hasDescription = module.description.isNotBlank()
     var expanded by rememberSaveable(module.id) { mutableStateOf(false) }
+    var showWallpaperMenu by rememberSaveable(module.id) { mutableStateOf(false) }
+    var showWallpaperCrop by rememberSaveable(module.id) { mutableStateOf(false) }
+    var showWallpaperPreview by rememberSaveable(module.id) { mutableStateOf(false) }
+    val context = LocalContext.current
+    val wallpaperState = rememberModuleCardWallpaperState(
+        moduleId = module.id,
+        onWallpaperSelected = { showWallpaperCrop = true },
+    )
+    val wallpaperEntry = rememberModuleCardWallpaperFrame(
+        state = wallpaperState,
+        paused = wallpaperPaused || showWallpaperCrop || showWallpaperPreview,
+    )
+    val wallpaperLoadState = rememberModuleCardWallpaperLoadState(wallpaperEntry)
+    val wallpaperBitmap = wallpaperLoadState.bitmap
+    val hasWallpaper = wallpaperEntry != null
 
     Card(
+        cornerRadius = pixelAwareMiuixCardCornerRadius(18.dp),
         modifier = Modifier
             .padding(horizontal = 12.dp)
-            .padding(bottom = 12.dp),
-        insideMargin = PaddingValues(16.dp),
+            .padding(bottom = 12.dp)
+            .then(
+                if (!hasWallpaper) {
+                    Modifier.globalLiquidGlassSurface(
+                        shape = RoundedCornerShape(18.dp),
+                        surfaceAlpha = 0.58f,
+                        blurRadius = 10.dp,
+                        refractionHeight = 14.dp,
+                        refractionAmount = 9.dp,
+                        strokeAlpha = 0.66f,
+                    ).snowMiuixCardSurface(shape = RoundedCornerShape(18.dp))
+                } else if (isSnowInterfaceStyle()) {
+                    Modifier.snowMiuixCardSurface(shape = RoundedCornerShape(18.dp))
+                } else {
+                    Modifier.pixelMiuixCardSurface(
+                        shape = RoundedCornerShape(18.dp),
+                        paintBackground = false,
+                    )
+                }
+            ),
+        colors = if (hasWallpaper) {
+            top.yukonga.miuix.kmp.basic.CardDefaults.defaultColors()
+        } else {
+            snowMiuixCardColors()
+        },
+        insideMargin = PaddingValues(0.dp),
         onClick = {
             if (hasDescription) expanded = !expanded
         }
     ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 4.dp)
-            ) {
-                val moduleVersion = stringResource(id = R.string.module_version)
-                val moduleAuthor = stringResource(id = R.string.module_author)
-
-                SubcomposeLayout { constraints ->
-                    val spacingPx = 6.dp.roundToPx()
-                    var nameTextLayout: TextLayoutResult? = null
-                    val metaPlaceable = if (module.metamodule) {
-                        subcompose("meta") {
-                            Text(
-                                text = "META",
-                                fontSize = 12.sp,
-                                color = updateTint,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(updateBg)
-                                    .padding(horizontal = 6.dp, vertical = 2.dp),
-                                fontWeight = FontWeight(750),
-                                maxLines = 1,
-                                softWrap = false
-                            )
-                        }.first().measure(Constraints(0, constraints.maxWidth, 0, constraints.maxHeight))
-                    } else null
-
-                    val reserved = (metaPlaceable?.width ?: 0) + if (metaPlaceable != null) spacingPx else 0
-                    val nameMax = (constraints.maxWidth - reserved).coerceAtLeast(0)
-                    val namePlaceable = subcompose("name") {
-                        Text(
-                            text = module.name,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight(550),
-                            color = colorScheme.onSurface,
-                            textDecoration = textDecoration,
-                            onTextLayout = { nameTextLayout = it }
-                        )
-                    }.first().measure(Constraints(constraints.minWidth, nameMax, constraints.minHeight, constraints.maxHeight))
-
-                    val width = (namePlaceable.width + reserved).coerceIn(constraints.minWidth, constraints.maxWidth)
-                    val height = maxOf(namePlaceable.height, metaPlaceable?.height ?: 0)
-
-                    layout(width, height) {
-                        namePlaceable.placeRelative(0, 0)
-                        val endX = nameTextLayout?.let { layoutRes ->
-                            val last = (layoutRes.lineCount - 1).coerceAtLeast(0)
-                            layoutRes.getLineRight(last).toInt()
-                        } ?: namePlaceable.width
-                        metaPlaceable?.placeRelative(endX + spacingPx, (height - (metaPlaceable.height)) / 2)
-                    }
-                }
-                Text(
-                    text = "$moduleVersion: ${module.version}",
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(top = 2.dp),
-                    fontWeight = FontWeight(550),
-                    color = colorScheme.onSurfaceVariantSummary,
-                    textDecoration = textDecoration
-                )
-                Text(
-                    text = "$moduleAuthor: ${module.author}",
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(bottom = 1.dp),
-                    fontWeight = FontWeight(550),
-                    color = colorScheme.onSurfaceVariantSummary,
-                    textDecoration = textDecoration
-                )
-            }
-            Switch(
-                enabled = !module.update,
-                checked = module.enabled,
-                onCheckedChange = {
-                    if (it != module.enabled) onCheckChanged(it)
-                }
-            )
-        }
-
-        if (hasDescription) {
-            Box(
-                modifier = Modifier
-                    .padding(top = 2.dp)
-                    .animateContentSize(
-                        animationSpec = tween(
-                            durationMillis = 250,
-                            easing = FastOutSlowInEasing
-                        )
-                    )
-            ) {
-                Text(
-                    text = module.description,
-                    fontSize = 14.sp,
-                    color = colorScheme.onSurfaceVariantSummary,
-                    overflow = if (expanded) TextOverflow.Clip else TextOverflow.Ellipsis,
-                    maxLines = if (expanded) Int.MAX_VALUE else 4,
-                    textDecoration = textDecoration
-                )
-            }
-        }
-
-        HorizontalDivider(
-            modifier = Modifier.padding(vertical = 8.dp),
-            thickness = 0.5.dp,
-            color = colorScheme.outline.copy(alpha = 0.5f)
-        )
-
-        Row {
-            AnimatedVisibility(
-                visible = module.enabled && !module.remove && !module.update,
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (module.hasActionScript) {
-                        Row(
-                            modifier = Modifier
-                                .heightIn(min = 35.dp)
-                                .widthIn(min = 35.dp)
-                                .clip(CircleShape)
-                                .background(secondaryContainer)
-                                .combinedClickable(
-                                    onClick = onExecuteAction,
-                                    onLongClick = { onAddActionShortcut(ShortcutType.Action) }
-                                )
-                                .padding(
-                                    start = if (!module.hasWebUi && !hasUpdate) 6.dp else 0.dp,
-                                    end = if (!module.hasWebUi && !hasUpdate) 8.dp else 0.dp,
-                                ),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                modifier = Modifier.size(24.dp),
-                                imageVector = Icons.Rounded.PlayArrow,
-                                tint = actionIconTint,
-                                contentDescription = stringResource(R.string.action)
-                            )
-                            if (!module.hasWebUi && !hasUpdate) {
-                                Text(
-                                    modifier = Modifier.padding(start = 3.dp, end = 4.dp),
-                                    text = stringResource(R.string.action),
-                                    color = actionIconTint,
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 15.sp,
-                                )
-                            }
-                        }
-                    }
-                    if (module.hasWebUi) {
-                        Row(
-                            modifier = Modifier
-                                .heightIn(min = 35.dp)
-                                .widthIn(min = 35.dp)
-                                .clip(CircleShape)
-                                .background(secondaryContainer)
-                                .combinedClickable(
-                                    onClick = onOpenWebUi,
-                                    onLongClick = { onAddActionShortcut(ShortcutType.WebUI) }
-                                )
-                                .padding(horizontal = if (!module.hasActionScript && !hasUpdate) 10.dp else 0.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                modifier = Modifier.size(22.dp),
-                                imageVector = Icons.Rounded.Code,
-                                tint = actionIconTint,
-                                contentDescription = stringResource(R.string.open)
-                            )
-                            if (!module.hasActionScript && !hasUpdate) {
-                                Text(
-                                    modifier = Modifier.padding(start = 4.dp, end = 2.dp),
-                                    text = stringResource(R.string.open),
-                                    color = actionIconTint,
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 15.sp,
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(Modifier.weight(1f))
-
-            AnimatedVisibility(
-                visible = hasUpdate,
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
-                IconButton(
-                    modifier = Modifier.padding(end = 8.dp),
-                    backgroundColor = updateBg,
-                    enabled = !module.remove,
-                    minHeight = 35.dp,
-                    minWidth = 35.dp,
-                    onClick = onUpdate,
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(2.dp),
-                    ) {
-                        Icon(
-                            modifier = Modifier.size(20.dp),
-                            imageVector = MiuixIcons.UploadCloud,
-                            tint = updateTint,
-                            contentDescription = stringResource(R.string.module_update),
-                        )
-                        Text(
-                            modifier = Modifier.padding(start = 4.dp, end = 3.dp),
-                            text = stringResource(R.string.module_update),
-                            color = updateTint,
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 15.sp
-                        )
-                    }
-                }
-            }
-            IconButton(
-                minHeight = 35.dp,
-                minWidth = 35.dp,
-                onClick = if (module.remove) onUndoUninstall else onUninstall,
-                backgroundColor = if (module.remove) {
-                    secondaryContainer.copy(alpha = 0.8f)
-                } else {
-                    secondaryContainer
-                },
-            ) {
-                val animatedPadding by animateDpAsState(
-                    targetValue = if (!hasUpdate) 10.dp else 0.dp,
-                    animationSpec = tween(durationMillis = 300)
-                )
+        Box {
+            ModuleCardWallpaperBackground(bitmap = wallpaperBitmap, entry = wallpaperEntry)
+            Column(modifier = Modifier.padding(16.dp)) {
                 Row(
-                    modifier = Modifier.padding(horizontal = animatedPadding),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(
-                        modifier = Modifier.size(20.dp),
-                        imageVector = if (module.remove) {
-                            MiuixIcons.Undo
-                        } else {
-                            MiuixIcons.Delete
-                        },
-                        tint = actionIconTint,
-                        contentDescription = null
-                    )
-                    AnimatedVisibility(
-                        visible = !hasUpdate,
-                        enter = expandHorizontally(),
-                        exit = shrinkHorizontally()
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 4.dp)
                     ) {
+                        val moduleVersion = stringResource(id = R.string.module_version)
+                        val moduleAuthor = stringResource(id = R.string.module_author)
+
+                        SubcomposeLayout { constraints ->
+                            val spacingPx = 6.dp.roundToPx()
+                            var nameTextLayout: TextLayoutResult? = null
+                            val metaPlaceable = if (module.metamodule) {
+                                subcompose("meta") {
+                                    Text(
+                                        text = "META",
+                                        fontSize = 12.sp,
+                                        color = updateTint,
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(updateBg)
+                                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                                        fontWeight = FontWeight(750),
+                                        maxLines = 1,
+                                        softWrap = false
+                                    )
+                                }.first().measure(Constraints(0, constraints.maxWidth, 0, constraints.maxHeight))
+                            } else null
+
+                            val reserved = (metaPlaceable?.width ?: 0) + if (metaPlaceable != null) spacingPx else 0
+                            val nameMax = (constraints.maxWidth - reserved).coerceAtLeast(0)
+                            val namePlaceable = subcompose("name") {
+                                Text(
+                                    text = module.name,
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight(550),
+                                    color = colorScheme.onSurface,
+                                    textDecoration = textDecoration,
+                                    onTextLayout = { nameTextLayout = it }
+                                )
+                            }.first().measure(Constraints(constraints.minWidth, nameMax, constraints.minHeight, constraints.maxHeight))
+
+                            val width = (namePlaceable.width + reserved).coerceIn(constraints.minWidth, constraints.maxWidth)
+                            val height = maxOf(namePlaceable.height, metaPlaceable?.height ?: 0)
+
+                            layout(width, height) {
+                                namePlaceable.placeRelative(0, 0)
+                                val endX = nameTextLayout?.let { layoutRes ->
+                                    val last = (layoutRes.lineCount - 1).coerceAtLeast(0)
+                                    layoutRes.getLineRight(last).toInt()
+                                } ?: namePlaceable.width
+                                metaPlaceable?.placeRelative(endX + spacingPx, (height - (metaPlaceable.height)) / 2)
+                            }
+                        }
                         Text(
-                            modifier = Modifier.padding(start = 4.dp, end = 3.dp),
-                            text = stringResource(
-                                if (module.remove) R.string.undo else R.string.uninstall
-                            ),
-                            color = actionIconTint,
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 15.sp
+                            text = "$moduleVersion: ${module.version}",
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(top = 2.dp),
+                            fontWeight = FontWeight(550),
+                            color = colorScheme.onSurfaceVariantSummary,
+                            textDecoration = textDecoration
+                        )
+                        Text(
+                            text = "$moduleAuthor: ${module.author}",
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(bottom = 1.dp),
+                            fontWeight = FontWeight(550),
+                            color = colorScheme.onSurfaceVariantSummary,
+                            textDecoration = textDecoration
+                        )
+                    }
+                    val switchStyle = LocalSwitchStyle.current
+                    if (switchStyle == SwitchStyle.Original) {
+                        MiuixSwitch(
+                            enabled = !module.update,
+                            checked = module.enabled,
+                            onCheckedChange = {
+                                if (it != module.enabled) onCheckChanged(it)
+                            }
+                        )
+                    } else {
+                        StyledSwitch(
+                            enabled = !module.update,
+                            checked = module.enabled,
+                            onCheckedChange = {
+                                if (it != module.enabled) onCheckChanged(it)
+                            },
+                            style = switchStyle,
                         )
                     }
                 }
+
+                if (hasDescription) {
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 2.dp)
+                            .animateContentSize(
+                                animationSpec = tween(
+                                    durationMillis = 250,
+                                    easing = FastOutSlowInEasing
+                                )
+                            )
+                    ) {
+                        Text(
+                            text = module.description,
+                            fontSize = 14.sp,
+                            color = colorScheme.onSurfaceVariantSummary,
+                            overflow = if (expanded) TextOverflow.Clip else TextOverflow.Ellipsis,
+                            maxLines = if (expanded) Int.MAX_VALUE else 4,
+                            textDecoration = textDecoration
+                        )
+                    }
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    thickness = 0.5.dp,
+                    color = colorScheme.outline.copy(alpha = 0.5f)
+                )
+
+                val primaryAction = resolveModulePrimaryAction(module, hasUpdate)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    when (primaryAction) {
+                        ModulePrimaryAction.UndoUninstall -> IconButton(
+                            minHeight = 48.dp,
+                            minWidth = 48.dp,
+                            onClick = onUndoUninstall,
+                            backgroundColor = secondaryContainer,
+                        ) {
+                            Row(modifier = Modifier.padding(horizontal = 10.dp)) {
+                                Icon(
+                                    imageVector = MiuixIcons.Undo,
+                                    tint = actionIconTint,
+                                    contentDescription = null,
+                                )
+                                Text(
+                                    text = stringResource(R.string.undo),
+                                    color = actionIconTint,
+                                    modifier = Modifier.padding(start = 6.dp),
+                                )
+                            }
+                        }
+
+                        ModulePrimaryAction.Update -> IconButton(
+                            minHeight = 48.dp,
+                            minWidth = 48.dp,
+                            onClick = onUpdate,
+                            backgroundColor = updateBg,
+                        ) {
+                            Row(modifier = Modifier.padding(horizontal = 10.dp)) {
+                                Icon(
+                                    imageVector = MiuixIcons.UploadCloud,
+                                    tint = updateTint,
+                                    contentDescription = null,
+                                )
+                                Text(
+                                    text = stringResource(R.string.module_update),
+                                    color = updateTint,
+                                    modifier = Modifier.padding(start = 6.dp),
+                                )
+                            }
+                        }
+
+                        ModulePrimaryAction.WebUi -> IconButton(
+                            minHeight = 48.dp,
+                            minWidth = 48.dp,
+                            onClick = onOpenWebUi,
+                            backgroundColor = secondaryContainer,
+                        ) {
+                            Row(modifier = Modifier.padding(horizontal = 10.dp)) {
+                                Icon(Icons.Rounded.Code, contentDescription = null, tint = actionIconTint)
+                                Text("WebUI", color = actionIconTint, modifier = Modifier.padding(start = 6.dp))
+                            }
+                        }
+
+                        ModulePrimaryAction.Action -> IconButton(
+                            minHeight = 48.dp,
+                            minWidth = 48.dp,
+                            onClick = onExecuteAction,
+                            backgroundColor = secondaryContainer,
+                        ) {
+                            Row(modifier = Modifier.padding(horizontal = 10.dp)) {
+                                Icon(Icons.Rounded.PlayArrow, contentDescription = null, tint = actionIconTint)
+                                Text(
+                                    text = stringResource(R.string.action),
+                                    color = actionIconTint,
+                                    modifier = Modifier.padding(start = 6.dp),
+                                )
+                            }
+                        }
+
+                        ModulePrimaryAction.None -> Spacer(modifier = Modifier.weight(1f))
+                    }
+                    Spacer(modifier = Modifier.widthIn(min = 8.dp))
+                    ModuleActionsMenuMiuix(
+                        expanded = showWallpaperMenu,
+                        module = module,
+                        primaryAction = primaryAction,
+                        hasWallpaper = wallpaperState.hasSelectedWallpaper,
+                        canPlayCarousel = wallpaperState.canPlayCarousel,
+                        carouselEnabled = wallpaperState.carouselEnabled,
+                        onExpandedChange = { showWallpaperMenu = it },
+                        onOpenWebUi = onOpenWebUi,
+                        onExecuteAction = onExecuteAction,
+                        onAddActionShortcut = { onAddActionShortcut(ShortcutType.Action) },
+                        onAddWebUiShortcut = { onAddActionShortcut(ShortcutType.WebUI) },
+                        onPickWallpaper = onEditWallpaper,
+                        onCropWallpaper = { showWallpaperCrop = true },
+                        onPreviewWallpaper = { showWallpaperPreview = true },
+                        onToggleCarousel = wallpaperState.onToggleCarousel,
+                        onSyncThemeStore = {
+                            val message = if (wallpaperState.onSyncThemeStore()) {
+                                R.string.module_wallpaper_sync_theme_store_success
+                            } else {
+                                R.string.module_wallpaper_sync_theme_store_failed
+                            }
+                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                        },
+                        onClearWallpaper = wallpaperState.onClearWallpaper,
+                        onUninstall = onUninstall,
+                    )
+                }
             }
         }
+    }
+
+    SettingsWallpaperCropDialog(
+        show = showWallpaperCrop && wallpaperEntry != null,
+        uriString = wallpaperEntry?.uriString,
+        crop = wallpaperEntry?.crop ?: wallpaperState.crop,
+        onCropChange = wallpaperState.onCropChange,
+        onDismissRequest = { showWallpaperCrop = false },
+        title = stringResource(R.string.module_wallpaper_crop),
+        editorAspectRatio = MODULE_CARD_WALLPAPER_ASPECT_RATIO,
+        cropAspectRatio = MODULE_CARD_WALLPAPER_ASPECT_RATIO,
+    )
+    ModuleCardWallpaperPreviewDialog(
+        show = showWallpaperPreview,
+        moduleName = module.name,
+        uriString = wallpaperEntry?.uriString,
+        bitmap = wallpaperBitmap,
+        loadFailed = wallpaperLoadState.failed,
+        onDismissRequest = { showWallpaperPreview = false },
+    )
+}
+
+@Composable
+private fun MiuixModuleLoadError(
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(colorScheme.errorContainer)
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = stringResource(R.string.module_failed_to_load),
+            color = colorScheme.onErrorContainer,
+            textAlign = TextAlign.Center,
+        )
+        TextButton(
+            text = stringResource(R.string.network_retry),
+            onClick = onRetry,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+    }
+}
+
+@Composable
+private fun ModuleActionsMenuMiuix(
+    expanded: Boolean,
+    module: Module,
+    primaryAction: ModulePrimaryAction,
+    hasWallpaper: Boolean,
+    canPlayCarousel: Boolean,
+    carouselEnabled: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    onOpenWebUi: () -> Unit,
+    onExecuteAction: () -> Unit,
+    onAddActionShortcut: () -> Unit,
+    onAddWebUiShortcut: () -> Unit,
+    onPickWallpaper: () -> Unit,
+    onCropWallpaper: () -> Unit,
+    onPreviewWallpaper: () -> Unit,
+    onToggleCarousel: () -> Unit,
+    onSyncThemeStore: () -> Unit,
+    onClearWallpaper: () -> Unit,
+    onUninstall: () -> Unit,
+) {
+    val canOpenModule = module.enabled && !module.remove && !module.update
+    val moduleActionCount =
+        (if (canOpenModule && module.hasWebUi && primaryAction != ModulePrimaryAction.WebUi) 1 else 0) +
+            (if (canOpenModule && module.hasActionScript && primaryAction != ModulePrimaryAction.Action) 1 else 0) +
+            (if (canOpenModule && module.hasActionScript) 1 else 0) +
+            (if (canOpenModule && module.hasWebUi) 1 else 0)
+    val wallpaperActionCount = if (!hasWallpaper) 1 else if (canPlayCarousel) 6 else 5
+    val optionSize = moduleActionCount + wallpaperActionCount + if (module.remove) 0 else 1
+    val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    Box(
+        modifier = Modifier.clickable(
+            interactionSource = interactionSource,
+            indication = null,
+            onClick = { },
+        )
+    ) {
+        IconButton(
+            minHeight = 48.dp,
+            minWidth = 48.dp,
+            holdDownState = expanded,
+            onClick = { onExpandedChange(true) },
+        ) {
+            Icon(
+                modifier = Modifier.size(20.dp),
+                imageVector = MiuixIcons.MoreCircle,
+                tint = colorScheme.onSurface.copy(alpha = if (isInDarkTheme()) 0.7f else 0.9f),
+                contentDescription = stringResource(R.string.module_more_actions),
+            )
+        }
+        OverlayListPopup(
+            show = expanded,
+            popupPositionProvider = ListPopupDefaults.MenuPositionProvider,
+            alignment = PopupPositionProvider.Align.TopEnd,
+            onDismissRequest = { onExpandedChange(false) },
+            content = {
+                ListPopupColumn {
+                    var optionIndex = 0
+                    if (canOpenModule && module.hasWebUi && primaryAction != ModulePrimaryAction.WebUi) {
+                        DropdownImpl(
+                            text = "WebUI",
+                            optionSize = optionSize,
+                            isSelected = false,
+                            index = optionIndex++,
+                            onSelectedIndexChange = {
+                                onExpandedChange(false)
+                                onOpenWebUi()
+                            },
+                        )
+                    }
+                    if (canOpenModule && module.hasActionScript && primaryAction != ModulePrimaryAction.Action) {
+                        DropdownImpl(
+                            text = stringResource(R.string.action),
+                            optionSize = optionSize,
+                            isSelected = false,
+                            index = optionIndex++,
+                            onSelectedIndexChange = {
+                                onExpandedChange(false)
+                                onExecuteAction()
+                            },
+                        )
+                    }
+                    if (canOpenModule && module.hasActionScript) {
+                        DropdownImpl(
+                            text = stringResource(R.string.module_action_shortcut),
+                            optionSize = optionSize,
+                            isSelected = false,
+                            index = optionIndex++,
+                            onSelectedIndexChange = {
+                                onExpandedChange(false)
+                                onAddActionShortcut()
+                            },
+                        )
+                    }
+                    if (canOpenModule && module.hasWebUi) {
+                        DropdownImpl(
+                            text = stringResource(R.string.module_webui_shortcut),
+                            optionSize = optionSize,
+                            isSelected = false,
+                            index = optionIndex++,
+                            onSelectedIndexChange = {
+                                onExpandedChange(false)
+                                onAddWebUiShortcut()
+                            },
+                        )
+                    }
+                    DropdownImpl(
+                        text = stringResource(R.string.module_wallpaper_pick),
+                        optionSize = optionSize,
+                        isSelected = false,
+                        index = optionIndex++,
+                        onSelectedIndexChange = {
+                            onExpandedChange(false)
+                            onPickWallpaper()
+                        },
+                    )
+                    if (hasWallpaper) {
+                        DropdownImpl(
+                            text = stringResource(R.string.module_wallpaper_crop),
+                            optionSize = optionSize,
+                            isSelected = false,
+                            index = optionIndex++,
+                            onSelectedIndexChange = {
+                                onExpandedChange(false)
+                                onCropWallpaper()
+                            },
+                        )
+                        DropdownImpl(
+                            text = stringResource(R.string.module_wallpaper_preview),
+                            optionSize = optionSize,
+                            isSelected = false,
+                            index = optionIndex++,
+                            onSelectedIndexChange = {
+                                onExpandedChange(false)
+                                onPreviewWallpaper()
+                            },
+                        )
+                        if (canPlayCarousel) {
+                            DropdownImpl(
+                                text = stringResource(
+                                    if (carouselEnabled) {
+                                        R.string.module_wallpaper_carousel_disable
+                                    } else {
+                                        R.string.module_wallpaper_carousel_enable
+                                    }
+                                ),
+                                optionSize = optionSize,
+                                isSelected = carouselEnabled,
+                                index = optionIndex++,
+                                onSelectedIndexChange = {
+                                    onExpandedChange(false)
+                                    onToggleCarousel()
+                                },
+                            )
+                        }
+                        DropdownImpl(
+                            text = stringResource(R.string.module_wallpaper_sync_theme_store),
+                            optionSize = optionSize,
+                            isSelected = false,
+                            index = optionIndex++,
+                            onSelectedIndexChange = {
+                                onExpandedChange(false)
+                                onSyncThemeStore()
+                            },
+                        )
+                        DropdownImpl(
+                            text = stringResource(R.string.module_wallpaper_clear),
+                            optionSize = optionSize,
+                            isSelected = false,
+                            index = optionIndex,
+                            onSelectedIndexChange = {
+                                onExpandedChange(false)
+                                onClearWallpaper()
+                            },
+                        )
+                        optionIndex++
+                    }
+                    if (!module.remove) {
+                        DropdownImpl(
+                            text = stringResource(R.string.uninstall),
+                            optionSize = optionSize,
+                            isSelected = false,
+                            index = optionIndex,
+                            onSelectedIndexChange = {
+                                onExpandedChange(false)
+                                onUninstall()
+                            },
+                        )
+                    }
+                }
+            },
+        )
     }
 }

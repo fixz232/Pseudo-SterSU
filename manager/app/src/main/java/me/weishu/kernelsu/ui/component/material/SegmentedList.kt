@@ -33,6 +33,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
@@ -70,6 +71,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.round
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.launch
+import me.weishu.kernelsu.ui.component.liquid.isLiquidGlassTheme
 import kotlin.math.roundToInt
 
 val LocalListItemShapes = compositionLocalOf<ListItemShapes?> { null }
@@ -82,9 +84,16 @@ private const val SegmentedSpringDamping = 0.9f
 annotation class SegmentedColumnDsl
 
 @Composable
+private fun segmentedContainerColor() = if (isLiquidGlassTheme()) {
+    colorScheme.surfaceColorAtElevation(1.dp).copy(alpha = 0.56f)
+} else {
+    colorScheme.surfaceBright
+}
+
+@Composable
 private fun defaultSegmentedColors(): ListItemColors = ListItemDefaults.segmentedColors(
-    containerColor = colorScheme.surfaceBright,
-    disabledContainerColor = colorScheme.surfaceBright,
+    containerColor = segmentedContainerColor(),
+    disabledContainerColor = segmentedContainerColor(),
     supportingContentColor = colorScheme.onSurfaceVariant
 )
 
@@ -275,7 +284,7 @@ fun SegmentedItemContainer(
     val shapes = LocalListItemShapes.current ?: ListItemDefaults.segmentedShapes(0, 1)
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = colorScheme.surfaceBright,
+        color = segmentedContainerColor(),
         shape = shapes.shape,
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {

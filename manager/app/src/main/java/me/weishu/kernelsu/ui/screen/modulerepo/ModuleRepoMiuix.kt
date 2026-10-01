@@ -76,11 +76,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import me.weishu.kernelsu.R
 import me.weishu.kernelsu.ui.component.ListPopupDefaults
-import me.weishu.kernelsu.ui.component.PagerNavigationSpringSpec
+import top.yukonga.miuix.kmp.utils.PagerNavigationSpringSpec
 import me.weishu.kernelsu.ui.component.ScrollToTopOnChange
 import me.weishu.kernelsu.ui.component.SearchStatus
 import me.weishu.kernelsu.ui.component.dialog.ConfirmDialogHandle
 import me.weishu.kernelsu.ui.component.dialog.rememberConfirmDialog
+import me.weishu.kernelsu.ui.component.liquid.globalLiquidGlassSurface
+import me.weishu.kernelsu.ui.component.liquid.liquidGlassMiuixCardColors
 import me.weishu.kernelsu.ui.component.markdown.GithubMarkdown
 import me.weishu.kernelsu.ui.component.miuix.SearchBarFake
 import me.weishu.kernelsu.ui.component.miuix.SearchBox
@@ -104,7 +106,6 @@ import top.yukonga.miuix.kmp.basic.ListPopupColumn
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.PopupPositionProvider
 import top.yukonga.miuix.kmp.basic.PullToRefresh
-import top.yukonga.miuix.kmp.basic.RefreshState
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.ScrollBehavior
 import top.yukonga.miuix.kmp.basic.SmallTitle
@@ -155,6 +156,7 @@ fun ModuleRepoScreenMiuix(
     val barColor = if (blurActive) Color.Transparent else colorScheme.surface
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             BlurredBar(backdrop) {
                 searchStatus.TopAppBarAnim(backgroundColor = barColor) {
@@ -264,7 +266,9 @@ fun ModuleRepoScreenMiuix(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 12.dp)
-                                .padding(bottom = 12.dp),
+                                .padding(bottom = 12.dp)
+                                .repoLiquidGlassSurface(),
+                            colors = liquidGlassMiuixCardColors(),
                             insideMargin = PaddingValues(16.dp),
                             showIndication = true,
                             pressFeedbackType = PressFeedbackType.Sink,
@@ -355,13 +359,13 @@ fun ModuleRepoScreenMiuix(
         searchStatus.SearchBox {
             val pullToRefreshState = rememberPullToRefreshState()
             val lazyListState = rememberLazyListState()
-            val refreshTick = remember { mutableIntStateOf(0) }
+            var refreshTick by remember { mutableIntStateOf(0) }
             val latestModules = rememberUpdatedState(state.modules)
             val latestRefreshing = rememberUpdatedState(state.isRefreshing)
             ScrollToTopOnChange(
                 lazyListState,
                 state.sortOrder,
-                refreshTick.intValue,
+                refreshTick,
                 isBusy = { latestRefreshing.value },
             ) { latestModules.value }
             val refreshTexts = listOf(
@@ -375,7 +379,7 @@ fun ModuleRepoScreenMiuix(
                 pullToRefreshState = pullToRefreshState,
                 onRefresh = {
                     actions.onRefresh()
-                    refreshTick.intValue++
+                    refreshTick++
                 },
                 refreshTexts = refreshTexts,
                 contentPadding = PaddingValues(
@@ -411,7 +415,7 @@ fun ModuleRepoScreenMiuix(
                                     onClick = actions.onRefresh,
                                 )
                             }
-                        } else if (pullToRefreshState.refreshState == RefreshState.Idle) {
+                        } else {
                             InfiniteProgressIndicator()
                         }
                     }
@@ -438,7 +442,9 @@ fun ModuleRepoScreenMiuix(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(horizontal = 12.dp)
-                                        .padding(bottom = 12.dp),
+                                        .padding(bottom = 12.dp)
+                                        .repoLiquidGlassSurface(),
+                                    colors = liquidGlassMiuixCardColors(),
                                     insideMargin = PaddingValues(16.dp),
                                     showIndication = true,
                                     onClick = { actions.onOpenRepoDetail(module) }) {
@@ -658,6 +664,8 @@ fun ReleasesPage(
                             .fillMaxWidth()
                             .padding(horizontal = 12.dp)
                             .padding(bottom = 12.dp)
+                            .repoLiquidGlassSurface(),
+                        colors = liquidGlassMiuixCardColors(),
                     ) {
                         Column {
                             Row(
@@ -761,8 +769,11 @@ fun ReleasesPage(
                                                 else -> "$s B"
                                             }
                                         }
-                                        val sizeAndDownloads =
-                                            remember(sizeText, asset.downloadCount) { "$sizeText · ${asset.downloadCount} downloads" }
+                                        val sizeAndDownloads = stringResource(
+                                            R.string.module_asset_size_downloads,
+                                            sizeText,
+                                            asset.downloadCount,
+                                        )
                                         var isDownloading by remember(fileName, asset.downloadUrl) { mutableStateOf(false) }
                                         var progress by remember(fileName, asset.downloadUrl) { mutableIntStateOf(0) }
                                         var downloadedUri by remember(fileName, asset.downloadUrl) { mutableStateOf<Uri?>(null) }
@@ -932,7 +943,11 @@ fun InfoPage(
                         text = stringResource(R.string.module_author), modifier = Modifier.padding(top = 6.dp)
                     )
                     Card(
-                        modifier = Modifier.padding(horizontal = 12.dp), insideMargin = PaddingValues(16.dp)
+                        modifier = Modifier
+                            .padding(horizontal = 12.dp)
+                            .repoLiquidGlassSurface(),
+                        colors = liquidGlassMiuixCardColors(),
+                        insideMargin = PaddingValues(16.dp)
                     ) {
                         Column {
                             module.authorsList.forEachIndexed { index, author ->
@@ -986,7 +1001,9 @@ fun InfoPage(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 12.dp)
-                            .padding(bottom = 12.dp),
+                            .padding(bottom = 12.dp)
+                            .repoLiquidGlassSurface(),
+                        colors = liquidGlassMiuixCardColors(),
                         insideMargin = PaddingValues(16.dp)
                     ) {
                         Row(
@@ -1026,6 +1043,18 @@ fun InfoPage(
     }
 }
 
+@Composable
+private fun Modifier.repoLiquidGlassSurface(): Modifier {
+    return globalLiquidGlassSurface(
+        shape = RoundedCornerShape(18.dp),
+        surfaceAlpha = 0.58f,
+        blurRadius = 10.dp,
+        refractionHeight = 14.dp,
+        refractionAmount = 9.dp,
+        strokeAlpha = 0.66f,
+    )
+}
+
 @SuppressLint("StringFormatInvalid", "DefaultLocale")
 @Composable
 fun ModuleRepoDetailScreenMiuix(
@@ -1059,6 +1088,7 @@ fun ModuleRepoDetailScreenMiuix(
     val coroutineScope = rememberCoroutineScope()
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             BlurredBar(backdrop) {
                 TopAppBar(color = detailBarColor, title = module.moduleName, scrollBehavior = scrollBehavior, navigationIcon = {

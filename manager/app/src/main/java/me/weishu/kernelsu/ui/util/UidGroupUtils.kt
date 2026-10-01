@@ -1,6 +1,7 @@
 package me.weishu.kernelsu.ui.util
 
 import me.weishu.kernelsu.Natives
+import me.weishu.kernelsu.data.model.AppInfo
 import me.weishu.kernelsu.ksuApp
 import me.weishu.kernelsu.ui.viewmodel.SuperUserViewModel
 import java.util.concurrent.ConcurrentHashMap
@@ -12,7 +13,7 @@ private val PREFERRED_PKG_BY_SUID = mapOf(
     "android.uid.nfc" to "com.android.nfc",
 )
 
-fun pickPrimary(apps: List<SuperUserViewModel.AppInfo>): SuperUserViewModel.AppInfo {
+fun pickPrimary(apps: List<AppInfo>): AppInfo {
     if (apps.isEmpty()) throw IllegalArgumentException("apps must not be empty")
     val labeled = apps.filter { it.packageInfo.sharedUserLabel != 0 }
     if (labeled.isNotEmpty()) {
@@ -31,7 +32,7 @@ fun pickPrimary(apps: List<SuperUserViewModel.AppInfo>): SuperUserViewModel.AppI
 }
 
 val ownerNameCache = ConcurrentHashMap<Int, String>()
-fun ownerNameForUid(uid: Int, appSource: List<SuperUserViewModel.AppInfo>? = null): String {
+fun ownerNameForUid(uid: Int, appSource: List<AppInfo>? = null): String {
     ownerNameCache[uid]?.let { return it.ifEmpty { uid.toString() } }
     val apps = appSource ?: SuperUserViewModel.apps.filter { it.uid == uid }
     val labeledApp = apps.firstOrNull { it.packageInfo.sharedUserLabel != 0 }

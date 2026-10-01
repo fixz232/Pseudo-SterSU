@@ -3,19 +3,21 @@ use clap::Parser;
 use std::path::PathBuf;
 
 use android_logger::Config;
-use log::{LevelFilter, error, info};
+use log::{LevelFilter, error, info, warn};
 
 use crate::boot_patch::{BootPatchArgs, BootRestoreArgs};
+use crate::kpimg::{BootInfoKpimgArgs, BootPatchKpimgArgs};
 use crate::lkm_image::BootPatchV2Args;
 use crate::module::regenerate_preinit_rc;
 use crate::{
-    apk_sign, assets, debug, defs, init_event, ksu_uapi, ksucalls, module, module_config, sulog,
-    utils,
+    apk_sign, assets, cpu_spoof, debug, defs, dynamic_manager, epkesu_hide, init_event,
+    kpatch_next, kpm, ksu_uapi, ksucalls, module, module_config, pathmask, rescue, sulog, utils,
+    web_manager,
 };
 
 /// KernelSU userspace cli
 #[derive(Parser, Debug)]
-#[command(author, version = defs::FULL_VERSION, about, long_about = None)]
+#[command(author, version = defs::VERSION_NAME, about, long_about = None)]
 struct Args {
     #[command(subcommand)]
     command: Commands,
@@ -29,11 +31,53 @@ enum Commands {
         command: Module,
     },
 
+    /// Manage built-in KPatch Next
+    KpatchNext {
+        #[command(subcommand)]
+        command: KpatchNext,
+    },
+
+    /// Manage KPatch-Next KPM modules
+    Kpm {
+        #[command(subcommand)]
+        command: Kpm,
+    },
+
+    /// Manage SterSU Hide
+    EpkesuHide {
+        #[command(subcommand)]
+        command: EpkesuHide,
+    },
+
+    /// Manage persistent CPU model spoofing
+    CpuSpoof {
+        #[command(subcommand)]
+        command: CpuSpoof,
+    },
+
+    /// Manage built-in pathmask LKM
+    Pathmask {
+        #[command(subcommand)]
+        command: Pathmask,
+    },
+
+    /// Manage boot rescue protection
+    Rescue {
+        #[command(subcommand)]
+        command: Rescue,
+    },
+
     /// Trigger `post-fs-data` event
     PostFsData,
 
     /// Trigger `service` event
     Services,
+
+    /// Manage the persistent native Web Manager
+    WebManager {
+        #[command(subcommand)]
+        command: WebManager,
+    },
 
     /// Run sulog reader daemon. Not for user. Use `ksud debug sulogd` to launch daemon.
     #[command(hide = true)]
@@ -61,8 +105,24 @@ enum Commands {
         kmi: Option<String>,
 
         /// manager package name
-        #[arg(long, default_value_t = String::from(defs::DEFAULT_PACKAGE_NAME))]
+        #[arg(long, default_value_t = String::from(defs::DEFAULT_MANAGER_PACKAGE))]
         package_name: String,
+
+        /// manager uid supplied by app zygote preload
+        #[arg(long)]
+        manager_uid: Option<u32>,
+    },
+
+    /// Register this Manager with an already loaded KernelSU kernel
+    #[command(hide = true)]
+    RegisterManager {
+        /// manager package name
+        #[arg(long, default_value_t = String::from(defs::DEFAULT_MANAGER_PACKAGE))]
+        package_name: String,
+
+        /// manager uid supplied by the Manager app
+        #[arg(long)]
+        manager_uid: Option<u32>,
     },
 
     /// Emulate system reboot
@@ -91,7 +151,7 @@ enum Commands {
 
     /// Uninstall KernelSU modules and itself(LKM Only)
     Uninstall {
-        #[arg(long, default_value_t = String::from(defs::DEFAULT_PACKAGE_NAME))]
+        #[arg(long, default_value_t = String::from(defs::DEFAULT_MANAGER_PACKAGE))]
         package_name: String,
     },
 
@@ -119,10 +179,16 @@ enum Commands {
     /// Restore boot or init_boot images patched by KernelSU
     BootRestore(BootRestoreArgs),
 
-    /// Patch KernelSU into a boot image
+    /// Patch the KernelSU LKM directly into a boot image
     ///
-    /// Always operates on a boot image; never selects init_boot or vendor_boot.
+    /// This path always targets boot and never selects init_boot or vendor_boot.
     BootPatchV2(BootPatchV2Args),
+
+    /// Inject Native GKI KPM into an ABI-enabled boot image without flashing
+    BootPatchKpimg(BootPatchKpimgArgs),
+
+    /// Inspect a boot image for the Native GKI KPM runtime
+    BootInfoKpimg(BootInfoKpimgArgs),
 
     /// Show boot information
     BootInfo {
@@ -163,14 +229,29 @@ enum BootInfo {
     /// show supported kmi versions
     SupportedKmis,
 
+    /// detect the KMI embedded in a boot image
+    ImageKmi {
+        /// boot image to inspect
+        #[arg(short, long)]
+        boot: std::path::PathBuf,
+    },
+
     /// check if device is A/B capable
     IsAbDevice,
 
-    /// show auto-selected boot partition name
-    DefaultPartition,
+    /// show auto-selected boot partition name for current or OTA toggled slot
+    DefaultPartition {
+        /// toggle to another slot
+        #[arg(short = 'u', long, default_value = "false")]
+        ota: bool,
+    },
 
     /// list available partitions for current or OTA toggled slot
-    AvailablePartitions,
+    AvailablePartitions {
+        /// toggle to another slot
+        #[arg(short = 'u', long, default_value = "false")]
+        ota: bool,
+    },
 
     /// show slot suffix for current or OTA toggled slot
     SlotSuffix {
@@ -181,11 +262,149 @@ enum BootInfo {
 }
 
 #[derive(clap::Subcommand, Debug)]
+enum Rescue {
+    /// Print rescue protection status
+    Status,
+
+    /// Print rescue environment test report
+    Test,
+
+    /// Fully verify all rescue backups and persist the verification marker
+    Verify,
+
+    /// Import rescue config JSON from an argument
+    ImportConfigJson {
+        /// JSON config text
+        json: String,
+    },
+
+    /// Import a user supplied partition image as rescue backup
+    ImportImage {
+        /// Partition name: boot/init_boot/vendor_boot/dtbo/vbmeta
+        partition: String,
+
+        /// Source image file path
+        source: PathBuf,
+
+        /// Overwrite existing rescue backup
+        #[arg(long)]
+        force: bool,
+    },
+
+    /// Backup boot/vendor_boot/init_boot partitions
+    Backup {
+        /// Overwrite existing rescue backups
+        #[arg(long)]
+        force: bool,
+    },
+
+    /// Enable rescue protection
+    Enable,
+
+    /// Recheck, replace backups, fully verify, and enable protection
+    RefreshEnable,
+
+    /// Disable rescue protection
+    Disable,
+
+    /// Restore boot images without touching user data
+    Restore,
+
+    /// Restore boot images without touching user data
+    RestoreKeepData,
+
+    /// Mark the next boot as pending after an external boot image change
+    #[command(hide = true)]
+    MarkPending {
+        #[arg(default_value = "external boot image change")]
+        reason: String,
+    },
+
+    /// Check rescue protection during recovery boot
+    #[command(hide = true)]
+    RecoveryCheck,
+
+    /// Print rescue logs
+    Logs,
+
+    /// Clear rescue logs
+    ClearLogs,
+
+    /// Re-enable a module that rescue protection disabled
+    EnableModule { id: String },
+
+    /// Print status and logs as a diagnostic bundle
+    Diagnostics,
+}
+
+#[derive(clap::Subcommand, Debug)]
+enum Kpm {
+    /// Print KPatch-Next KPM loader capabilities
+    Caps,
+    /// Print or change the overall KPM policy
+    Policy {
+        #[command(subcommand)]
+        command: KpmPolicy,
+    },
+    /// List imported and loaded KPMs as JSON
+    List,
+    /// Print details for a KPM as JSON
+    Info { id: String },
+    /// Import a relocatable KPM ELF; --trusted acknowledges executable kernel code
+    Import {
+        file: PathBuf,
+        #[arg(long, default_value = "")]
+        args: String,
+        #[arg(long)]
+        trusted: bool,
+        #[arg(long)]
+        force: bool,
+        #[arg(long)]
+        enable: bool,
+    },
+    /// Enable and load an imported KPM
+    Enable { id: String },
+    /// Disable and unload an imported KPM
+    Disable { id: String },
+    /// Remove an imported KPM
+    Remove { id: String },
+    /// Load an enabled imported KPM without changing its enabled state
+    Load { id: String },
+    /// Unload a live KPM
+    Unload { id: String },
+    /// Invoke a KPM control callback
+    Control {
+        id: String,
+        #[arg(long, default_value = "")]
+        args: String,
+    },
+    /// List package UIDs excluded from KPM hooks
+    ExcludeList,
+    /// Set or clear a package UID exclusion
+    Exclude {
+        package: String,
+        uid: u32,
+        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+        enabled: bool,
+    },
+}
+
+#[derive(clap::Subcommand, Debug)]
+enum KpmPolicy {
+    /// Print the effective KPM policy
+    Status,
+    /// Allow KPM imports and loads through KPatch-Next
+    Enable,
+    /// Stop and disallow KPM loads
+    Disable,
+}
+
+#[derive(clap::Subcommand, Debug)]
 enum Debug {
     /// Set the manager app, kernel CONFIG_KSU_DEBUG should be enabled.
     SetManager {
         /// manager package name
-        #[arg(default_value_t = String::from(defs::DEFAULT_PACKAGE_NAME))]
+        #[arg(default_value_t = String::from(defs::DEFAULT_MANAGER_PACKAGE))]
         apk: String,
     },
 
@@ -204,6 +423,9 @@ enum Debug {
 
     /// Get kernel version
     Version,
+
+    /// Get ksud userspace version as JSON
+    UserspaceVersion,
 
     /// For testing
     Test,
@@ -227,9 +449,6 @@ enum Debug {
 
     /// Get kernel info
     Info,
-
-    /// Print default package name
-    Package,
 }
 
 #[derive(clap::Subcommand, Debug)]
@@ -332,6 +551,31 @@ enum Module {
 }
 
 #[derive(clap::Subcommand, Debug)]
+enum WebManager {
+    /// Enable the persistent server and start it now
+    Enable {
+        /// Loopback TCP port (1024-65535)
+        #[arg(long)]
+        port: Option<u16>,
+    },
+    /// Disable auto-start and stop the current server
+    Disable,
+    /// Start the server when it is enabled
+    Start,
+    /// Stop the current server without changing the persistent switch
+    Stop,
+    /// Print server status as JSON
+    Status,
+    /// Print the authenticated loopback URL
+    Url,
+    /// Generate a new authentication token
+    RotateToken,
+    /// Internal daemon entry point
+    #[command(hide = true)]
+    Serve,
+}
+
+#[derive(clap::Subcommand, Debug)]
 enum ModuleConfigCmd {
     /// Get a config value
     Get {
@@ -371,6 +615,117 @@ enum ModuleConfigCmd {
         #[arg(short, long)]
         temp: bool,
     },
+}
+
+#[derive(clap::Subcommand, Debug)]
+enum KpatchNext {
+    /// Print built-in KPatch Next status as JSON
+    Status,
+
+    /// Install or enable built-in KPatch Next
+    Enable,
+
+    /// Disable built-in KPatch Next until it is enabled again
+    Disable,
+}
+
+#[derive(clap::Subcommand, Debug)]
+enum EpkesuHide {
+    /// Print SterSU Hide status as JSON
+    Status,
+
+    /// Enable SterSU Hide and apply it now
+    Enable,
+
+    /// Disable SterSU Hide
+    Disable,
+
+    /// Apply SterSU Hide property changes now
+    Apply,
+}
+
+#[derive(clap::Subcommand, Debug)]
+enum CpuSpoof {
+    /// Print CPU spoof status as JSON
+    Status,
+
+    /// Save a target CPU model and apply it if enabled
+    Configure {
+        /// Value written to ro.soc.model
+        #[arg(long)]
+        model: String,
+    },
+
+    /// Enable CPU spoofing and apply the configured target
+    Enable,
+
+    /// Disable CPU spoofing and restore the current boot's original CPU value
+    Disable,
+
+    /// Restore the original CPU value and remove the saved configuration
+    RestoreDefault,
+}
+
+#[derive(clap::Subcommand, Debug)]
+enum Pathmask {
+    /// Print pathmask config and runtime status as JSON
+    Status,
+
+    /// Atomically import and apply pathmask config JSON from file
+    Import {
+        /// config JSON file path
+        file: PathBuf,
+    },
+
+    /// Atomically import and apply pathmask config JSON from an argument
+    ImportJson {
+        /// config JSON content
+        json: String,
+    },
+
+    /// Apply saved config by hot-reloading pathmask LKM
+    Apply,
+
+    /// Atomically validate, apply, and commit config JSON
+    ApplyJson {
+        /// config JSON content
+        json: String,
+    },
+
+    /// Persistently enable or disable pathmask auto-load
+    SetAutoLoad {
+        /// true to auto-load, false to keep the saved config disabled
+        enabled: bool,
+        /// optional boot delay in seconds (0 applies immediately)
+        #[arg(long)]
+        delay_seconds: Option<u64>,
+    },
+
+    /// Probe whether a path is visible after dropping to an Android UID
+    TestVisibility {
+        /// Android application UID to probe as
+        #[arg(long)]
+        uid: u32,
+
+        /// Absolute path to probe
+        #[arg(long)]
+        path: String,
+    },
+
+    /// Unload current pathmask LKM and clear kernel hidden paths
+    Unload,
+
+    /// Delete saved, candidate, and last-good pathmask configurations
+    DeleteConfig,
+
+    /// Print manager and kernel pathmask logs
+    Logs,
+
+    /// Clear manager pathmask logs
+    ClearLogs,
+
+    /// Print status and logs as a diagnostic bundle
+    Diagnostics,
 }
 
 #[derive(clap::Subcommand, Debug)]
@@ -417,7 +772,7 @@ enum Profile {
 enum Feature {
     /// Get feature value and support status
     Get {
-        /// Feature ID or name (su_compat, kernel_umount, sulog, adb_root, selinux_hide)
+        /// Feature ID or name (su_compat, kernel_umount, sulog, adb_root, selinux_hide, avc_spoof, webview_zygote_umount)
         id: String,
         /// Read from config file
         #[arg(long, default_value_t = false)]
@@ -437,7 +792,7 @@ enum Feature {
 
     /// Check feature status (supported/unsupported/managed)
     Check {
-        /// Feature ID or name (su_compat, kernel_umount, sulog, adb_root, selinux_hide)
+        /// Feature ID or name (su_compat, kernel_umount, sulog, adb_root, selinux_hide, avc_spoof, webview_zygote_umount)
         id: String,
     },
 
@@ -460,8 +815,34 @@ enum Kernel {
         #[command(subcommand)]
         command: UmountOp,
     },
+    /// Manage the certificate-based secondary Manager identity
+    DynamicManager {
+        #[command(subcommand)]
+        command: DynamicManagerOp,
+    },
     /// Notify that module is mounted
     NotifyModuleMounted,
+}
+
+#[derive(clap::Subcommand, Debug)]
+enum DynamicManagerOp {
+    /// Print persisted and kernel runtime state as JSON
+    Status,
+    /// Configure the dynamic Manager certificate manually
+    Set {
+        /// APK v2 signer certificate size
+        size: u32,
+        /// Lowercase SHA-256 certificate hash
+        #[arg(value_parser = dynamic_manager::parse_hash)]
+        hash: [u8; 64],
+    },
+    /// Read an APK signature and configure it as the dynamic Manager
+    SetApk {
+        /// Manager APK path
+        apk: String,
+    },
+    /// Revoke the dynamic Manager and persist the disabled state
+    Clear,
 }
 
 #[derive(clap::Subcommand, Debug)]
@@ -520,7 +901,7 @@ pub fn run() -> Result<()> {
             Ok(())
         }
 
-        Commands::SoftReboot => init_event::soft_reboot(),
+        Commands::SoftReboot => crate::soft_reboot::soft_reboot(),
 
         Commands::Insmod { module, params } => debug::insmod(&module, &params),
 
@@ -626,6 +1007,160 @@ pub fn run() -> Result<()> {
                 }
             }
         }
+        Commands::KpatchNext { command } => {
+            utils::switch_mnt_ns(1)?;
+            match command {
+                KpatchNext::Status => {
+                    kpatch_next::print_status();
+                    Ok(())
+                }
+                KpatchNext::Enable => kpatch_next::enable(),
+                KpatchNext::Disable => kpatch_next::disable(),
+            }
+        }
+        Commands::Kpm { command } => {
+            utils::switch_mnt_ns(1)?;
+            match command {
+                Kpm::Caps => {
+                    kpm::print_caps();
+                    Ok(())
+                }
+                Kpm::Policy { command } => match command {
+                    KpmPolicy::Status => {
+                        kpm::print_policy();
+                        Ok(())
+                    }
+                    KpmPolicy::Enable => kpm::set_policy(true),
+                    KpmPolicy::Disable => kpm::set_policy(false),
+                },
+                Kpm::List => kpm::print_list(),
+                Kpm::Info { id } => kpm::print_info(&id),
+                Kpm::Import {
+                    file,
+                    args,
+                    trusted,
+                    force,
+                    enable,
+                } => kpm::import(&file, &args, trusted, force, enable),
+                Kpm::Enable { id } => kpm::enable_module(&id),
+                Kpm::Disable { id } => kpm::disable_module(&id),
+                Kpm::Remove { id } => kpm::remove_module(&id),
+                Kpm::Load { id } => kpm::load_module(&id),
+                Kpm::Unload { id } => kpm::unload_module(&id),
+                Kpm::Control { id, args } => kpm::control_module(&id, &args),
+                Kpm::ExcludeList => kpm::print_exclude_list(),
+                Kpm::Exclude {
+                    package,
+                    uid,
+                    enabled,
+                } => kpm::set_excluded_package(&package, uid, enabled),
+            }
+        }
+        Commands::EpkesuHide { command } => {
+            utils::switch_mnt_ns(1)?;
+            match command {
+                EpkesuHide::Status => {
+                    epkesu_hide::print_status();
+                    Ok(())
+                }
+                EpkesuHide::Enable => epkesu_hide::enable(),
+                EpkesuHide::Disable => epkesu_hide::disable(),
+                EpkesuHide::Apply => epkesu_hide::apply(),
+            }
+        }
+        Commands::CpuSpoof { command } => {
+            utils::switch_mnt_ns(1)?;
+            match command {
+                CpuSpoof::Status => {
+                    cpu_spoof::print_status();
+                    Ok(())
+                }
+                CpuSpoof::Configure { model } => cpu_spoof::configure(&model),
+                CpuSpoof::Enable => cpu_spoof::enable(),
+                CpuSpoof::Disable => cpu_spoof::disable(),
+                CpuSpoof::RestoreDefault => cpu_spoof::restore_default(),
+            }
+        }
+        Commands::Pathmask { command } => {
+            utils::switch_mnt_ns(1)?;
+            match command {
+                Pathmask::Status => {
+                    pathmask::print_status();
+                    Ok(())
+                }
+                Pathmask::Import { file } => pathmask::import_config(&file),
+                Pathmask::ImportJson { json } => pathmask::import_config_text(&json),
+                Pathmask::Apply => pathmask::apply(),
+                Pathmask::ApplyJson { json } => pathmask::apply_config_text(&json),
+                Pathmask::SetAutoLoad {
+                    enabled,
+                    delay_seconds,
+                } => pathmask::set_auto_load(enabled, delay_seconds),
+                Pathmask::TestVisibility { uid, path } => pathmask::test_visibility(uid, &path),
+                Pathmask::Unload => pathmask::unload(),
+                Pathmask::DeleteConfig => pathmask::delete_config(),
+                Pathmask::Logs => {
+                    pathmask::print_logs();
+                    Ok(())
+                }
+                Pathmask::ClearLogs => pathmask::clear_logs(),
+                Pathmask::Diagnostics => {
+                    pathmask::print_diagnostics();
+                    Ok(())
+                }
+            }
+        }
+        Commands::Rescue { command } => {
+            if matches!(command, Rescue::RecoveryCheck) {
+                if let Err(err) = utils::switch_mnt_ns(1) {
+                    warn!("continue recovery rescue check without pid 1 mount namespace: {err:#}");
+                }
+            } else {
+                utils::switch_mnt_ns(1)?;
+            }
+            let result = match command {
+                Rescue::Status => {
+                    rescue::print_status();
+                    Ok(())
+                }
+                Rescue::Test => {
+                    rescue::print_test_report();
+                    Ok(())
+                }
+                Rescue::Verify => {
+                    rescue::print_verify_report();
+                    Ok(())
+                }
+                Rescue::ImportConfigJson { json } => rescue::import_config_text(&json),
+                Rescue::ImportImage {
+                    partition,
+                    source,
+                    force,
+                } => rescue::import_image(&partition, &source, force),
+                Rescue::Backup { force } => rescue::backup(force),
+                Rescue::Enable => rescue::enable(),
+                Rescue::RefreshEnable => rescue::refresh_and_enable(),
+                Rescue::Disable => rescue::disable(),
+                Rescue::Restore => rescue::restore_now(),
+                Rescue::RestoreKeepData => rescue::restore_keep_data_now(),
+                Rescue::MarkPending { reason } => rescue::mark_next_boot_pending(&reason),
+                Rescue::RecoveryCheck => {
+                    rescue::check_on_recovery_boot();
+                    Ok(())
+                }
+                Rescue::Logs => {
+                    rescue::print_logs();
+                    Ok(())
+                }
+                Rescue::ClearLogs => rescue::clear_logs(),
+                Rescue::EnableModule { id } => rescue::enable_rescue_module(&id),
+                Rescue::Diagnostics => {
+                    rescue::print_diagnostics();
+                    Ok(())
+                }
+            };
+            result.map_err(rescue::structured_error)
+        }
         Commands::Install {
             libadbroot,
             data_path,
@@ -643,14 +1178,17 @@ pub fn run() -> Result<()> {
             post_magica,
             kmi,
             package_name,
+            manager_uid,
         } => {
             if let Some(port) = magica {
-                return crate::magica::run(port, &package_name, allow_shell).map_err(|e| {
-                    error!("Error running magica: {e}");
-                    e
-                });
+                return crate::magica::run(port, &package_name, manager_uid, allow_shell).map_err(
+                    |e| {
+                        error!("Error running magica: {e}");
+                        e
+                    },
+                );
             }
-            let result = crate::late_load::run(&package_name, kmi, allow_shell);
+            let result = crate::late_load::run(&package_name, manager_uid, kmi, allow_shell);
             if post_magica {
                 info!("Restoring adb properties (post-magica cleanup)...");
                 if let Err(e) = crate::magica::disable_adb_root() {
@@ -659,6 +1197,10 @@ pub fn run() -> Result<()> {
             }
             result
         }
+        Commands::RegisterManager {
+            package_name,
+            manager_uid,
+        } => crate::late_load::register_manager(&package_name, manager_uid),
         Commands::Services => {
             if ksucalls::get_version() <= 0 {
                 info!("KernelSU not available, exiting services");
@@ -667,15 +1209,25 @@ pub fn run() -> Result<()> {
             init_event::on_services();
             Ok(())
         }
+        Commands::WebManager { command } => match command {
+            WebManager::Enable { port } => web_manager::enable(port),
+            WebManager::Disable => web_manager::disable(),
+            WebManager::Start => web_manager::start(),
+            WebManager::Stop => web_manager::stop(),
+            WebManager::Status => web_manager::print_status(),
+            WebManager::Url => web_manager::print_url(),
+            WebManager::RotateToken => web_manager::rotate_token(),
+            WebManager::Serve => web_manager::serve(),
+        },
         Commands::Sulogd => sulog::run_sulogd(),
         Commands::Profile { command } => match command {
-            Profile::GetSepolicy { package } => crate::profile::get_sepolicy(package),
+            Profile::GetSepolicy { package } => crate::profile::get_sepolicy(&package),
             Profile::SetSepolicy { package, policy } => {
-                crate::profile::set_sepolicy(package, policy)
+                crate::profile::set_sepolicy(&package, policy)
             }
-            Profile::GetTemplate { id } => crate::profile::get_template(id),
-            Profile::SetTemplate { id, template } => crate::profile::set_template(id, template),
-            Profile::DeleteTemplate { id } => crate::profile::delete_template(id),
+            Profile::GetTemplate { id } => crate::profile::get_template(&id),
+            Profile::SetTemplate { id, template } => crate::profile::set_template(&id, template),
+            Profile::DeleteTemplate { id } => crate::profile::delete_template(&id),
             Profile::ListTemplates => crate::profile::list_templates(),
         },
 
@@ -708,6 +1260,16 @@ pub fn run() -> Result<()> {
                 println!("Kernel Version: {}", ksucalls::get_version());
                 Ok(())
             }
+            Debug::UserspaceVersion => {
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "versionCode": defs::VERSION_CODE.trim(),
+                        "versionName": defs::VERSION_NAME.trim(),
+                    })
+                );
+                Ok(())
+            }
             Debug::Su { global_mnt } => crate::su::grant_root(global_mnt),
             Debug::Test => assets::ensure_binaries(false),
             Debug::ExtractBinary { name, path } => {
@@ -727,26 +1289,28 @@ pub fn run() -> Result<()> {
                 println!("flags: 0x{:x}", info.flags);
                 println!("uapi_version: {}", info.uapi_version);
                 println!("features: 0x{:x}", info.features);
-                println!("lkm: {}", ksucalls::is_lkm());
                 println!(
-                    "bundled: {}",
-                    (info.flags & ksu_uapi::KSU_GET_INFO_FLAG_BUNDLED) != 0
+                    "lkm: {}",
+                    (info.flags & ksu_uapi::KSU_GET_INFO_FLAG_LKM) != 0
                 );
-                println!("late_load: {}", ksucalls::is_late_load());
-                println!("runtime_mode: {}", ksucalls::runtime_mode());
+                println!(
+                    "late_load: {}",
+                    (info.flags & ksu_uapi::KSU_GET_INFO_FLAG_LATE_LOAD) != 0
+                );
                 println!(
                     "pr_build: {}",
                     (info.flags & ksu_uapi::KSU_GET_INFO_FLAG_PR_BUILD) != 0
                 );
                 Ok(())
             }
-            Debug::Package => {
-                println!("{}", defs::DEFAULT_PACKAGE_NAME);
-                Ok(())
-            }
         },
 
         Commands::BootPatch(boot_patch) => crate::boot_patch::patch(boot_patch),
+
+        Commands::BootPatchV2(boot_patch) => crate::lkm_image::patch_boot(&boot_patch),
+
+        Commands::BootPatchKpimg(kpimg_options) => crate::kpimg::patch_boot(&kpimg_options),
+        Commands::BootInfoKpimg(kpimg_options) => crate::kpimg::print_info(&kpimg_options),
 
         Commands::BootInfo { command } => match command {
             BootInfo::CurrentKmi => {
@@ -762,26 +1326,33 @@ pub fn run() -> Result<()> {
                 }
                 return Ok(());
             }
+            BootInfo::ImageKmi { boot } => {
+                let kmi = crate::boot_patch::get_kmi_from_boot(&boot)?;
+                println!("{kmi}");
+                return Ok(());
+            }
             BootInfo::IsAbDevice => {
                 let val = crate::utils::getprop("ro.build.ab_update")
                     .unwrap_or_else(|| String::from("false"));
-                let is_ab = val.trim().to_lowercase() == "true";
+                let slot_suffix = crate::boot_patch::get_slot_suffix(false).unwrap_or_default();
+                let is_ab = val.trim().eq_ignore_ascii_case("true")
+                    || matches!(slot_suffix.as_str(), "_a" | "_b");
                 println!("{}", if is_ab { "true" } else { "false" });
                 return Ok(());
             }
-            BootInfo::DefaultPartition => {
+            BootInfo::DefaultPartition { ota } => {
                 let kmi = crate::boot_patch::get_current_kmi().unwrap_or_else(|_| String::new());
-                let name = crate::boot_patch::choose_boot_partition(&kmi, false, &None);
+                let name = crate::boot_patch::choose_boot_partition(&kmi, false, &None, ota);
                 println!("{name}");
                 return Ok(());
             }
             BootInfo::SlotSuffix { ota } => {
-                let suffix = crate::boot_patch::get_slot_suffix(ota);
+                let suffix = crate::boot_patch::get_slot_suffix(ota)?;
                 println!("{suffix}");
                 return Ok(());
             }
-            BootInfo::AvailablePartitions => {
-                let parts = crate::boot_patch::list_available_partitions();
+            BootInfo::AvailablePartitions { ota } => {
+                let parts = crate::boot_patch::list_available_partitions(ota);
                 for p in &parts {
                     println!("{p}");
                 }
@@ -789,7 +1360,6 @@ pub fn run() -> Result<()> {
             }
         },
         Commands::BootRestore(boot_restore) => crate::boot_patch::restore(boot_restore),
-        Commands::BootPatchV2(patch) => crate::lkm_image::patch_boot(&patch),
         Commands::Resetprop { args } => {
             let mut full_args = vec!["resetprop".to_string()];
             full_args.extend(args);
@@ -802,6 +1372,12 @@ pub fn run() -> Result<()> {
                 UmountOp::Add { mnt, flags } => ksucalls::umount_list_add(&mnt, flags),
                 UmountOp::Del { mnt } => ksucalls::umount_list_del(&mnt),
                 UmountOp::Wipe => ksucalls::umount_list_wipe(),
+            },
+            Kernel::DynamicManager { command } => match command {
+                DynamicManagerOp::Status => dynamic_manager::print_status(),
+                DynamicManagerOp::Set { size, hash } => dynamic_manager::set(size, hash),
+                DynamicManagerOp::SetApk { apk } => dynamic_manager::set_apk(&apk),
+                DynamicManagerOp::Clear => dynamic_manager::clear(),
             },
             Kernel::NotifyModuleMounted => {
                 ksucalls::report_module_mounted();

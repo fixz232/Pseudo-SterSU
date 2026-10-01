@@ -1,0 +1,290 @@
+name: Release SterSU APK
+
+permissions:
+  contents: write
+  actions: read
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag. Empty uses current tag or apk-v<version>-<run>."
+        type: string
+        default: ""
+      create_github_release:
+        description: "Create or update a GitHub Release"
+        type: boolean
+        default: true
+      draft:
+        description: "Create release as draft"
+        type: boolean
+        default: false
+      prerelease:
+        description: "Mark release as prerelease"
+        type: boolean
+        default: false
+
+jobs:
+  build-lkm:
+    uses: ./.github/workflows/build-lkm.yml
+    secrets: inherit
+
+  build-ksuinit:
+    uses: ./.github/workflows/ksuinit.yml
+
+  build-ksud:
+    needs: [build-lkm, build-ksuinit]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-linux-android
+          - target: x86_64-linux-android
+    uses: ./.github/workflows/ksud.yml
+    with:
+      target: ${{ matrix.target }}
+      pack_lkm: true
+      pack_ksuinit: true
+
+  release-apk:
+    needs: build-ksud
+    runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.meta.outputs.release_tag }}
+      apk_name: ${{ steps.meta.outputs.apk_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Download arm64 ksud
+        uses: actions/download-artifact@v8
+        with:
+          name: ksud-aarch64-linux-android
+          path: artifacts/ksud-aarch64-linux-android
+
+      - name: Download x86_64 ksud
+        uses: actions/download-artifact@v8
+        with:
+          name: ksud-x86_64-linux-android
+          path: artifacts/ksud-x86_64-linux-android
+
+      - name: Place ksud binaries
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ARM64_KSUD="$(find artifacts/ksud-aarch64-linux-android -type f -name ksud | head -n 1)"
+          X86_64_KSUD="$(find artifacts/ksud-x86_64-linux-android -type f -name ksud | head -n 1)"
+          test -n "$ARM64_KSUD"
+          test -n "$X86_64_KSUD"
+
+          mkdir -p target/aarch64-linux-android/release
+          mkdir -p target/x86_64-linux-android/release
+          cp -f "$ARM64_KSUD" target/aarch64-linux-android/release/ksud
+          cp -f "$X86_64_KSUD" target/x86_64-linux-android/release/ksud
+
+          mkdir -p manager/app/src/main/jniLibs/arm64-v8a
+          mkdir -p manager/app/src/main/jniLibs/x86_64
+          cp -f "$ARM64_KSUD" manager/app/src/main/jniLibs/arm64-v8a/libksud.so
+          cp -f "$X86_64_KSUD" manager/app/src/main/jniLibs/x86_64/libksud.so
+
+      - name: Prepare signing inputs
+        shell: bash
+        env:
+          PROD_KEYSTORE: ${{ secrets.KEYSTORE }}
+          PROD_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          PROD_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          PROD_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${PROD_KEYSTORE:-}" ] || [ -z "${PROD_KEY_ALIAS:-}" ] || \
+             [ -z "${PROD_KEYSTORE_PASSWORD:-}" ] || [ -z "${PROD_KEY_PASSWORD:-}" ]; then
+            echo "::error::Missing release signing secrets. KEYSTORE, KEY_ALIAS, KEYSTORE_PASSWORD, and KEY_PASSWORD must match the certificate trusted by SterSU kernels."
+            exit 1
+          fi
+
+          echo "$PROD_KEYSTORE" | base64 -d > key.jks
+          SIGN_KEYSTORE_FILE="$GITHUB_WORKSPACE/key.jks"
+          SIGN_KEY_ALIAS="$PROD_KEY_ALIAS"
+          SIGN_KEYSTORE_PASSWORD="$PROD_KEYSTORE_PASSWORD"
+          SIGN_KEY_PASSWORD="$PROD_KEY_PASSWORD"
+          SIGNING_KIND="release-secret"
+          {
+            echo "KEYSTORE_PASSWORD=$SIGN_KEYSTORE_PASSWORD"
+            echo "KEY_ALIAS=$SIGN_KEY_ALIAS"
+            echo "KEY_PASSWORD=$SIGN_KEY_PASSWORD"
+            echo "KEYSTORE_FILE=$SIGN_KEYSTORE_FILE"
+          } >> manager/gradle.properties
+
+          {
+            echo "SIGN_KEYSTORE_FILE=$SIGN_KEYSTORE_FILE"
+            echo "SIGN_KEY_ALIAS=$SIGN_KEY_ALIAS"
+            echo "SIGN_KEYSTORE_PASSWORD=$SIGN_KEYSTORE_PASSWORD"
+            echo "SIGN_KEY_PASSWORD=$SIGN_KEY_PASSWORD"
+            echo "SIGNING_KIND=$SIGNING_KIND"
+          } >> "$GITHUB_ENV"
+
+      - name: Build release APK
+        working-directory: manager
+        run: ./gradlew clean assembleRelease
+
+      - name: Repack and resign release APK
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION_NAME="$(sed -n 's/^versionName=//p' version.properties | head -n 1)"
+          VERSION_CODE="$(sed -n 's/^versionCode=//p' version.properties | head -n 1)"
+          test -n "$VERSION_NAME"
+          test -n "$VERSION_CODE"
+          OUTPUT_NAME="SterSU_${VERSION_NAME}_${VERSION_CODE}-release"
+
+          python3 repack_apk.py repack \
+            -b release \
+            -t release \
+            -a arm64-v8a \
+            -a x86_64 \
+            -K "$SIGN_KEYSTORE_FILE" \
+            -A "$SIGN_KEY_ALIAS" \
+            -P "$SIGN_KEYSTORE_PASSWORD" \
+            -S "$SIGN_KEY_PASSWORD" \
+            --manager-package io.github.fixz.stersu \
+            -n "$OUTPUT_NAME" \
+            -o release-apk \
+            --strip
+
+      - name: Verify release APK identity
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python3 scripts/verify_apkesu_kernel_identity.py
+          APK="$(find release-apk -maxdepth 1 -type f -name 'SterSU_*-release.apk' | head -n 1)"
+          test -n "$APK"
+
+          BUILD_TOOLS="$(find "$ANDROID_SDK_ROOT/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          APKSIGNER="$BUILD_TOOLS/apksigner"
+          AAPT2="$BUILD_TOOLS/aapt2"
+          test -x "$APKSIGNER"
+          test -x "$AAPT2"
+
+          EXPECTED_PACKAGE="$(sed -n 's/^KSU_MANAGER_PACKAGE[[:space:]]*:=[[:space:]]*//p' dist/manager_identity.mk | head -n 1)"
+          EXPECTED_HASH="$(sed -n 's/^KSU_EXPECTED_HASH[[:space:]]*:=[[:space:]]*//p' dist/manager_identity.mk | head -n 1)"
+          VERSION_CODE="$(sed -n 's/^versionCode=//p' version.properties | head -n 1)"
+          VERSION_NAME="$(sed -n 's/^versionName=//p' version.properties | head -n 1)"
+          ACTUAL_HASH="$("$APKSIGNER" verify --print-certs "$APK" | sed -n 's/^.*certificate SHA-256 digest: //p' | head -n 1)"
+          BADGING="$("$AAPT2" dump badging "$APK" | head -n 1)"
+
+          test "$ACTUAL_HASH" = "$EXPECTED_HASH"
+          printf '%s\n' "$BADGING" | grep -Fq "name='$EXPECTED_PACKAGE'"
+          printf '%s\n' "$BADGING" | grep -Fq "versionCode='$VERSION_CODE'"
+          printf '%s\n' "$BADGING" | grep -Fq "versionName='$VERSION_NAME'"
+
+          cp -f dist/manager_identity.mk release-apk/manager_identity.mk
+          echo "Verified release APK: package=$EXPECTED_PACKAGE version=$VERSION_NAME ($VERSION_CODE) cert=$ACTUAL_HASH"
+
+      - name: Build release metadata
+        id: meta
+        shell: bash
+        env:
+          INPUT_RELEASE_TAG: ${{ inputs.release_tag || '' }}
+        run: |
+          set -euo pipefail
+
+          APK="$(find release-apk -maxdepth 1 -type f -name 'SterSU_*-release.apk' | head -n 1)"
+          test -n "$APK"
+
+          VERSION_NAME="$(sed -n 's/^versionName=//p' version.properties | head -n 1)"
+          VERSION_CODE="$(sed -n 's/^versionCode=//p' version.properties | head -n 1)"
+          if [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
+            RELEASE_TAG="$GITHUB_REF_NAME"
+          elif [ -n "$INPUT_RELEASE_TAG" ]; then
+            RELEASE_TAG="$INPUT_RELEASE_TAG"
+          else
+            RELEASE_TAG="apk-v${VERSION_NAME}-${GITHUB_RUN_NUMBER}"
+          fi
+
+          APK_NAME="$(basename "$APK")"
+          SHA256="$(sha256sum "$APK" | awk '{print $1}')"
+          SIZE_BYTES="$(stat -c%s "$APK")"
+
+          sha256sum "$APK" > "$APK.sha256"
+          export APK_NAME SHA256 SIZE_BYTES VERSION_NAME VERSION_CODE RELEASE_TAG SIGNING_KIND
+
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          manifest = {
+              "schema": 1,
+              "artifact": "SterSU release APK",
+              "apk_name": os.environ["APK_NAME"],
+              "apk_sha256": os.environ["SHA256"],
+              "apk_size_bytes": int(os.environ["SIZE_BYTES"]),
+              "version_name": os.environ["VERSION_NAME"],
+              "version_code": int(os.environ["VERSION_CODE"]),
+              "release_tag": os.environ["RELEASE_TAG"],
+              "signing_kind": os.environ["SIGNING_KIND"],
+              "commit": os.environ["GITHUB_SHA"],
+              "run_id": os.environ["GITHUB_RUN_ID"],
+              "run_attempt": os.environ["GITHUB_RUN_ATTEMPT"],
+          }
+          Path("release-apk/RELEASE_APK_MANIFEST.json").write_text(
+              json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+          {
+            echo "### SterSU release APK"
+            echo
+            echo "- APK: \`$APK_NAME\`"
+            echo "- Version: \`$VERSION_NAME ($VERSION_CODE)\`"
+            echo "- SHA256: \`$SHA256\`"
+            echo "- Signing: \`$SIGNING_KIND\`"
+            echo "- Release tag: \`$RELEASE_TAG\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "apk_name=$APK_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Upload release APK artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: stersu-release-apk
+          path: release-apk/*
+          if-no-files-found: error
+          compression-level: 9
+
+      - name: Publish GitHub Release
+        if: ${{ github.event_name == 'push' || inputs.create_github_release }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.release_tag }}
+          name: SterSU APK ${{ steps.meta.outputs.release_tag }}
+          draft: ${{ inputs.draft || false }}
+          prerelease: ${{ inputs.prerelease || false }}
+          files: |
+            release-apk/*.apk
+            release-apk/*.sha256
+            release-apk/manager_identity.mk
+            release-apk/RELEASE_APK_MANIFEST.json

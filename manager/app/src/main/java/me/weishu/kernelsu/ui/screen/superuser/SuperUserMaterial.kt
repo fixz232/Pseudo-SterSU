@@ -64,6 +64,9 @@ import androidx.compose.ui.unit.dp
 import me.weishu.kernelsu.R
 import me.weishu.kernelsu.data.model.AppInfo
 import me.weishu.kernelsu.ui.component.AppIconImage
+import me.weishu.kernelsu.ui.component.ApkeEmptyState
+import me.weishu.kernelsu.ui.component.ApkeErrorState
+import me.weishu.kernelsu.ui.component.ApkeLoadingState
 import me.weishu.kernelsu.ui.component.ScrollToTopOnChange
 import me.weishu.kernelsu.ui.component.material.ExpressiveScaffold
 import me.weishu.kernelsu.ui.component.material.SearchAppBar
@@ -72,7 +75,6 @@ import me.weishu.kernelsu.ui.component.material.SegmentedItem
 import me.weishu.kernelsu.ui.component.material.SegmentedListItem
 import me.weishu.kernelsu.ui.component.statustag.StatusTag
 import me.weishu.kernelsu.ui.util.ownerNameForUid
-import me.weishu.kernelsu.ui.viewmodel.AppSortType
 
 @Composable
 fun SuperUserPagerMaterial(
@@ -130,18 +132,19 @@ fun SuperUserPagerMaterial(
                             onDismissRequest = { showSortMenu = false }
                         ) {
                             val sortEntries = listOf(
-                                AppSortType.NAME to R.string.sort_by_name,
-                                AppSortType.PACKAGE_NAME to R.string.sort_by_package_name,
-                                AppSortType.INSTALL_TIME to R.string.sort_by_install_time,
-                                AppSortType.UPDATE_TIME to R.string.sort_by_update_time,
+                                0 to R.string.sort_by_name,
+                                1 to R.string.sort_by_package_name,
+                                2 to R.string.sort_by_install_time,
+                                3 to R.string.sort_by_update_time,
                             )
-                            val sortConfig = uiState.sortConfig
+                            val sortType = uiState.sortOption / 2
+                            val reversed = uiState.sortOption % 2 != 0
 
                             DropdownMenuGroup(shapes = MenuDefaults.groupShape(index = 0, count = 2)) {
                                 sortEntries.onEachIndexed { index, (type, resId) ->
                                     SelectableDropdownMenuItem(
                                         text = { Text(stringResource(resId)) },
-                                        selected = sortConfig.sortType == type,
+                                        selected = sortType == type,
                                         selectedLeadingIcon = {
                                             Icon(
                                                 Icons.Filled.Check,
@@ -151,7 +154,7 @@ fun SuperUserPagerMaterial(
                                         },
                                         onClick = {
                                             haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
-                                            actions.onUpdateSortConfig(sortConfig.withType(type))
+                                            actions.onUpdateSortOption(type * 2 + if (reversed) 1 else 0)
                                             showSortMenu = false
                                         },
                                         shapes = MenuDefaults.itemShape(
@@ -167,7 +170,7 @@ fun SuperUserPagerMaterial(
                             DropdownMenuGroup(shapes = MenuDefaults.groupShape(index = 1, count = 2)) {
                                 CheckableDropdownMenuItem(
                                     text = { Text(stringResource(R.string.sort_reverse)) },
-                                    checked = sortConfig.reversed,
+                                    checked = reversed,
                                     checkedLeadingIcon = {
                                         Icon(
                                             Icons.Filled.Check,
@@ -177,7 +180,7 @@ fun SuperUserPagerMaterial(
                                     },
                                     onCheckedChange = {
                                         haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
-                                        actions.onUpdateSortConfig(sortConfig.toggleReversed())
+                                        actions.onUpdateSortOption(sortType * 2 + if (reversed) 0 else 1)
                                         showSortMenu = false
                                     },
                                     shapes = MenuDefaults.itemShape(
@@ -295,6 +298,13 @@ fun SuperUserPagerMaterial(
                             bottom = 16.dp + bottomPadding
                         ),
                     ) {
+                        if (uiState.hasLoaded && uiState.searchResults.isEmpty()) {
+                            item(key = "search-empty") {
+                                ApkeEmptyState(
+                                    title = stringResource(R.string.superuser_empty),
+                                )
+                            }
+                        }
                         itemsIndexed(uiState.searchResults, key = { _, item -> item.uid }) { index, group ->
                             SegmentedItem(index = index, count = uiState.searchResults.size) {
                                 SearchGroupItem(
@@ -335,7 +345,7 @@ fun SuperUserPagerMaterial(
             val latestRefreshing = rememberUpdatedState(uiState.isRefreshing)
             ScrollToTopOnChange(
                 listState,
-                uiState.sortConfig,
+                uiState.sortOption,
                 uiState.showSystemApps,
                 uiState.showOnlyPrimaryUserApps,
                 refreshTick.intValue,
@@ -355,6 +365,31 @@ fun SuperUserPagerMaterial(
                     bottom = 16.dp + bottomInnerPadding
                 ),
             ) {
+                when {
+                    !uiState.hasLoaded && uiState.groupedApps.isEmpty() -> {
+                        item(key = "loading") {
+                            ApkeLoadingState()
+                        }
+                    }
+
+                    uiState.error != null -> {
+                        item(key = "error") {
+                            ApkeErrorState(
+                                title = stringResource(R.string.superuser_failed_to_load),
+                                supportingText = uiState.error.localizedMessage,
+                                onRetry = actions.onRefresh,
+                            )
+                        }
+                    }
+
+                    uiState.groupedApps.isEmpty() -> {
+                        item(key = "empty") {
+                            ApkeEmptyState(
+                                title = stringResource(R.string.superuser_empty),
+                            )
+                        }
+                    }
+                }
                 itemsIndexed(uiState.groupedApps, key = { _, item -> item.uid }) { index, group ->
                     val expanded = expandedSearchUids.value.contains(group.uid)
                     val onToggleExpand = {

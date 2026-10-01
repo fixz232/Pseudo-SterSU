@@ -48,6 +48,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.weishu.kernelsu.R
 import me.weishu.kernelsu.ui.component.KeyEventBlocker
+import me.weishu.kernelsu.ui.component.liquid.globalLiquidGlassSurface
+import me.weishu.kernelsu.ui.component.liquid.isLiquidGlassTheme
 import me.weishu.kernelsu.ui.theme.LocalEnableBlur
 import me.weishu.kernelsu.ui.util.BlurredBar
 import me.weishu.kernelsu.ui.util.rememberBlurBackdrop
@@ -96,7 +98,7 @@ fun ExecuteModuleActionScreenMiuix(
     }
     val offsetHeight by animateDpAsState(
         targetValue = if (fabVisible) 0.dp else 180.dp + WindowInsets.systemBars.asPaddingValues().calculateBottomPadding(),
-        animationSpec = tween(durationMillis = 350),
+        animationSpec = tween(durationMillis = 240),
     )
     val enableBlur = LocalEnableBlur.current
     val backdrop = rememberBlurBackdrop(enableBlur)
@@ -106,6 +108,7 @@ fun ExecuteModuleActionScreenMiuix(
     BackHandler(enabled = !state.isComplete) { }
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopBar(
                 onBack = actions.onBack,
@@ -118,7 +121,7 @@ fun ExecuteModuleActionScreenMiuix(
         floatingActionButton = {
             if (state.isComplete) {
                 FloatingActionButton(
-                    containerColor = colorScheme.primary,
+                    containerColor = if (isLiquidGlassTheme()) Color.Transparent else colorScheme.primary,
                     shadowElevation = 0.dp,
                     onClick = actions.onClose,
                     modifier = Modifier
@@ -130,13 +133,26 @@ fun ExecuteModuleActionScreenMiuix(
                                     WindowInsets.captionBar.asPaddingValues().calculateBottomPadding() + 20.dp,
                             end = 20.dp
                         )
-                        .border(0.05.dp, colorScheme.outline.copy(alpha = 0.5f), CircleShape),
+                        .then(
+                            if (isLiquidGlassTheme()) {
+                                Modifier.globalLiquidGlassSurface(
+                                    shape = CircleShape,
+                                    surfaceAlpha = 0.64f,
+                                    blurRadius = 9.dp,
+                                    refractionHeight = 14.dp,
+                                    refractionAmount = 10.dp,
+                                    strokeAlpha = 0.72f,
+                                )
+                            } else {
+                                Modifier.border(0.05.dp, colorScheme.outline.copy(alpha = 0.5f), CircleShape)
+                            }
+                        ),
                     content = {
                         Icon(
                             Icons.Rounded.Close,
                             null,
                             Modifier.size(40.dp),
-                            tint = colorScheme.onPrimary
+                            tint = if (isLiquidGlassTheme()) colorScheme.primary else colorScheme.onPrimary
                         )
                     },
                 )

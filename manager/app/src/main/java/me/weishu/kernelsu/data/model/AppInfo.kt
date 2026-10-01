@@ -13,6 +13,7 @@ data class AppInfo(
     val label: String,
     val packageInfo: PackageInfo,
     val profile: Natives.Profile?,
+    val isGrantedByKernel: Boolean = false,
     val profileKey: String = packageInfo.packageName,
     val special: Boolean = false,
 ) : Parcelable {
@@ -28,7 +29,7 @@ data class AppInfo(
         get() = special && uid == WEBVIEW_ZYGOTE_UID
 
     val allowSu: Boolean
-        get() = !isWebViewZygote && profile != null && profile.allowSu
+        get() = !isWebViewZygote && (isGrantedByKernel || (profile != null && profile.allowSu))
     val hasCustomProfile: Boolean
         get() {
             if (profile == null) {

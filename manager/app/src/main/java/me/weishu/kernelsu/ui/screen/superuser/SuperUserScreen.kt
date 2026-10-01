@@ -1,18 +1,17 @@
 package me.weishu.kernelsu.ui.screen.superuser
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import me.weishu.kernelsu.ui.LocalUiMode
-import me.weishu.kernelsu.ui.UiMode
+import me.weishu.kernelsu.ui.InterfaceStyle
+import me.weishu.kernelsu.ui.LocalInterfaceStyle
 import me.weishu.kernelsu.ui.navigation3.Navigator
 import me.weishu.kernelsu.ui.navigation3.Route
 import me.weishu.kernelsu.ui.viewmodel.SuperUserViewModel
@@ -22,36 +21,25 @@ fun SuperUserPager(
     navigator: Navigator,
     bottomInnerPadding: Dp,
     isCurrentPage: Boolean = true,
+    onOpenSecondary: () -> Unit = {},
 ) {
     val viewModel = viewModel<SuperUserViewModel>()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val latestIsCurrentPage by rememberUpdatedState(isCurrentPage)
-    val initialResumeHandled = rememberSaveable { mutableStateOf(false) }
 
-    LaunchedEffect(isCurrentPage) {
-        if (isCurrentPage) {
-            val state = viewModel.uiState.value
-            if (!state.hasLoaded && !state.isRefreshing) {
-                viewModel.initializePreferences()
-                viewModel.loadAppList()
-            }
-        }
-    }
+    var hasActivated by remember { mutableStateOf(false) }
+    if (isCurrentPage) hasActivated = true
 
-    LifecycleResumeEffect(Unit) {
-        if (initialResumeHandled.value && latestIsCurrentPage) {
-            val state = viewModel.uiState.value
-            if (!state.isRefreshing) {
-                if (!state.hasLoaded) {
-                    viewModel.initializePreferences()
-                    viewModel.loadAppList()
-                } else if (viewModel.isNeedRefresh) {
-                    viewModel.loadAppList(resort = false)
-                }
+    if (hasActivated) {
+        val latestUiState by rememberUpdatedState(uiState)
+        LifecycleResumeEffect(Unit) {
+            viewModel.initializePreferences()
+            val state = latestUiState
+            when {
+                !state.hasLoaded || state.error != null -> viewModel.loadAppList(force = true)
+                viewModel.isNeedRefresh -> viewModel.loadAppList(resort = false)
             }
+            onPauseOrDispose {}
         }
-        initialResumeHandled.value = true
-        onPauseOrDispose {}
     }
 
     val onSearchTextChange: (String) -> Unit = viewModel::updateSearchText
@@ -61,33 +49,80 @@ fun SuperUserPager(
     val onToggleShowOnlyPrimaryUserApps: () -> Unit = {
         viewModel.toggleShowOnlyPrimaryUserApps()
     }
-    val onOpenProfile: (GroupedApps) -> Unit = { group ->
-        navigator.push(Route.AppProfile(group.uid))
+    val openSecondary: (Route) -> Unit = { route ->
+        onOpenSecondary()
+        navigator.push(route)
+    }
+    val onOpenProfile: (GroupedApps) -> Unit = fun(group: GroupedApps) {
+        if (navigator.current() is Route.AppProfile) return
+        openSecondary(Route.AppProfile(group.uid))
         viewModel.markNeedRefresh()
     }
     val actions = SuperUserActions(
         onRefresh = { viewModel.loadAppList(force = true) },
-        onOpenSulog = { navigator.push(Route.Sulog) },
+        onOpenSulog = { openSecondary(Route.Sulog) },
+        onOpenAppTools = { openSecondary(Route.SuperUserTools) },
         onSearchTextChange = onSearchTextChange,
         onSearchStatusChange = viewModel::updateSearchStatus,
         onClearSearch = { onSearchTextChange("") },
         onToggleShowSystemApps = onToggleShowSystemApps,
         onToggleShowOnlyPrimaryUserApps = onToggleShowOnlyPrimaryUserApps,
-        onUpdateSortConfig = { viewModel.updateSortConfig(it) },
+        onUpdateSortOption = { viewModel.updateSortOption(it) },
         onOpenProfile = onOpenProfile,
     )
 
-    when (LocalUiMode.current) {
-        UiMode.Miuix -> SuperUserPagerMiuix(
-            uiState = uiState,
-            actions = actions,
-            bottomInnerPadding = bottomInnerPadding,
-        )
+    when (LocalInterfaceStyle.current) {
+        InterfaceStyle.Material.value -> {
+            SuperUserPagerMaterial(
+                uiState = uiState,
+                actions = actions,
+                bottomInnerPadding = bottomInnerPadding,
+            )
+            return
+        }
 
-        UiMode.Material -> SuperUserPagerMaterial(
-            uiState = uiState,
-            actions = actions,
-            bottomInnerPadding = bottomInnerPadding,
-        )
+        InterfaceStyle.Skrootpro.value -> {
+            SuperUserPagerSkrootpro(
+                uiState = uiState,
+                actions = actions,
+                bottomInnerPadding = bottomInnerPadding,
+            )
+            return
+        }
+
+        InterfaceStyle.Delta.value -> {
+            SuperUserPagerDelta(
+                uiState = uiState,
+                actions = actions,
+                bottomInnerPadding = bottomInnerPadding,
+            )
+            return
+        }
+
+        InterfaceStyle.Alpha.value -> {
+            SuperUserPagerAlpha(
+                uiState = uiState,
+                actions = actions,
+                bottomInnerPadding = bottomInnerPadding,
+            )
+            return
+        }
+
+        InterfaceStyle.Snow.value,
+        InterfaceStyle.Rain.value,
+        InterfaceStyle.Pixel.value -> {
+            SuperUserPagerMiuix(
+                uiState = uiState,
+                actions = actions,
+                bottomInnerPadding = bottomInnerPadding,
+            )
+            return
+        }
     }
+
+    SuperUserPagerMiuix(
+        uiState = uiState,
+        actions = actions,
+        bottomInnerPadding = bottomInnerPadding,
+    )
 }

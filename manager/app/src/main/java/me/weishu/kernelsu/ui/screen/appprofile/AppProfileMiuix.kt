@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.weishu.kernelsu.Natives
 import me.weishu.kernelsu.R
+import me.weishu.kernelsu.data.model.AppInfo
 import me.weishu.kernelsu.ui.component.AppIconImage
 import me.weishu.kernelsu.ui.component.ListPopupDefaults
 import me.weishu.kernelsu.ui.component.miuix.DropdownItem
@@ -56,13 +57,13 @@ import me.weishu.kernelsu.ui.component.profile.AppProfileConfig
 import me.weishu.kernelsu.ui.component.profile.RootProfileConfig
 import me.weishu.kernelsu.ui.component.profile.TemplateConfig
 import me.weishu.kernelsu.ui.component.statustag.StatusTag
+import me.weishu.kernelsu.ui.component.liquid.globalLiquidGlassSurface
+import me.weishu.kernelsu.ui.component.liquid.liquidGlassMiuixCardColors
 import me.weishu.kernelsu.ui.theme.LocalEnableBlur
 import me.weishu.kernelsu.ui.util.BlurredBar
 import me.weishu.kernelsu.ui.util.listAppProfileTemplates
 import me.weishu.kernelsu.ui.util.ownerNameForUid
 import me.weishu.kernelsu.ui.util.rememberBlurBackdrop
-import me.weishu.kernelsu.ui.util.setSepolicy
-import me.weishu.kernelsu.ui.viewmodel.SuperUserViewModel
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
@@ -82,7 +83,7 @@ import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.icon.extended.MoreCircle
 import top.yukonga.miuix.kmp.overlay.OverlayListPopup
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
-import top.yukonga.miuix.kmp.preference.SwitchPreference
+import me.weishu.kernelsu.ui.component.miuix.SunMoonSwitchPreference as SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
@@ -102,6 +103,7 @@ fun AppProfileScreenMiuix(
     val blurActive = backdrop != null
     val barColor = if (blurActive) Color.Transparent else colorScheme.surface
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopBar(
                 onBack = actions.onBack,
@@ -182,7 +184,7 @@ private fun AppProfileInner(
     profile: Natives.Profile,
     isUidGroup: Boolean = false,
     isSpecialApp: Boolean = false,
-    affectedApps: List<SuperUserViewModel.AppInfo> = emptyList(),
+    affectedApps: List<AppInfo> = emptyList(),
     onViewTemplate: (id: String) -> Unit = {},
     onManageTemplate: () -> Unit = {},
     onProfileChange: (Natives.Profile) -> Unit,
@@ -199,7 +201,9 @@ private fun AppProfileInner(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp)
-                .padding(bottom = 12.dp),
+                .padding(bottom = 12.dp)
+                .profileLiquidGlassSurface(),
+            colors = liquidGlassMiuixCardColors(),
             insideMargin = PaddingValues(start = 12.dp, end = 16.dp, top = 10.dp, bottom = 10.dp)
         ) {
             Row(
@@ -308,7 +312,9 @@ private fun AppProfileInner(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp)
-                    .padding(bottom = 12.dp),
+                    .padding(bottom = 12.dp)
+                    .profileLiquidGlassSurface(),
+                colors = liquidGlassMiuixCardColors(),
             ) {
                 SwitchPreference(
                     startAction = {
@@ -355,7 +361,7 @@ private fun AppProfileInner(
                         if (templates.isNotEmpty()) {
                             val selected = profile.rootTemplate ?: templates[0]
                             val info = me.weishu.kernelsu.ui.viewmodel.getTemplateInfoById(selected)
-                            if (info != null && setSepolicy(selected, info.rules.joinToString("\n"))) {
+                            if (info != null) {
                                 onProfileChange(
                                     profile.copy(
                                         rootUseDefault = false,
@@ -366,13 +372,6 @@ private fun AppProfileInner(
                                         capabilities = info.capabilities,
                                         context = info.context,
                                         namespace = info.namespace,
-                                    )
-                                )
-                            } else if (profile.rootTemplate != selected || profile.rootUseDefault) {
-                                onProfileChange(
-                                    profile.copy(
-                                        rootUseDefault = false,
-                                        rootTemplate = selected
                                     )
                                 )
                             }
@@ -395,7 +394,9 @@ private fun AppProfileInner(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp)
-                    .padding(bottom = if (rootMode != Mode.Default) 12.dp else 0.dp),
+                    .padding(bottom = if (rootMode != Mode.Default) 12.dp else 0.dp)
+                    .profileLiquidGlassSurface(),
+                colors = liquidGlassMiuixCardColors(),
             ) {
                 AnimatedVisibility(
                     visible = rootMode == Mode.Template,
@@ -432,7 +433,9 @@ private fun AppProfileInner(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp)
-                    .padding(bottom = if (nonRootMode != Mode.Default) 12.dp else 0.dp),
+                    .padding(bottom = if (nonRootMode != Mode.Default) 12.dp else 0.dp)
+                    .profileLiquidGlassSurface(),
+                colors = liquidGlassMiuixCardColors(),
             ) {
                 AnimatedVisibility(
                     visible = nonRootMode == Mode.Custom,
@@ -458,7 +461,9 @@ private fun AppProfileInner(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp)
-                    .padding(bottom = 12.dp),
+                    .padding(bottom = 12.dp)
+                    .profileLiquidGlassSurface(),
+                colors = liquidGlassMiuixCardColors(),
             ) {
                 Spacer(Modifier.height(3.dp))
                 affectedApps.forEach { app ->
@@ -599,7 +604,9 @@ private fun ProfileBox(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 12.dp)
+            .profileLiquidGlassSurface(),
+        colors = liquidGlassMiuixCardColors(),
     ) {
         OverlayDropdownPreference(
             title = stringResource(R.string.profile),
@@ -617,4 +624,13 @@ private fun ProfileBox(
             onModeChange(modesAndTitles[it].first)
         }
     }
+}
+
+@Composable
+private fun Modifier.profileLiquidGlassSurface(): Modifier {
+    return globalLiquidGlassSurface(
+        surfaceAlpha = 0.68f,
+        blurRadius = 8.dp,
+        strokeAlpha = 0.72f,
+    )
 }

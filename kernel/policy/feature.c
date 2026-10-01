@@ -7,14 +7,24 @@ static const struct ksu_feature_handler *feature_handlers[KSU_FEATURE_MAX];
 
 static DEFINE_MUTEX(feature_mutex);
 
+static u32 normalize_feature_id(u32 feature_id)
+{
+    if (feature_id == KSU_FEATURE_AVC_SPOOF_LEGACY)
+        return KSU_FEATURE_AVC_SPOOF;
+    return feature_id;
+}
+
 int __init ksu_register_feature_handler(const struct ksu_feature_handler *handler)
 {
+    u32 feature_id;
+
     if (!handler) {
         pr_err("feature: register handler is NULL\n");
         return -EINVAL;
     }
 
-    if (handler->feature_id >= KSU_FEATURE_MAX) {
+    feature_id = normalize_feature_id(handler->feature_id);
+    if (feature_id >= KSU_FEATURE_MAX) {
         pr_err("feature: invalid feature_id %u\n", handler->feature_id);
         return -EINVAL;
     }
@@ -26,11 +36,11 @@ int __init ksu_register_feature_handler(const struct ksu_feature_handler *handle
 
     mutex_lock(&feature_mutex);
 
-    if (feature_handlers[handler->feature_id]) {
+    if (feature_handlers[feature_id]) {
         pr_warn("feature: handler for %u already registered, overwriting\n", handler->feature_id);
     }
 
-    feature_handlers[handler->feature_id] = handler;
+    feature_handlers[feature_id] = handler;
 
     pr_info("feature: registered handler for %s (id=%u)\n", handler->name ? handler->name : "unknown",
             handler->feature_id);
@@ -43,6 +53,7 @@ int ksu_unregister_feature_handler(u32 feature_id)
 {
     int ret = 0;
 
+    feature_id = normalize_feature_id(feature_id);
     if (feature_id >= KSU_FEATURE_MAX) {
         pr_err("feature: invalid feature_id %u\n", feature_id);
         return -EINVAL;
@@ -70,6 +81,7 @@ int ksu_get_feature(u32 feature_id, u64 *value, bool *supported)
     int ret = 0;
     const struct ksu_feature_handler *handler;
 
+    feature_id = normalize_feature_id(feature_id);
     if (feature_id >= KSU_FEATURE_MAX) {
         pr_err("feature: invalid feature_id %u\n", feature_id);
         return -EINVAL;
@@ -114,6 +126,7 @@ int ksu_set_feature(u32 feature_id, u64 value)
     int ret = 0;
     const struct ksu_feature_handler *handler;
 
+    feature_id = normalize_feature_id(feature_id);
     if (feature_id >= KSU_FEATURE_MAX) {
         pr_err("feature: invalid feature_id %u\n", feature_id);
         return -EINVAL;

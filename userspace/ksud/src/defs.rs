@@ -8,12 +8,27 @@ mod android {
     pub const LIBRARY_DIR: &str = concatcp!(WORKING_DIR, "lib/");
     pub const LOG_DIR: &str = concatcp!(WORKING_DIR, "log/");
     pub const SULOGD_LOCK_PATH: &str = concatcp!(WORKING_DIR, "sulogd.lock");
+    pub const KPM_DIR: &str = concatcp!(WORKING_DIR, "kpm/");
+    pub const KPM_BOOT_PENDING_PATH: &str = concatcp!(KPM_DIR, ".boot_pending.json");
+    pub const KPM_OPERATION_LOCK_PATH: &str = concatcp!(KPM_DIR, ".operation.lock");
+    pub const KPM_POLICY_PATH: &str = concatcp!(KPM_DIR, ".policy.json");
+    pub const WEB_MANAGER_DIR: &str = concatcp!(WORKING_DIR, "webmanager/");
+    pub const WEB_MANAGER_CONFIG_PATH: &str = concatcp!(WEB_MANAGER_DIR, "config.json");
+    pub const WEB_MANAGER_STATE_PATH: &str = concatcp!(WEB_MANAGER_DIR, "state.json");
+    pub const WEB_MANAGER_LOCK_PATH: &str = concatcp!(WEB_MANAGER_DIR, "server.lock");
+    pub const WEB_MANAGER_STOP_PATH: &str = concatcp!(WEB_MANAGER_DIR, ".stop");
+    pub const WEB_MANAGER_ASSET_DIR: &str = concatcp!(WEB_MANAGER_DIR, "assets/");
+    pub const WEB_MANAGER_ASSET_META_PATH: &str = concatcp!(WEB_MANAGER_DIR, "assets.json");
+    pub const WEB_MANAGER_APP_SETTINGS_PATH: &str =
+        concatcp!(WORKING_DIR, "web_manager_app_settings.json");
 
     pub const PROFILE_DIR: &str = concatcp!(WORKING_DIR, "profile/");
     pub const PROFILE_SELINUX_DIR: &str = concatcp!(PROFILE_DIR, "selinux/");
     pub const PROFILE_TEMPLATE_DIR: &str = concatcp!(PROFILE_DIR, "templates/");
 
     pub const KSURC_PATH: &str = concatcp!(WORKING_DIR, ".ksurc");
+    pub const DYNAMIC_MANAGER: &str = concatcp!(WORKING_DIR, ".dynamic_manager");
+    pub const LEGACY_DYNAMIC_MANAGER_CONFIG: &str = concatcp!(WORKING_DIR, ".dynamic_manager.json");
     pub const DAEMON_PATH: &str = concatcp!(ADB_DIR, "ksud");
     pub const LIBADBROOT_PATH: &str = concatcp!(LIBRARY_DIR, "libadbroot.so");
 
@@ -50,18 +65,23 @@ mod android {
     pub const KSU_BACKUP_FILE_PREFIX: &str = "ksu_backup_";
     pub const BACKUP_FILENAME: &str = "stock_image.sha1";
     pub const KSU_TEMP_BACKUP_DIR_NAME: &str = "boot_backup";
-
-    pub const DEFAULT_PACKAGE_NAME: &str = env!("KSU_PACKAGE_NAME");
 }
 
 #[allow(unused)]
-pub const VERSION_CODE: &str = env!("VERSION_CODE");
-pub const VERSION_NAME: &str = env!("VERSION_NAME");
+pub const DEFAULT_MANAGER_PACKAGE: &str = "io.github.fixz.stersu";
+pub const LEGACY_MANAGER_PACKAGE: &str = "io.github.fixz.apkesu";
+
 #[cfg(target_os = "android")]
-pub const FULL_VERSION: &str = const_format::formatcp!(
-    "{VERSION_NAME} (uapi: {})",
-    crate::ksu_uapi::KERNEL_SU_UAPI_VERSION
-);
+pub const TRUSTED_MANAGER_PACKAGES: &[&str] = &[DEFAULT_MANAGER_PACKAGE, LEGACY_MANAGER_PACKAGE];
+
+#[cfg(target_os = "android")]
+pub fn is_trusted_manager_package(package_name: &str) -> bool {
+    TRUSTED_MANAGER_PACKAGES.contains(&package_name)
+}
+
+#[allow(unused)]
+pub const VERSION_CODE: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION_CODE"));
+pub const VERSION_NAME: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION_NAME"));
 
 #[cfg(target_os = "android")]
 pub use android::*;

@@ -1,0 +1,20 @@
+{
+  "schema": "io.github.fixz.apkesu.plugin",
+  "version": 1,
+  "id": "graphics-renderer",
+  "name": "内置图像渲染器",
+  "summary": "在系统默认、Skia Vulkan 和 Skia OpenGL 之间切换。",
+  "description": "检测设备 Vulkan 能力和 HWUI 属性，只写入白名单属性并在报告成功前读回验证。",
+  "instructions": [
+    "先刷新环境诊断并确认 Vulkan 能力。",
+    "应用后按提示重启，出现异常时恢复系统默认。"
+  ],
+  "slots": [
+    "toolbox.graphics-renderer"
+  ],
+  "minManagerVersionCode": 32800,
+  "minKsudVersionCode": 32800,
+  "downloadUrl": "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/packages/graphics-renderer.ksplugin",
+  "sha256": "",
+  "sizeBytes": 0
+}

@@ -2,6 +2,7 @@ use anyhow::Result;
 use clap::Parser;
 
 use crate::boot_patch::{BootPatchArgs, BootRestoreArgs};
+use crate::kpimg::{BootInfoKpimgArgs, BootPatchKpimgArgs};
 use crate::lkm_image::BootPatchV2Args;
 use crate::{apk_sign, defs};
 
@@ -21,10 +22,16 @@ enum Commands {
     /// Restore boot or init_boot images patched by KernelSU
     BootRestore(BootRestoreArgs),
 
-    /// Patch KernelSU into a boot image
+    /// Patch the KernelSU LKM directly into a boot image
     ///
-    /// Always operates on a boot image; never selects init_boot or vendor_boot.
+    /// This path always targets boot and never selects init_boot or vendor_boot.
     BootPatchV2(BootPatchV2Args),
+
+    /// Inject Native GKI KPM into an ABI-enabled boot image without flashing
+    BootPatchKpimg(BootPatchKpimgArgs),
+
+    /// Inspect a boot image for the Native GKI KPM runtime
+    BootInfoKpimg(BootInfoKpimgArgs),
 
     /// Get apk size and hash
     GetSign {
@@ -54,7 +61,10 @@ pub fn run() -> Result<()> {
 
         Commands::BootRestore(boot_restore) => crate::boot_patch::restore(boot_restore),
 
-        Commands::BootPatchV2(patch) => crate::lkm_image::patch_boot(&patch),
+        Commands::BootPatchV2(boot_patch) => crate::lkm_image::patch_boot(&boot_patch),
+
+        Commands::BootPatchKpimg(kpimg_options) => crate::kpimg::patch_boot(&kpimg_options),
+        Commands::BootInfoKpimg(kpimg_options) => crate::kpimg::print_info(&kpimg_options),
 
         Commands::SupportedKmis => {
             let kmi = crate::assets::list_supported_kmi();

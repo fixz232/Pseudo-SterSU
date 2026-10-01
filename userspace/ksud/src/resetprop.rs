@@ -66,17 +66,13 @@ struct Args {
     #[arg(short = 'f', long = "file")]
     file: Option<String>,
 
-    /// Rebuild a property area by SELinux context name, or all property areas if name is not given.
-    #[arg(short = 'c', long = "rebuild", alias = "compact")]
-    rebuild: bool,
+    /// Rebuild a property area by SELinux context name.
+    #[arg(short = 'c', long = "compact")]
+    compact: bool,
 
-    /// Show SELinux context when listing properties, or if -c is used, rebuild the property area containing the property NAME.
+    /// Show SELinux context when listing properties.
     #[arg(short = 'Z')]
     show_context: bool,
-
-    /// Force rebuild all property areas, should be used with `-c` . Without this flag set, only abnormal property areas will be rebuilt.
-    #[arg(long = "force")]
-    force: bool,
 
     #[arg(
         allow_hyphen_values = true,
@@ -145,13 +141,12 @@ fn run_from_args(args: &[String]) -> Result<()> {
     };
 
     // Validate: at most one special mode
-    let special_modes = u8::from(cli.wait) + u8::from(cli.delete) + u8::from(cli.file.is_some());
+    let special_modes = u8::from(cli.wait)
+        + u8::from(cli.delete)
+        + u8::from(cli.compact)
+        + u8::from(cli.file.is_some());
     if special_modes > 1 {
         bail!("multiple operation modes detected");
-    }
-
-    if cli.rebuild && !(special_modes == 0 || cli.delete) {
-        bail!("Only -d can be used with -c");
     }
 
     // -w: wait mode
@@ -173,16 +168,21 @@ fn run_from_args(args: &[String]) -> Result<()> {
         return Ok(());
     }
 
+    // -c: rebuild a property area selected by SELinux context name.
+    if cli.compact {
+        let context = cli
+            .name()
+            .context("--compact requires a property area context name")?;
+        rp.rebuild(context).context("rebuild failed")?;
+        return Ok(());
+    }
+
     // -f: load from file
     if let Some(path) = &cli.file {
         let file = File::open(path).with_context(|| format!("Failed to open {path}"))?;
         let reader = BufReader::new(file);
-        if rp
-            .load_props(reader.lines())
-            .context("Failed to load properties from file")?
-        {
-            eprintln!("resetprop: warning: rebuild is needed!");
-        }
+        rp.load_props(reader.lines())
+            .context("Failed to load properties from file")?;
         return Ok(());
     }
 
@@ -193,23 +193,6 @@ fn run_from_args(args: &[String]) -> Result<()> {
         if !deleted {
             bail!("{name} not found");
         }
-        if !cli.rebuild {
-            return Ok(());
-        }
-    }
-
-    if cli.rebuild {
-        if let Some(name) = cli.name() {
-            let ctx = if cli.show_context || cli.delete {
-                sys_prop::get_context(name)?
-            } else {
-                name.to_owned()
-            };
-            rp.rebuild(&ctx)?;
-        } else if !rp.rebuild_all(cli.force)? {
-            eprintln!("Something wrong happened, see log for detail.");
-            std::process::exit(1);
-        }
         return Ok(());
     }
 
@@ -219,12 +202,8 @@ fn run_from_args(args: &[String]) -> Result<()> {
     match (name, value) {
         // resetprop name value (set)
         (Some(name), Some(value)) => {
-            if rp
-                .set(name, value)
-                .with_context(|| format!("Failed to set {name}"))?
-            {
-                eprintln!("resetprop: warning: rebuild is needed!");
-            }
+            rp.set(name, value)
+                .with_context(|| format!("Failed to set {name}"))?;
         }
 
         // resetprop name (get)
@@ -267,15 +246,8 @@ pub fn load_system_prop_file(path: &Path) -> Result<()> {
 
     let file = File::open(path).with_context(|| format!("Failed to open {}", path.display()))?;
     let reader = BufReader::new(file);
-    if rp
-        .load_props(reader.lines())
-        .with_context(|| format!("Failed to load properties from {}", path.display()))?
-    {
-        log::warn!(
-            "warning: after loaded prop file from {}, rebuild is needed!",
-            path.display()
-        );
-    }
+    rp.load_props(reader.lines())
+        .with_context(|| format!("Failed to load properties from {}", path.display()))?;
 
     info!("Loaded system.prop from {}", path.display());
     Ok(())

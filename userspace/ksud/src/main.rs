@@ -18,12 +18,28 @@ mod cli;
 #[cfg(not(target_os = "android"))]
 mod cli_non_android;
 #[cfg(target_os = "android")]
+mod cpu_spoof;
+#[cfg(target_os = "android")]
 mod debug;
 mod defs;
+#[cfg(target_os = "android")]
+mod dynamic_manager;
+#[cfg(target_os = "android")]
+mod epkesu_hide;
 #[cfg(target_os = "android")]
 mod feature;
 #[cfg(target_os = "android")]
 mod init_event;
+#[cfg(target_os = "android")]
+mod kpatch_next;
+mod kpimg;
+#[cfg(target_os = "android")]
+mod kpm;
+mod kpm_abi;
+mod kpm_backend;
+#[cfg(target_os = "android")]
+#[allow(nonstandard_style, unused, unsafe_op_in_unsafe_fn)]
+mod ksu_uapi;
 #[cfg(target_os = "android")]
 mod ksucalls;
 #[cfg(target_os = "android")]
@@ -39,13 +55,19 @@ mod module;
 #[cfg(target_os = "android")]
 mod module_config;
 #[cfg(target_os = "android")]
+mod pathmask;
+#[cfg(target_os = "android")]
 mod profile;
+#[cfg(target_os = "android")]
+mod rescue;
 #[cfg(target_os = "android")]
 mod resetprop;
 #[cfg(target_os = "android")]
 mod restorecon;
 #[cfg(target_os = "android")]
 mod sepolicy;
+#[cfg(target_os = "android")]
+mod soft_reboot;
 #[cfg(target_os = "android")]
 mod su;
 #[cfg(target_os = "android")]
@@ -54,10 +76,10 @@ mod sulog;
 mod unload;
 #[cfg(target_os = "android")]
 mod utils;
-
 #[cfg(target_os = "android")]
-#[allow(nonstandard_style, unused, unsafe_op_in_unsafe_fn)]
-mod ksu_uapi;
+mod web_manager;
+#[cfg(target_os = "android")]
+mod web_manager_susfs;
 
 fn main() -> anyhow::Result<()> {
     #[cfg(target_os = "android")]

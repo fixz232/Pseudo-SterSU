@@ -13,7 +13,9 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import me.weishu.kernelsu.ui.component.LocalSwitchStyle
+import me.weishu.kernelsu.ui.component.StyledSwitch
+import me.weishu.kernelsu.ui.component.SwitchStyle
 
 @Composable
 fun ExpressiveSwitch(
@@ -22,48 +24,46 @@ fun ExpressiveSwitch(
     modifier: Modifier = Modifier,
     thumbContent: (@Composable () -> Unit)? = null,
     enabled: Boolean = true,
-    colors: SwitchColors = expressiveSwitchColors(),
+    colors: SwitchColors = SwitchDefaults.colors(),
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     showThumbIcon: Boolean = true,
 ) {
-    Switch(
-        checked = checked,
-        onCheckedChange = onCheckedChange,
-        modifier = modifier,
-        thumbContent = thumbContent ?: if (showThumbIcon && (checked || enabled)) {
-            {
-                Icon(
-                    imageVector = if (checked) Icons.Filled.Check else Icons.Filled.Close,
-                    contentDescription = null,
-                    modifier = Modifier.size(SwitchDefaults.IconSize),
-                )
-            }
-        } else null,
-        enabled = enabled,
-        colors = colors,
-        interactionSource = interactionSource
-    )
+    val switchStyle = LocalSwitchStyle.current
+    if (switchStyle == SwitchStyle.Original) {
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            modifier = modifier,
+            thumbContent = thumbContent ?: if (showThumbIcon) {
+                {
+                    if (checked) {
+                        Icon(
+                            imageVector = Icons.Filled.Check,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(SwitchDefaults.IconSize),
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            modifier = Modifier.size(SwitchDefaults.IconSize),
+                        )
+                    }
+                }
+            } else null,
+            enabled = enabled,
+            colors = colors,
+            interactionSource = interactionSource,
+        )
+    } else {
+        StyledSwitch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            modifier = modifier,
+            enabled = enabled,
+            style = switchStyle,
+        )
+    }
 }
-
-@Composable
-fun expressiveSwitchColors(
-    checkedIconColor: Color = MaterialTheme.colorScheme.primary,
-    uncheckedIconColor: Color = MaterialTheme.colorScheme.surfaceContainerHighest,
-    disabledCheckedThumbColor: Color = MaterialTheme.colorScheme.surface.copy(alpha = 0.38f),
-    disabledCheckedTrackColor: Color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-    disabledCheckedIconColor: Color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-    disabledUncheckedThumbColor: Color = MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
-    disabledUncheckedTrackColor: Color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.12f),
-    disabledUncheckedBorderColor: Color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-    disabledUncheckedIconColor: Color = MaterialTheme.colorScheme.surfaceContainerHighest,
-): SwitchColors = SwitchDefaults.colors(
-    checkedIconColor = checkedIconColor,
-    uncheckedIconColor = uncheckedIconColor,
-    disabledCheckedThumbColor = disabledCheckedThumbColor,
-    disabledCheckedTrackColor = disabledCheckedTrackColor,
-    disabledCheckedIconColor = disabledCheckedIconColor,
-    disabledUncheckedThumbColor = disabledUncheckedThumbColor,
-    disabledUncheckedTrackColor = disabledUncheckedTrackColor,
-    disabledUncheckedBorderColor = disabledUncheckedBorderColor,
-    disabledUncheckedIconColor = disabledUncheckedIconColor,
-)

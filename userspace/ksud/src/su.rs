@@ -280,7 +280,7 @@ pub fn root_shell() -> Result<()> {
 
     let identity_requested = free_idx < matches.free.len() || gid.is_some() || !groups.is_empty();
 
-    // use current uid if no user specified, these has been done in kernel!
+    // Use the current identity unless the caller explicitly requested a user.
     let uid = if free_idx < matches.free.len() {
         resolve_uid(&matches.free[free_idx])?
     } else {

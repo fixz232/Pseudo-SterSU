@@ -8,6 +8,11 @@ import androidx.annotation.StringRes
 import kotlinx.parcelize.IgnoredOnParcel
 import kotlinx.parcelize.Parcelize
 import me.weishu.kernelsu.R
+import me.weishu.kernelsu.ui.util.BootPatchMode
+
+internal fun BootPatchMode.supportsInstallMethod(method: InstallMethod?): Boolean =
+    this != BootPatchMode.NativeKpm || method is InstallMethod.SelectFile ||
+        method is InstallMethod.DownloadFile && method.partition == "boot"
 
 @Parcelize
 internal sealed class InstallMethod : Parcelable {
@@ -33,6 +38,12 @@ internal sealed class InstallMethod : Parcelable {
         override val label: Int
             get() = R.string.install_inactive_slot
     }
+
+    data class AnyKernel(
+        val uri: Uri? = null,
+        override val label: Int = R.string.anykernel_install,
+        override val summary: String? = null
+    ) : InstallMethod()
 
     abstract val label: Int
 

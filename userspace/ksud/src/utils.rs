@@ -3,8 +3,9 @@ use rustix::fs::{Mode, OFlags, open};
 use rustix::process::setpgid;
 use rustix::stdio::{dup2_stderr, dup2_stdin, dup2_stdout};
 use std::{
+    collections::BTreeSet,
     ffi::{CStr, CString, c_char, c_void},
-    fs::{File, OpenOptions, create_dir_all, remove_file, write},
+    fs::{File, OpenOptions, create_dir_all, remove_file, symlink_metadata, write},
     io::{
         ErrorKind::{AlreadyExists, NotFound},
         Write,
@@ -29,15 +30,25 @@ use rustix::{
     thread::{LinkNameSpaceType, move_into_link_name_space},
 };
 
-type PropertyReadCallback = unsafe extern "C" fn(*mut c_void, *const c_char, *const c_char, u32);
+const APKESU_GRAPHICS_RENDERER_DIR: &str = "/data/adb/apkesu/graphics_renderer";
+const APKESU_FOREGROUND_TOOLS_DIR: &str = "/data/adb/apkesu/foreground_tools";
+const APKESU_EXTERNAL_SERVICE_FILES: [&str; 7] = [
+    "/data/adb/service.d/97-apkesu-foreground-tools.sh",
+    "/data/adb/service.d/97-apkesu-foreground-tools.sh.pending",
+    "/data/adb/service.d/97-apkesu-foreground-tools.sh.tmp",
+    "/data/adb/service.d/98-apkesu-susfs-paths.sh",
+    "/data/adb/service.d/98-apkesu-susfs-paths.sh.pending",
+    "/data/adb/service.d/99-apkesu-graphics-renderer.sh",
+    "/data/adb/service.d/99-apkesu-graphics-renderer.sh.tmp",
+];
 
 unsafe extern "C" {
     fn __system_property_find(name: *const c_char) -> *const c_void;
-    fn __system_property_read_callback(
+    fn __system_property_read(
         property_info: *const c_void,
-        callback: PropertyReadCallback,
-        cookie: *mut c_void,
-    );
+        name: *mut c_char,
+        value: *mut c_char,
+    ) -> i32;
 }
 
 #[macro_export]
@@ -116,21 +127,6 @@ pub fn ensure_binary<T: AsRef<Path>>(
     Ok(())
 }
 
-unsafe extern "C" fn property_read_callback(
-    cookie: *mut c_void,
-    _name: *const c_char,
-    value: *const c_char,
-    _serial: u32,
-) {
-    if cookie.is_null() || value.is_null() {
-        return;
-    }
-
-    let result = unsafe { &mut *cookie.cast::<Option<String>>() };
-    let value = unsafe { CStr::from_ptr(value) };
-    *result = Some(value.to_string_lossy().into_owned());
-}
-
 pub fn getprop(name: &str) -> Option<String> {
     let name = CString::new(name).ok()?;
     let property_info = unsafe { __system_property_find(name.as_ptr()) };
@@ -138,15 +134,17 @@ pub fn getprop(name: &str) -> Option<String> {
         return None;
     }
 
-    let mut value = None;
-    unsafe {
-        __system_property_read_callback(
-            property_info,
-            property_read_callback,
-            std::ptr::addr_of_mut!(value).cast(),
-        );
+    let mut value = [0 as c_char; 92];
+    let result =
+        unsafe { __system_property_read(property_info, std::ptr::null_mut(), value.as_mut_ptr()) };
+    if result < 0 {
+        return None;
     }
-    value
+    Some(
+        unsafe { CStr::from_ptr(value.as_ptr()) }
+            .to_string_lossy()
+            .into_owned(),
+    )
 }
 
 pub fn is_safe_mode() -> bool {
@@ -188,8 +186,8 @@ pub fn switch_mnt_ns(pid: i32) -> Result<()> {
     Ok(())
 }
 
-fn switch_cgroup(grp: &str, pid: u32) {
-    let path = Path::new(grp).join("cgroup.procs");
+fn switch_cgroup<T: AsRef<Path>>(grp: T, pid: u32) {
+    let path = grp.as_ref().join("cgroup.procs");
     if !path.exists() {
         return;
     }
@@ -200,11 +198,49 @@ fn switch_cgroup(grp: &str, pid: u32) {
     }
 }
 
+fn unescape_mount_path(path: &str) -> String {
+    path.replace("\\040", " ")
+        .replace("\\011", "\t")
+        .replace("\\012", "\n")
+        .replace("\\134", "\\")
+}
+
+fn cgroup_mount_points() -> BTreeSet<PathBuf> {
+    let mut points = BTreeSet::from([
+        PathBuf::from("/acct"),
+        PathBuf::from("/dev/blkio"),
+        PathBuf::from("/dev/cg2_bpf"),
+        PathBuf::from("/dev/cpuctl"),
+        PathBuf::from("/dev/freezer"),
+        PathBuf::from("/dev/memcg"),
+        PathBuf::from("/dev/memcg/apps"),
+        PathBuf::from("/dev/stune"),
+        PathBuf::from("/sys/fs/cgroup"),
+    ]);
+
+    if let std::result::Result::Ok(mountinfo) = std::fs::read_to_string("/proc/self/mountinfo") {
+        for line in mountinfo.lines() {
+            let Some((pre, post)) = line.split_once(" - ") else {
+                continue;
+            };
+            let fstype = post.split_whitespace().next();
+            if !matches!(fstype, Some("cgroup" | "cgroup2")) {
+                continue;
+            }
+            if let Some(mount_point) = pre.split_whitespace().nth(4) {
+                points.insert(PathBuf::from(unescape_mount_path(mount_point)));
+            }
+        }
+    }
+
+    points
+}
+
 pub fn switch_cgroups() {
     let pid = std::process::id();
-    switch_cgroup("/acct", pid);
-    switch_cgroup("/dev/cg2_bpf", pid);
-    switch_cgroup("/sys/fs/cgroup", pid);
+    for point in cgroup_mount_points() {
+        switch_cgroup(point, pid);
+    }
 
     if getprop("ro.config.per_app_memcg")
         .as_ref()
@@ -222,6 +258,30 @@ pub fn has_magisk() -> bool {
     which::which("magisk").is_ok()
 }
 
+pub fn remove_legacy_magisk_module_link() -> Result<bool> {
+    let adb_dir = Path::new(defs::ADB_DIR);
+    let module_dir = Path::new(defs::MODULE_DIR.trim_end_matches('/'));
+    remove_legacy_magisk_module_link_at(adb_dir, module_dir)
+}
+
+fn remove_legacy_magisk_module_link_at(adb_dir: &Path, module_dir: &Path) -> Result<bool> {
+    let magisk_dir = adb_dir.join(".magisk");
+    let module_link = magisk_dir.join("modules");
+    let metadata = match symlink_metadata(&module_link) {
+        std::result::Result::Ok(metadata) => metadata,
+        Err(error) if error.kind() == NotFound => return Ok(false),
+        Err(error) => return Err(error.into()),
+    };
+
+    if !metadata.file_type().is_symlink() || std::fs::read_link(&module_link)? != module_dir {
+        return Ok(false);
+    }
+
+    remove_file(&module_link)?;
+    let _ = std::fs::remove_dir(&magisk_dir);
+    Ok(true)
+}
+
 fn link_ksud_to_bin() -> Result<()> {
     let ksu_bin = PathBuf::from(defs::DAEMON_PATH);
     let ksu_bin_link = PathBuf::from(defs::DAEMON_LINK_PATH);
@@ -233,13 +293,13 @@ fn link_ksud_to_bin() -> Result<()> {
 
 pub fn install(libadbroot: Option<PathBuf>, data_path: Option<PathBuf>) -> Result<()> {
     ensure_dir_exists(defs::ADB_DIR)?;
+    if !has_magisk()
+        && let Err(error) = remove_legacy_magisk_module_link()
+    {
+        log::warn!("failed to remove legacy Magisk module link: {error:#}");
+    }
     let _ = std::fs::remove_file(defs::DAEMON_PATH);
-    std::fs::copy(
-        // We should use /proc/self/exe, DO NOT resolve the real path
-        // So that if someone execute /data/adb/ksud install, ksud won't be removed unexpectedly
-        "/proc/self/exe",
-        defs::DAEMON_PATH,
-    )?;
+    std::fs::copy("/proc/self/exe", defs::DAEMON_PATH)?;
     restorecon::lsetfilecon(defs::DAEMON_PATH, restorecon::KSU_CON)?;
     // install binary assets
     assets::ensure_binaries(false).with_context(|| "Failed to extract assets")?;
@@ -255,18 +315,18 @@ pub fn install(libadbroot: Option<PathBuf>, data_path: Option<PathBuf>) -> Resul
     if let Some(data_path) = data_path {
         let backup_path = data_path.join(KSU_TEMP_BACKUP_DIR_NAME);
         if backup_path.is_dir() {
-            for ent in backup_path.read_dir()? {
-                let ent = ent?;
-                if ent.file_type().is_ok_and(|v| v.is_file()) {
-                    let name = ent.file_name().to_string_lossy().to_string();
+            for entry in backup_path.read_dir()? {
+                let entry = entry?;
+                if entry.file_type().is_ok_and(|file_type| file_type.is_file()) {
+                    let name = entry.file_name().to_string_lossy().to_string();
                     let target = format!("{}{name}", defs::KSU_BACKUP_DIR);
                     if name.starts_with(defs::KSU_BACKUP_FILE_PREFIX)
-                        && std::fs::rename(ent.path(), &target).is_err()
+                        && std::fs::rename(entry.path(), &target).is_err()
                     {
-                        std::fs::copy(ent.path(), &target).with_context(|| {
-                            format!("failed to move {} -> {target}", ent.path().display())
+                        std::fs::copy(entry.path(), &target).with_context(|| {
+                            format!("failed to move {} -> {target}", entry.path().display())
                         })?;
-                        log::info!("move boot backup {name}");
+                        log::info!("copied boot backup {name}");
                     }
                 }
             }
@@ -278,17 +338,12 @@ pub fn install(libadbroot: Option<PathBuf>, data_path: Option<PathBuf>) -> Resul
 }
 
 pub fn uninstall(package_name: &str) -> Result<()> {
-    if Path::new(defs::MODULE_DIR).exists() {
-        println!("- Uninstall modules..");
-        module::uninstall_all_modules()?;
-        module::prune_modules()?;
+    println!("- Unload hidden path runtime..");
+    if let Err(err) = crate::pathmask::unload() {
+        // Restoring the boot image removes Pathmask on the next boot even when it is busy now.
+        println!("- Warning: unable to unload Pathmask now: {err:#}");
     }
-    println!("- Removing directories..");
-    std::fs::remove_dir_all(defs::WORKING_DIR).ok();
-    std::fs::remove_file(defs::DAEMON_PATH).ok();
-    std::fs::remove_dir_all(defs::MODULE_DIR).ok();
-    std::fs::remove_dir_all(defs::PREINIT_DIR_WATCHDOG).ok();
-    std::fs::remove_dir_all(defs::PREINIT_DIR_DEFAULT).ok();
+
     println!("- Restore boot image..");
     boot_patch::restore(BootRestoreArgs {
         boot: None,
@@ -296,6 +351,23 @@ pub fn uninstall(package_name: &str) -> Result<()> {
         out: None,
         out_name: None,
     })?;
+
+    if Path::new(defs::MODULE_DIR).exists() {
+        println!("- Uninstall modules..");
+        module::uninstall_all_modules()?;
+        module::prune_modules()?;
+    }
+
+    println!("- Removing SterSU service extensions..");
+    cleanup_apkesu_uninstall_artifacts()?;
+
+    // The stock-image backup is stored in WORKING_DIR, so remove it only after restore succeeds.
+    println!("- Removing directories..");
+    std::fs::remove_dir_all(defs::WORKING_DIR).ok();
+    std::fs::remove_file(defs::DAEMON_PATH).ok();
+    std::fs::remove_dir_all(defs::MODULE_DIR).ok();
+    std::fs::remove_dir_all(defs::PREINIT_DIR_WATCHDOG).ok();
+    std::fs::remove_dir_all(defs::PREINIT_DIR_DEFAULT).ok();
     println!("- Uninstall KernelSU manager..");
     Command::new("pm")
         .args(["uninstall", package_name])
@@ -304,6 +376,129 @@ pub fn uninstall(package_name: &str) -> Result<()> {
     std::thread::sleep(std::time::Duration::from_secs(5));
     Command::new("reboot").spawn()?;
     Ok(())
+}
+
+fn cleanup_apkesu_uninstall_artifacts() -> Result<()> {
+    let service_files = APKESU_EXTERNAL_SERVICE_FILES.map(Path::new);
+    let state_dirs = [
+        Path::new(APKESU_FOREGROUND_TOOLS_DIR),
+        Path::new(APKESU_GRAPHICS_RENDERER_DIR),
+    ];
+    cleanup_owned_uninstall_paths(&state_dirs, &service_files)
+}
+
+fn cleanup_owned_uninstall_paths(state_dirs: &[&Path], service_files: &[&Path]) -> Result<()> {
+    for path in service_files {
+        remove_owned_uninstall_path(path)?;
+    }
+    for path in state_dirs {
+        remove_owned_uninstall_path(path)?;
+    }
+    Ok(())
+}
+
+fn remove_owned_uninstall_path(path: &Path) -> Result<()> {
+    let metadata = match symlink_metadata(path) {
+        std::result::Result::Ok(metadata) => metadata,
+        Err(error) if error.kind() == NotFound => return Ok(()),
+        Err(error) => {
+            return Err(Error::from(error)).with_context(|| {
+                format!("failed to inspect uninstall artifact {}", path.display())
+            });
+        }
+    };
+
+    let result = if metadata.file_type().is_dir() {
+        std::fs::remove_dir_all(path)
+    } else {
+        std::fs::remove_file(path)
+    };
+    result.with_context(|| format!("failed to remove uninstall artifact {}", path.display()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{cleanup_owned_uninstall_paths, remove_legacy_magisk_module_link_at};
+    use std::fs;
+    #[cfg(unix)]
+    use std::os::unix::fs::symlink as symlink_dir;
+    #[cfg(windows)]
+    use std::os::windows::fs::symlink_dir;
+
+    #[cfg(any(unix, windows))]
+    #[test]
+    fn removes_only_the_legacy_magisk_modules_link() {
+        let temp = tempfile::tempdir().unwrap();
+        let adb_dir = temp.path().join("adb");
+        let module_dir = adb_dir.join("modules");
+        let magisk_dir = adb_dir.join(".magisk");
+        let module_link = magisk_dir.join("modules");
+
+        fs::create_dir_all(&module_dir).unwrap();
+        fs::create_dir_all(&magisk_dir).unwrap();
+        symlink_dir(&module_dir, &module_link).unwrap();
+
+        assert!(remove_legacy_magisk_module_link_at(&adb_dir, &module_dir).unwrap());
+        assert!(!module_link.exists());
+        assert!(!magisk_dir.exists());
+        assert!(module_dir.is_dir());
+    }
+
+    #[cfg(any(unix, windows))]
+    #[test]
+    fn preserves_a_non_apkesu_magisk_modules_link() {
+        let temp = tempfile::tempdir().unwrap();
+        let adb_dir = temp.path().join("adb");
+        let module_dir = adb_dir.join("modules");
+        let external_modules = temp.path().join("external-modules");
+        let magisk_dir = adb_dir.join(".magisk");
+        let module_link = magisk_dir.join("modules");
+
+        fs::create_dir_all(&module_dir).unwrap();
+        fs::create_dir_all(&external_modules).unwrap();
+        fs::create_dir_all(&magisk_dir).unwrap();
+        symlink_dir(&external_modules, &module_link).unwrap();
+
+        assert!(!remove_legacy_magisk_module_link_at(&adb_dir, &module_dir).unwrap());
+        assert!(module_link.exists());
+    }
+
+    #[test]
+    fn uninstall_cleanup_removes_only_owned_artifacts() {
+        let temp = tempfile::tempdir().unwrap();
+        let state_root = temp.path().join("apkesu");
+        let renderer = state_root.join("graphics_renderer");
+        let foreground = state_root.join("foreground_tools");
+        let unrelated = state_root.join("unrelated");
+        let service_dir = temp.path().join("service.d");
+        let graphics_service = service_dir.join("99-apkesu-graphics-renderer.sh");
+        let susfs_service = service_dir.join("98-apkesu-susfs-paths.sh");
+        let unrelated_service = service_dir.join("other-service.sh");
+
+        fs::create_dir_all(&renderer).unwrap();
+        fs::create_dir_all(&foreground).unwrap();
+        fs::create_dir_all(&unrelated).unwrap();
+        fs::create_dir_all(&service_dir).unwrap();
+        fs::write(renderer.join("mode"), "vulkan").unwrap();
+        fs::write(foreground.join("targets.list"), "com.example.target\n").unwrap();
+        fs::write(unrelated.join("keep"), "keep").unwrap();
+        fs::write(&graphics_service, "graphics").unwrap();
+        fs::write(&susfs_service, "susfs").unwrap();
+        fs::write(&unrelated_service, "keep").unwrap();
+
+        cleanup_owned_uninstall_paths(
+            &[renderer.as_path(), foreground.as_path()],
+            &[graphics_service.as_path(), susfs_service.as_path()],
+        )
+        .unwrap();
+
+        assert!(!renderer.exists());
+        assert!(!foreground.exists());
+        assert!(!graphics_service.exists());
+        assert!(!susfs_service.exists());
+        assert!(unrelated.join("keep").is_file());
+        assert!(unrelated_service.is_file());
+    }
 }
 
 pub fn reset_std() -> Result<()> {

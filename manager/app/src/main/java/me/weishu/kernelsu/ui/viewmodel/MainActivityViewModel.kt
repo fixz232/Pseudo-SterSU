@@ -2,16 +2,92 @@ package me.weishu.kernelsu.ui.viewmodel
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import me.weishu.kernelsu.data.repository.SettingsRepository
 import me.weishu.kernelsu.data.repository.SettingsRepositoryImpl
 import me.weishu.kernelsu.ksuApp
+import me.weishu.kernelsu.ui.InterfaceStyle
 import me.weishu.kernelsu.ui.UiMode
+import me.weishu.kernelsu.ui.component.bottombar.MainDestination
+import me.weishu.kernelsu.ui.resolveRealtimeBlurEnabled
+import me.weishu.kernelsu.ui.component.BACKGROUND_SCROLL_FOLLOW_ENABLED_KEY
+import me.weishu.kernelsu.ui.component.GLOBAL_SCROLL_EFFECT_ENABLED_KEY
+import me.weishu.kernelsu.ui.component.GLOBAL_SCROLL_EFFECT_KEY
+import me.weishu.kernelsu.ui.component.PAGE_TRANSITION_EFFECT_KEY
+import me.weishu.kernelsu.ui.component.AUTO_HIDE_NAVIGATION_BAR_KEY
+import me.weishu.kernelsu.ui.screen.module.MODULE_TOP_BAR_AUTO_HIDE_ENABLED_KEY
+import me.weishu.kernelsu.ui.component.GLOBAL_SNOW_EFFECT_KEY
+import me.weishu.kernelsu.ui.component.GLOBAL_SNOW_ENABLED_KEY
+import me.weishu.kernelsu.ui.component.GlobalScrollEffect
+import me.weishu.kernelsu.ui.component.PageTransitionEffect
+import me.weishu.kernelsu.ui.component.GlobalSnowEffect
+import me.weishu.kernelsu.ui.component.NIGHT_BACKGROUND_EFFECT_KEY
+import me.weishu.kernelsu.ui.component.NIGHT_BACKGROUND_PASSTHROUGH_KEY
+import me.weishu.kernelsu.ui.component.NIGHT_BACKGROUND_PASSTHROUGH_OPACITY_KEY
+import me.weishu.kernelsu.ui.component.DEFAULT_NIGHT_BACKGROUND_PASSTHROUGH_OPACITY
+import me.weishu.kernelsu.ui.component.NightBackgroundEffect
+import me.weishu.kernelsu.ui.component.SCROLL_HIDE_NAVIGATION_BAR_KEY
+import me.weishu.kernelsu.ui.component.SWITCH_STYLE_KEY
+import me.weishu.kernelsu.ui.component.SwitchStyle
+import me.weishu.kernelsu.ui.component.custom.CUSTOM_CARD_STYLE_ACTIVE_ID_KEY
+import me.weishu.kernelsu.ui.component.custom.CUSTOM_CARD_STYLE_LIBRARY_KEY
+import me.weishu.kernelsu.ui.component.custom.CUSTOM_SWITCH_STYLE_ACTIVE_ID_KEY
+import me.weishu.kernelsu.ui.component.custom.CUSTOM_SWITCH_STYLE_LIBRARY_KEY
+import me.weishu.kernelsu.ui.component.custom.ComponentStyleStore
+import me.weishu.kernelsu.ui.component.snow.SEASON_STYLE_KEY
+import me.weishu.kernelsu.ui.component.snow.SEASON_CARD_MOTION_ENABLED_KEY
+import me.weishu.kernelsu.ui.component.snow.DEFAULT_SEASON_CARD_MOTION_ENABLED
+import me.weishu.kernelsu.ui.component.snow.SeasonStyle
+import me.weishu.kernelsu.ui.component.rain.RAIN_STYLE_KEY
+import me.weishu.kernelsu.ui.component.rain.RAIN_CARD_MOTION_ENABLED_KEY
+import me.weishu.kernelsu.ui.component.rain.DEFAULT_RAIN_CARD_MOTION_ENABLED
+import me.weishu.kernelsu.ui.component.rain.RainStyle
+import me.weishu.kernelsu.ui.component.pixel.PIXEL_STYLE_KEY
+import me.weishu.kernelsu.ui.component.pixel.PIXEL_CARD_MOTION_ENABLED_KEY
+import me.weishu.kernelsu.ui.component.pixel.DEFAULT_PIXEL_CARD_MOTION_ENABLED
+import me.weishu.kernelsu.ui.component.pixel.PixelStyle
+import me.weishu.kernelsu.ui.component.decoration.UI_DECORATION_CONFIG_KEY
+import me.weishu.kernelsu.ui.component.decoration.UiDecorationConfig
+import me.weishu.kernelsu.ui.theme.AppSettings
+import me.weishu.kernelsu.ui.theme.DELTA_COLOR_VARIANT_KEY
+import me.weishu.kernelsu.ui.theme.DeltaColorVariant
+import me.weishu.kernelsu.ui.theme.THEME_SYNC_STRATEGY_KEY
 import me.weishu.kernelsu.ui.theme.ThemeController
+import me.weishu.kernelsu.ui.theme.ThemePreset
+import me.weishu.kernelsu.ui.theme.ThemePreferenceKeys
+import me.weishu.kernelsu.ui.util.CustomNavigationIconSlot
+import me.weishu.kernelsu.ui.util.CustomNavigationIconSet
+import me.weishu.kernelsu.ui.util.CustomPageBackgroundSet
+import me.weishu.kernelsu.ui.util.CustomWallpaperCrop
+import me.weishu.kernelsu.ui.util.InterfaceStyleRegistry
+import me.weishu.kernelsu.ui.util.APP_FONT_PREFERENCE_KEYS
+import me.weishu.kernelsu.ui.util.AppFontState
+import me.weishu.kernelsu.ui.util.AppAudioSettings
+import me.weishu.kernelsu.ui.util.CUSTOM_AUDIO_SETTINGS_KEY
+import me.weishu.kernelsu.ui.util.readAppAudioSettings
+import me.weishu.kernelsu.ui.util.readAppFontState
+import me.weishu.kernelsu.ui.util.CUSTOM_PAGE_BACKGROUND_PREFERENCE_KEYS
+import me.weishu.kernelsu.ui.util.CUSTOM_VIDEO_BACKGROUND_FRAME_RATE_KEY
+import me.weishu.kernelsu.ui.util.DEFAULT_CUSTOM_VIDEO_BACKGROUND_DURATION_SECONDS
+import me.weishu.kernelsu.ui.util.DEFAULT_CUSTOM_VIDEO_BACKGROUND_FRAME_RATE
+import me.weishu.kernelsu.ui.util.DEFAULT_CUSTOM_AUDIO_VOLUME
+import me.weishu.kernelsu.ui.util.DEFAULT_CUSTOM_BACKGROUND_MUSIC_VOLUME
+import me.weishu.kernelsu.ui.util.DEFAULT_CUSTOM_WALLPAPER_OPACITY
+import me.weishu.kernelsu.ui.util.DEFAULT_CUSTOM_WALLPAPER_PASSTHROUGH_OPACITY
+import me.weishu.kernelsu.ui.util.CUSTOM_BACKGROUND_MUSIC_URI_KEY
+import me.weishu.kernelsu.ui.util.CUSTOM_BACKGROUND_MUSIC_VOLUME_KEY
+import me.weishu.kernelsu.ui.util.CUSTOM_CLICK_SOUND_VOLUME_KEY
+import me.weishu.kernelsu.stealth.STEALTH_MODE_ENABLED_KEY
+import me.weishu.kernelsu.stealth.StealthModeStore
 
 class MainActivityViewModel(
     savedStateHandle: SavedStateHandle,
@@ -19,72 +95,323 @@ class MainActivityViewModel(
 
     private val prefs = ksuApp.getSharedPreferences("settings", Context.MODE_PRIVATE)
     private val settingRepo: SettingsRepository = SettingsRepositoryImpl()
+    private val componentStyleStore = ComponentStyleStore(ksuApp)
+    private val interfaceStyleRegistry = InterfaceStyleRegistry(ksuApp)
     private val mainPageState = MainPageState(savedStateHandle)
+    @Volatile
+    private var stealthModeResolved = false
     private val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key == null || key in observedKeys) {
-            _uiState.value = readUiState()
+            _uiState.value = readUiStateSafely()
         }
     }
 
-    private val _uiState = MutableStateFlow(readUiState())
+    private val _uiState = MutableStateFlow(readUiStateSafely())
     val uiState: StateFlow<MainActivityUiState> = _uiState.asStateFlow()
-    val selectedMainPage: StateFlow<Int> = mainPageState.selectedPage
+    val selectedMainDestination: StateFlow<MainDestination> = mainPageState.selectedDestination
 
     init {
+        normalizeUnavailableInterfaceStyle()
         prefs.registerOnSharedPreferenceChangeListener(listener)
+        resolveStealthModeFromRoot()
     }
 
     override fun onCleared() {
         prefs.unregisterOnSharedPreferenceChangeListener(listener)
+        super.onCleared()
     }
 
-    fun setSelectedMainPage(page: Int) {
-        mainPageState.updateSelectedPage(page)
+    fun setSelectedMainDestination(destination: MainDestination) {
+        mainPageState.updateSelectedDestination(destination)
+    }
+
+    private fun readUiStateSafely(): MainActivityUiState {
+        return runCatching { readUiState() }.getOrElse {
+            Log.e(TAG, "read activity settings failed", it)
+            fallbackUiState()
+        }
     }
 
     private fun readUiState(): MainActivityUiState {
+        val interfaceStyle = resolveInterfaceStyle(settingRepo.uiMode)
         return MainActivityUiState(
-            appSettings = ThemeController.getAppSettings(),
+            appSettings = ThemeController.getAppSettings(ksuApp),
+            appFont = readAppFontState(ksuApp),
             pageScale = settingRepo.pageScale,
-            enableBlur = settingRepo.enableBlur,
+            fontScale = settingRepo.fontScale,
+            blurIntensity = settingRepo.blurIntensity,
+            enableBlur = resolveRealtimeBlurEnabled(interfaceStyle, settingRepo.enableBlur),
             enableFloatingBottomBar = settingRepo.enableFloatingBottomBar,
-            enableFloatingBottomBarBlur = settingRepo.enableFloatingBottomBarBlur,
-            enableNavigationBadge = settingRepo.enableNavigationBadge,
-            uiMode = UiMode.fromValue(settingRepo.uiMode),
+            enableFloatingBottomBarBlur = resolveRealtimeBlurEnabled(
+                interfaceStyle,
+                settingRepo.enableFloatingBottomBarBlur,
+            ),
+            autoHideNavigationBar = settingRepo.autoHideNavigationBar,
+            scrollHideNavigationBar = settingRepo.scrollHideNavigationBar,
+            moduleTopBarAutoHideEnabled = settingRepo.moduleTopBarAutoHideEnabled,
+            switchStyle = settingRepo.switchStyle,
+            customCardStyle = componentStyleStore.readActiveCardStyle(),
+            customSwitchStyle = componentStyleStore.readActiveSwitchStyle(),
+            seasonStyle = settingRepo.seasonStyle,
+            seasonCardMotionEnabled = settingRepo.seasonCardMotionEnabled,
+            rainStyle = settingRepo.rainStyle,
+            rainCardMotionEnabled = settingRepo.rainCardMotionEnabled,
+            pixelStyle = settingRepo.pixelStyle,
+            pixelCardMotionEnabled = settingRepo.pixelCardMotionEnabled,
+            uiDecorationConfig = settingRepo.uiDecorationConfig,
+            globalSnowEnabled = settingRepo.globalSnowEnabled,
+            globalSnowEffect = settingRepo.globalSnowEffect,
+            nightBackgroundEffect = settingRepo.nightBackgroundEffect,
+            nightBackgroundPassthrough = settingRepo.nightBackgroundPassthrough,
+            nightBackgroundPassthroughOpacity = settingRepo.nightBackgroundPassthroughOpacity,
+            globalScrollEffectEnabled = settingRepo.globalScrollEffectEnabled,
+            globalScrollEffect = settingRepo.globalScrollEffect,
+            backgroundScrollFollowEnabled = settingRepo.backgroundScrollFollowEnabled,
+            pageTransitionEffect = settingRepo.pageTransitionEffect,
+            uiMode = UiMode.fromValue(interfaceStyle),
+            interfaceStyle = interfaceStyle,
+            customWallpaperUri = settingRepo.customWallpaperUri,
+            customWallpaperOpacity = settingRepo.customWallpaperOpacity,
+            customWallpaperVisualSettings = settingRepo.customWallpaperVisualSettings,
+            customWallpaperCrop = settingRepo.customWallpaperCrop,
+            customWallpaperPassthroughEnabled = settingRepo.customWallpaperPassthroughEnabled,
+            customWallpaperPassthroughOpacity = settingRepo.customWallpaperPassthroughOpacity,
+            customVideoBackgroundUri = settingRepo.customVideoBackgroundUri,
+            customVideoBackgroundDurationSeconds = settingRepo.customVideoBackgroundDurationSeconds,
+            customVideoBackgroundFrameRate = settingRepo.customVideoBackgroundFrameRate,
+            customPageBackgrounds = settingRepo.customPageBackgrounds,
+            customStartupAnimationUri = settingRepo.customStartupAnimationUri,
+            startupAnimationSettings = settingRepo.startupAnimationSettings,
+            appAudioSettings = readAppAudioSettings(ksuApp),
+            customStartupSoundUri = settingRepo.customStartupSoundUri,
+            customClickSoundUri = settingRepo.customClickSoundUri,
+            customClickSoundVolume = settingRepo.customClickSoundVolume,
+            customBackgroundMusicUri = settingRepo.customBackgroundMusicUri,
+            customBackgroundMusicVolume = settingRepo.customBackgroundMusicVolume,
+            customNavigationIcons = settingRepo.customNavigationIcons,
+            deltaColorVariant = settingRepo.deltaColorVariant,
+            stealthModeEnabled = StealthModeStore.isEnabled(),
+            stealthModeResolved = stealthModeResolved,
         )
+    }
+
+    private fun normalizeUnavailableInterfaceStyle() {
+        val requested = settingRepo.uiMode
+        if (resolveInterfaceStyle(requested) == requested) return
+        settingRepo.applyInterfaceStyle(
+            UiMode.DEFAULT_VALUE,
+            ThemePreset.CLEAN_TOOL,
+            settingRepo.themeMode,
+        )
+    }
+
+    private fun resolveInterfaceStyle(requested: String): String {
+        val normalized = InterfaceStyle.normalizeValue(requested)
+        if (normalized == InterfaceStyle.Delta.value ||
+            InterfaceStyle.builtInEntries.any { it.value == normalized }) {
+            return normalized
+        }
+        val installed = interfaceStyleRegistry.list().any { item ->
+            item.style.engine == normalized && when (normalized) {
+                InterfaceStyle.Snow.value -> item.style.variant == settingRepo.seasonStyle
+                InterfaceStyle.Rain.value -> item.style.variant == settingRepo.rainStyle
+                InterfaceStyle.Pixel.value -> item.style.variant == settingRepo.pixelStyle
+                else -> true
+            }
+        }
+        return if (installed) normalized else InterfaceStyle.Miuix.value
+    }
+
+    private fun fallbackUiState(): MainActivityUiState {
+        val preset = ThemePreset.CLEAN_TOOL
+        return MainActivityUiState(
+            appSettings = AppSettings(
+                colorMode = preset.colorMode,
+                keyColor = preset.keyColor,
+                paletteStyle = preset.paletteStyle,
+                colorSpec = preset.colorSpec,
+            ),
+            appFont = AppFontState.Default,
+            pageScale = 1f,
+            fontScale = 1f,
+            blurIntensity = 1f,
+            enableBlur = false,
+            enableFloatingBottomBar = false,
+            enableFloatingBottomBarBlur = false,
+            autoHideNavigationBar = false,
+            scrollHideNavigationBar = false,
+            moduleTopBarAutoHideEnabled = false,
+            switchStyle = SwitchStyle.DEFAULT_VALUE,
+            customCardStyle = null,
+            customSwitchStyle = null,
+            seasonStyle = SeasonStyle.DEFAULT_VALUE,
+            seasonCardMotionEnabled = DEFAULT_SEASON_CARD_MOTION_ENABLED,
+            rainStyle = RainStyle.DEFAULT_VALUE,
+            rainCardMotionEnabled = DEFAULT_RAIN_CARD_MOTION_ENABLED,
+            pixelStyle = PixelStyle.DEFAULT_VALUE,
+            pixelCardMotionEnabled = DEFAULT_PIXEL_CARD_MOTION_ENABLED,
+            uiDecorationConfig = UiDecorationConfig(),
+            globalSnowEnabled = false,
+            globalSnowEffect = GlobalSnowEffect.DEFAULT_VALUE,
+            nightBackgroundEffect = NightBackgroundEffect.DEFAULT_VALUE,
+            nightBackgroundPassthrough = false,
+            nightBackgroundPassthroughOpacity = DEFAULT_NIGHT_BACKGROUND_PASSTHROUGH_OPACITY,
+            globalScrollEffectEnabled = false,
+            globalScrollEffect = GlobalScrollEffect.DEFAULT_VALUE,
+            backgroundScrollFollowEnabled = false,
+            pageTransitionEffect = PageTransitionEffect.DEFAULT_VALUE,
+            uiMode = UiMode.fromValue(InterfaceStyle.Miuix.value),
+            interfaceStyle = InterfaceStyle.Miuix.value,
+            customWallpaperUri = null,
+            customWallpaperOpacity = DEFAULT_CUSTOM_WALLPAPER_OPACITY,
+            customWallpaperVisualSettings = me.weishu.kernelsu.ui.util.MediaVisualSettings(),
+            customWallpaperCrop = CustomWallpaperCrop(),
+            customWallpaperPassthroughEnabled = false,
+            customWallpaperPassthroughOpacity = DEFAULT_CUSTOM_WALLPAPER_PASSTHROUGH_OPACITY,
+            customVideoBackgroundUri = null,
+            customVideoBackgroundDurationSeconds = DEFAULT_CUSTOM_VIDEO_BACKGROUND_DURATION_SECONDS,
+            customVideoBackgroundFrameRate = DEFAULT_CUSTOM_VIDEO_BACKGROUND_FRAME_RATE,
+            customPageBackgrounds = CustomPageBackgroundSet(),
+            customStartupAnimationUri = null,
+            startupAnimationSettings = me.weishu.kernelsu.ui.util.StartupAnimationSettings(),
+            appAudioSettings = AppAudioSettings(),
+            customStartupSoundUri = null,
+            customClickSoundUri = null,
+            customClickSoundVolume = DEFAULT_CUSTOM_AUDIO_VOLUME,
+            customBackgroundMusicUri = null,
+            customBackgroundMusicVolume = DEFAULT_CUSTOM_BACKGROUND_MUSIC_VOLUME,
+            customNavigationIcons = CustomNavigationIconSet(),
+            deltaColorVariant = DeltaColorVariant.DEFAULT_VALUE,
+            stealthModeEnabled = StealthModeStore.isEnabled(),
+            stealthModeResolved = stealthModeResolved,
+        )
+    }
+
+    private fun resolveStealthModeFromRoot() {
+        viewModelScope.launch(Dispatchers.IO) {
+            var resolved = false
+            for (attempt in 0 until STEALTH_ROOT_READ_ATTEMPTS) {
+                if (StealthModeStore.reconcileFromRoot().isSuccess) {
+                    resolved = true
+                    break
+                }
+                if (attempt < STEALTH_ROOT_READ_ATTEMPTS - 1) {
+                    delay(STEALTH_ROOT_READ_RETRY_MILLIS)
+                }
+            }
+            if (!resolved) {
+                Log.w(TAG, "root stealth state unavailable; using persisted local state")
+            }
+            stealthModeResolved = true
+            _uiState.value = readUiStateSafely()
+        }
     }
 
     private companion object {
-        val observedKeys = setOf(
-            "color_mode",
-            "key_color",
-            "color_style",
-            "color_spec",
-            "page_scale",
-            "enable_blur",
-            "enable_floating_bottom_bar",
-            "enable_floating_bottom_bar_blur",
-            "enable_navigation_badge",
+        private const val TAG = "MainActivityViewModel"
+        private const val STEALTH_ROOT_READ_ATTEMPTS = 4
+        private const val STEALTH_ROOT_READ_RETRY_MILLIS = 250L
+
+        val observedKeys = buildSet {
+            add(THEME_SYNC_STRATEGY_KEY)
+            addAll(ThemePreferenceKeys)
+            addAll(APP_FONT_PREFERENCE_KEYS)
+            InterfaceStyle.entries.forEach { style ->
+                ThemePreferenceKeys.forEach { key ->
+                    add("${key}_${style.value}")
+                }
+            }
+            addAll(
+                listOf(
             "ui_mode",
-        )
+            SWITCH_STYLE_KEY,
+            CUSTOM_CARD_STYLE_LIBRARY_KEY,
+            CUSTOM_CARD_STYLE_ACTIVE_ID_KEY,
+            CUSTOM_SWITCH_STYLE_LIBRARY_KEY,
+            CUSTOM_SWITCH_STYLE_ACTIVE_ID_KEY,
+            SEASON_STYLE_KEY,
+            SEASON_CARD_MOTION_ENABLED_KEY,
+            RAIN_STYLE_KEY,
+            RAIN_CARD_MOTION_ENABLED_KEY,
+            PIXEL_STYLE_KEY,
+            PIXEL_CARD_MOTION_ENABLED_KEY,
+            UI_DECORATION_CONFIG_KEY,
+            GLOBAL_SNOW_ENABLED_KEY,
+            GLOBAL_SNOW_EFFECT_KEY,
+            NIGHT_BACKGROUND_EFFECT_KEY,
+            NIGHT_BACKGROUND_PASSTHROUGH_KEY,
+            NIGHT_BACKGROUND_PASSTHROUGH_OPACITY_KEY,
+            GLOBAL_SCROLL_EFFECT_ENABLED_KEY,
+            GLOBAL_SCROLL_EFFECT_KEY,
+            BACKGROUND_SCROLL_FOLLOW_ENABLED_KEY,
+            PAGE_TRANSITION_EFFECT_KEY,
+            AUTO_HIDE_NAVIGATION_BAR_KEY,
+            SCROLL_HIDE_NAVIGATION_BAR_KEY,
+            MODULE_TOP_BAR_AUTO_HIDE_ENABLED_KEY,
+            DELTA_COLOR_VARIANT_KEY,
+            "custom_wallpaper_uri",
+            "custom_wallpaper_opacity",
+            "custom_wallpaper_crop_left",
+            "custom_wallpaper_crop_top",
+            "custom_wallpaper_crop_right",
+            "custom_wallpaper_crop_bottom",
+            "custom_wallpaper_passthrough_enabled",
+            "custom_wallpaper_passthrough_opacity",
+            "custom_video_background_uri",
+            "custom_video_background_duration_seconds",
+            CUSTOM_VIDEO_BACKGROUND_FRAME_RATE_KEY,
+            "custom_startup_animation_uri",
+            me.weishu.kernelsu.ui.util.CUSTOM_STARTUP_ANIMATION_SETTINGS_KEY,
+            "custom_startup_sound_uri",
+            "custom_click_sound_uri",
+            CUSTOM_CLICK_SOUND_VOLUME_KEY,
+            CUSTOM_BACKGROUND_MUSIC_URI_KEY,
+            CUSTOM_BACKGROUND_MUSIC_VOLUME_KEY,
+            CUSTOM_AUDIO_SETTINGS_KEY,
+                )
+            )
+            CustomNavigationIconSlot.entries.forEach { slot ->
+                add(slot.uriKey)
+                add(slot.cropLeftKey)
+                add(slot.cropTopKey)
+                add(slot.cropRightKey)
+                add(slot.cropBottomKey)
+            }
+            addAll(CUSTOM_PAGE_BACKGROUND_PREFERENCE_KEYS)
+            add(STEALTH_MODE_ENABLED_KEY)
+        }
     }
 }
 
+private const val SELECTED_MAIN_DESTINATION_KEY = "selected_main_destination"
 private const val SELECTED_MAIN_PAGE_KEY = "selected_main_page"
 
 private class MainPageState(
     private val savedStateHandle: SavedStateHandle,
 ) {
-    val selectedPage: StateFlow<Int> = savedStateHandle.getStateFlow(SELECTED_MAIN_PAGE_KEY, 0)
+    private val initialDestination = savedStateHandle
+        .get<String>(SELECTED_MAIN_DESTINATION_KEY)
+        ?.let(::mainDestinationFromStorage)
+        ?: mainDestinationFromLegacyPage(savedStateHandle[SELECTED_MAIN_PAGE_KEY] ?: 0)
 
-    fun updateSelectedPage(page: Int) {
-        savedStateHandle[SELECTED_MAIN_PAGE_KEY] = MainPagerConfig.coercePage(page)
+    private val _selectedDestination = kotlinx.coroutines.flow.MutableStateFlow(initialDestination)
+    val selectedDestination: StateFlow<MainDestination> = _selectedDestination.asStateFlow()
+
+    fun updateSelectedDestination(destination: MainDestination) {
+        savedStateHandle[SELECTED_MAIN_DESTINATION_KEY] = destination.name
+        _selectedDestination.value = destination
     }
 }
 
-object MainPagerConfig {
-    const val PAGE_COUNT = 4
-    const val LAST_PAGE_INDEX = PAGE_COUNT - 1
+private fun mainDestinationFromStorage(value: String): MainDestination? {
+    return MainDestination.entries.firstOrNull { it.name == value }
+}
 
-    fun coercePage(page: Int): Int = page.coerceIn(0, LAST_PAGE_INDEX)
+private fun mainDestinationFromLegacyPage(page: Int): MainDestination {
+    return when (page) {
+        1 -> MainDestination.SuperUser
+        2 -> MainDestination.Module
+        3 -> MainDestination.Settings
+        else -> MainDestination.Home
+    }
 }

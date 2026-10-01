@@ -6,7 +6,7 @@ use crate::{
 };
 use anyhow::{Context, Result};
 use libc::_exit;
-use log::{error, info, warn};
+use log::{info, warn};
 use prop_rs_android::resetprop::ResetProp;
 use prop_rs_android::sys_prop;
 use rustix::process::chdir;
@@ -14,14 +14,23 @@ use std::path::Path;
 use std::process::Command;
 
 pub fn on_post_data_fs() -> Result<()> {
-    if let Err(e) = ksucalls::ensure_uapi_version_matched() {
-        error!("{e:#}, skip on_post_fs_data");
-        return Ok(());
+    if ksucalls::is_uapi_version_mismatch() {
+        warn!(
+            "Kernel and userspace uapi version mismatch; continue post-fs-data with compatible paths"
+        );
     }
 
     ksucalls::report_post_fs_data();
+    crate::late_load::register_default_manager_appid();
+    if let Err(error) = crate::dynamic_manager::restore_at_boot() {
+        warn!("failed to restore dynamic manager: {error:#}");
+    }
 
     utils::umask(0);
+
+    crate::rescue::check_on_post_fs_data();
+    let rescue_skip_modules = crate::rescue::take_skip_modules_once();
+    crate::kpm::recover_boot_state();
 
     // Clear all temporary module configs early
     if let Err(e) = crate::module_config::clear_all_temp_configs() {
@@ -33,7 +42,25 @@ pub fn on_post_data_fs() -> Result<()> {
     #[cfg(unix)]
     let _ = catch_bootlog("dmesg", &["dmesg", "-w", "-r"]);
 
-    if utils::has_magisk() {
+    if rescue_skip_modules {
+        warn!("rescue requested temporary module skip; skip post-fs-data module stages");
+        match crate::cpu_spoof::disable_for_recovery() {
+            Ok(true) => warn!("disabled CPU spoof during rescue startup"),
+            Ok(false) => {}
+            Err(e) => warn!("failed to disable CPU spoof during rescue startup: {e:#}"),
+        }
+        if let Err(e) = assets::ensure_binaries(true) {
+            warn!("failed to extract bin assets during rescue module skip: {e}");
+        }
+        return Ok(());
+    }
+
+    let magisk_present = utils::has_magisk();
+    if !magisk_present && let Err(error) = utils::remove_legacy_magisk_module_link() {
+        warn!("failed to remove legacy Magisk module link: {error:#}");
+    }
+
+    if magisk_present {
         warn!("Magisk detected, skip post-fs-data!");
         return Ok(());
     }
@@ -58,6 +85,11 @@ pub fn on_post_data_fs() -> Result<()> {
     // if we are in safe mode, we should disable all modules
     if safe_mode {
         warn!("safe mode, skip post-fs-data scripts and disable all modules!");
+        match crate::cpu_spoof::disable_for_recovery() {
+            Ok(true) => warn!("disabled CPU spoof during safe-mode startup"),
+            Ok(false) => {}
+            Err(e) => warn!("failed to disable CPU spoof during safe-mode startup: {e:#}"),
+        }
         if let Err(e) = crate::module::disable_all_modules() {
             warn!("disable all modules failed: {e}");
         }
@@ -99,6 +131,9 @@ pub fn on_post_data_fs() -> Result<()> {
         warn!("init features failed: {e}");
     }
 
+    crate::kpm::load_enabled_at_boot();
+    crate::pathmask::apply_if_configured();
+
     // execute metamodule post-fs-data script first (priority)
     if let Err(e) = metamodule::exec_stage_script("post-fs-data", true) {
         warn!("exec metamodule post-fs-data script failed: {e}");
@@ -115,6 +150,9 @@ pub fn on_post_data_fs() -> Result<()> {
         warn!("load system.prop failed: {e}");
     }
 
+    // Apply property hiding before services and applications can inspect boot state.
+    crate::epkesu_hide::apply_if_enabled();
+
     // execute metamodule mount script
     if let Err(e) = metamodule::exec_mount_script(module_dir) {
         warn!("execute metamodule mount failed: {e}");
@@ -130,6 +168,11 @@ pub fn on_post_data_fs() -> Result<()> {
 pub fn run_stage(stage: &str, block: bool) {
     utils::umask(0);
 
+    if crate::rescue::should_skip_modules_this_boot() {
+        warn!("rescue requested temporary module skip; skip {stage} scripts");
+        return;
+    }
+
     if utils::has_magisk() {
         warn!("Magisk detected, skip {stage}");
         return;
@@ -140,8 +183,26 @@ pub fn run_stage(stage: &str, block: bool) {
         return;
     }
 
+    // post-fs-data is the earliest load window, but targets on late-mounted
+    // storage may not exist yet. Retry Pathmask during the later Android
+    // service milestones; apply_if_configured is idempotent once it is loaded.
+    if matches!(stage, "service" | "boot-completed") {
+        crate::pathmask::apply_if_configured();
+    }
+
+    if stage == "service" {
+        // Retry features whose early hook installation did not become active.
+        if let Err(e) = crate::feature::reapply_configured_features() {
+            warn!("re-apply feature config failed: {e}");
+        }
+    }
+
     if let Err(e) = crate::module::exec_common_scripts(&format!("{stage}.d"), block) {
         warn!("Failed to exec common {stage} scripts: {e}");
+    }
+
+    if stage == "service" {
+        crate::web_manager::start_if_enabled();
     }
 
     // execute metamodule stage script first (priority)
@@ -156,25 +217,46 @@ pub fn run_stage(stage: &str, block: bool) {
 }
 
 pub fn on_services() {
-    if let Err(e) = ksucalls::ensure_uapi_version_matched() {
-        error!("{e:#}, skip on_services");
-        return;
+    if ksucalls::is_uapi_version_mismatch() {
+        warn!(
+            "Kernel and userspace uapi version mismatch; continue services with compatible paths"
+        );
     }
 
     info!("on_services triggered!");
+    if let Err(e) = utils::daemonize(true) {
+        warn!("failed to daemonize services runner: {e}");
+    }
     run_stage("service", false);
 }
 
 pub fn on_boot_completed() {
-    if let Err(e) = ksucalls::ensure_uapi_version_matched() {
-        error!("{e:#}, skip on_boot_completed");
-        return;
+    if ksucalls::is_uapi_version_mismatch() {
+        warn!(
+            "Kernel and userspace uapi version mismatch; continue boot-completed with compatible paths"
+        );
     }
 
+    // Older kernels release SELinux hide's policy backup from the
+    // boot-complete callback, so persisted feature state must be retried first.
+    if let Err(e) = crate::feature::reapply_configured_features() {
+        warn!("pre-boot-complete feature re-apply failed: {e}");
+    }
     ksucalls::report_boot_complete();
     info!("on_boot_completed triggered!");
 
+    crate::rescue::mark_boot_completed();
+    crate::kpm::mark_boot_completed();
+
     run_stage("boot-completed", false);
+    // post-fs-data is the preferred early window. Retry here for devices whose
+    // property service was not ready during that stage.
+    crate::epkesu_hide::apply_if_enabled();
+
+    // Changing ro.soc.model before SystemUI and vendor services initialize can
+    // break launcher startup on some ROMs. Apply only after Android reports a
+    // completed boot; safe mode and rescue startup disable the saved setting.
+    crate::cpu_spoof::apply_if_enabled_after_boot();
 }
 
 const fn resetprop() -> ResetProp {
@@ -247,9 +329,10 @@ fn catch_bootlog(logname: &str, command: &[&str]) -> Result<()> {
 
 pub fn soft_reboot() -> Result<()> {
     // check it avoid user click "soft_reboot" in manager when version mismatch
-    if let Err(e) = ksucalls::ensure_uapi_version_matched() {
-        error!("{e:#}, skip soft_reboot");
-        return Ok(());
+    if ksucalls::is_uapi_version_mismatch() {
+        warn!(
+            "Kernel and userspace uapi version mismatch; continue soft_reboot with compatible paths"
+        );
     }
 
     utils::daemonize_with(true, || -> Result<()> {

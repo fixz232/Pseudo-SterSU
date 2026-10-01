@@ -1,7 +1,5 @@
 package me.weishu.kernelsu.ui.screen.about
 
-import android.os.Build
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -20,7 +18,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
@@ -41,7 +38,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -49,7 +45,6 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
@@ -57,10 +52,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.flow.onEach
 import me.weishu.kernelsu.R
-import me.weishu.kernelsu.ui.component.miuix.effect.BgEffectBackground
-import me.weishu.kernelsu.ui.component.miuix.effect.ColorBlendToken
+import me.weishu.kernelsu.ui.component.liquid.globalLiquidGlassSurface
+import me.weishu.kernelsu.ui.component.liquid.isLiquidGlassTheme
 import me.weishu.kernelsu.ui.theme.LocalEnableBlur
-import me.weishu.kernelsu.ui.theme.isInDarkTheme
 import me.weishu.kernelsu.ui.util.BlurredBar
 import me.weishu.kernelsu.ui.util.rememberBlurBackdrop
 import top.yukonga.miuix.kmp.basic.Card
@@ -72,20 +66,13 @@ import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.ScrollBehavior
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.blur.BlendColorEntry
-import top.yukonga.miuix.kmp.blur.BlurBlendMode
-import top.yukonga.miuix.kmp.blur.BlurColors
-import top.yukonga.miuix.kmp.blur.isRuntimeShaderSupported
 import top.yukonga.miuix.kmp.blur.layerBackdrop
-import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
-import top.yukonga.miuix.kmp.blur.textureBlur
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
-import androidx.compose.ui.graphics.BlendMode as ComposeBlendMode
 
 @Composable
 fun AboutScreenMiuix(
@@ -118,6 +105,7 @@ fun AboutScreenMiuix(
     }
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             BlurredBar(backdrop = barBlurBackdrop, blurActive = blurActive) {
                 SmallTopAppBar(
@@ -127,6 +115,7 @@ fun AboutScreenMiuix(
                     titleColor = colorScheme.onSurface.copy(
                         alpha = ((scrollProgress - 0.35f) / 0.65f).coerceIn(0f, 1f),
                     ),
+                    defaultWindowInsetsPadding = false,
                     navigationIcon = {
                         IconButton(
                             onClick = actions.onBack
@@ -155,7 +144,6 @@ fun AboutScreenMiuix(
                 innerPadding = innerPadding,
                 topAppBarScrollBehavior = topAppBarScrollBehavior,
                 lazyListState = lazyListState,
-                scrollProgress = scrollProgress,
                 onLogoHeightChanged = { logoHeightPx = it },
             )
         }
@@ -169,38 +157,10 @@ private fun AboutContent(
     innerPadding: PaddingValues,
     topAppBarScrollBehavior: ScrollBehavior,
     lazyListState: LazyListState,
-    scrollProgress: Float,
     onLogoHeightChanged: (Int) -> Unit,
 ) {
     val layoutDirection = LocalLayoutDirection.current
     val density = LocalDensity.current
-
-    val backdrop = rememberLayerBackdrop()
-
-    val isInDark = isInDarkTheme()
-    val enableBlur = LocalEnableBlur.current
-    val effectBackground =
-        remember(enableBlur) { isRuntimeShaderSupported() && enableBlur && Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM }
-
-    val blendColors = remember(isInDark) {
-        if (isInDark) ColorBlendToken.Overlay_Thin_Light
-        else ColorBlendToken.Pured_Regular_Light
-    }
-    val logoBlend = remember(isInDark) {
-        if (isInDark) {
-            listOf(
-                BlendColorEntry(Color(0xe6a1a1a1), BlurBlendMode.ColorDodge),
-                BlendColorEntry(Color(0x4de6e6e6), BlurBlendMode.LinearLight),
-                BlendColorEntry(Color(0xff1af500), BlurBlendMode.Lab),
-            )
-        } else {
-            listOf(
-                BlendColorEntry(Color(0xcc4a4a4a), BlurBlendMode.ColorBurn),
-                BlendColorEntry(Color(0xff4f4f4f), BlurBlendMode.LinearLight),
-                BlendColorEntry(Color(0xff1af200), BlurBlendMode.Lab),
-            )
-        }
-    }
 
     // Logo parallax/fade tracking
     var logoHeightDp by remember { mutableStateOf(300.dp) }
@@ -255,14 +215,7 @@ private fun AboutContent(
         end = innerPadding.calculateEndPadding(layoutDirection),
     )
 
-    BgEffectBackground(
-        dynamicBackground = effectBackground,
-        modifier = Modifier.fillMaxSize(),
-        bgModifier = Modifier.layerBackdrop(backdrop),
-        isFullSize = true,
-        effectBackground = effectBackground,
-        alpha = { 1f - scrollProgress },
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
         // Logo area
         Column(
             modifier = Modifier
@@ -294,23 +247,9 @@ private fun AboutContent(
                         iconY = y + size.height
                     },
             ) {
-                Image(
-                    modifier = Modifier
-                        .requiredSize(245.dp)
-                        .then(
-                            if (enableBlur) {
-                                Modifier.textureBlur(
-                                    backdrop = backdrop,
-                                    shape = RoundedCornerShape(0.dp),
-                                    blurRadius = 150f,
-                                    colors = BlurColors(blendColors = logoBlend),
-                                    contentBlendMode = ComposeBlendMode.DstIn,
-                                    enabled = true,
-                                )
-                            } else Modifier
-                        ),
-                    painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                    colorFilter = ColorFilter.tint(colorScheme.onBackground),
+                AboutAppIcon(
+                    size = 100.dp,
+                    modifier = Modifier.fillMaxSize(),
                     contentDescription = null,
                 )
             }
@@ -327,19 +266,7 @@ private fun AboutContent(
                         alpha = 1 - projectNameProgress
                         scaleX = 1 - (projectNameProgress * 0.05f)
                         scaleY = 1 - (projectNameProgress * 0.05f)
-                    }
-                    .then(
-                        if (enableBlur) {
-                            Modifier.textureBlur(
-                                backdrop = backdrop,
-                                shape = RoundedCornerShape(0.dp),
-                                blurRadius = 150f,
-                                colors = BlurColors(blendColors = logoBlend),
-                                contentBlendMode = ComposeBlendMode.DstIn,
-                                enabled = true,
-                            )
-                        } else Modifier
-                    ),
+                    },
                 text = state.appName,
                 color = colorScheme.onBackground,
                 fontWeight = FontWeight.Bold,
@@ -411,19 +338,14 @@ private fun AboutContent(
                     Card(
                         modifier = Modifier
                             .padding(horizontal = 12.dp)
-                            .then(
-                                if (enableBlur) {
-                                    Modifier.textureBlur(
-                                        backdrop = backdrop,
-                                        shape = RoundedCornerShape(16.dp),
-                                        blurRadius = 60f,
-                                        colors = BlurColors(blendColors = blendColors),
-                                        enabled = true,
-                                    )
-                                } else Modifier
+                            .globalLiquidGlassSurface(
+                                shape = RoundedCornerShape(16.dp),
+                                surfaceAlpha = 0.68f,
+                                blurRadius = 8.dp,
+                                strokeAlpha = 0.70f,
                             ),
                         colors = CardDefaults.defaultColors(
-                            if (enableBlur) Color.Transparent else colorScheme.surfaceContainer,
+                            if (isLiquidGlassTheme()) Color.Transparent else colorScheme.surfaceContainer,
                             Color.Transparent,
                         ),
                     ) {

@@ -1,6 +1,7 @@
 package me.weishu.kernelsu.ui.webui
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
 import android.view.WindowManager
@@ -11,6 +12,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -25,15 +27,90 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import me.weishu.kernelsu.data.repository.SettingsRepositoryImpl
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
+import me.weishu.kernelsu.ui.InterfaceStyle
+import me.weishu.kernelsu.ui.LocalInterfaceStyle
 import me.weishu.kernelsu.ui.LocalUiMode
 import me.weishu.kernelsu.ui.UiMode
+import me.weishu.kernelsu.ui.component.CustomWallpaperRoot
+import me.weishu.kernelsu.ui.component.BACKGROUND_SCROLL_FOLLOW_ENABLED_KEY
+import me.weishu.kernelsu.ui.component.DEFAULT_NIGHT_BACKGROUND_PASSTHROUGH_OPACITY
+import me.weishu.kernelsu.ui.component.GLOBAL_SCROLL_EFFECT_ENABLED_KEY
+import me.weishu.kernelsu.ui.component.GLOBAL_SCROLL_EFFECT_KEY
+import me.weishu.kernelsu.ui.component.GLOBAL_SNOW_EFFECT_KEY
+import me.weishu.kernelsu.ui.component.GLOBAL_SNOW_ENABLED_KEY
+import me.weishu.kernelsu.ui.component.GlobalScrollEffect
+import me.weishu.kernelsu.ui.component.GlobalScrollEffectOverlay
+import me.weishu.kernelsu.ui.component.GlobalSnowEffect
+import me.weishu.kernelsu.ui.component.GlobalSnowEffectOverlay
+import me.weishu.kernelsu.ui.component.ThemeModeTransitionOverlay
+import me.weishu.kernelsu.ui.component.LocalNightBackgroundEffectActive
+import me.weishu.kernelsu.ui.component.LocalSwitchStyle
+import me.weishu.kernelsu.ui.component.NIGHT_BACKGROUND_EFFECT_KEY
+import me.weishu.kernelsu.ui.component.NIGHT_BACKGROUND_PASSTHROUGH_KEY
+import me.weishu.kernelsu.ui.component.NIGHT_BACKGROUND_PASSTHROUGH_OPACITY_KEY
+import me.weishu.kernelsu.ui.component.NightBackgroundEffect
+import me.weishu.kernelsu.ui.component.NightBackgroundEffectOverlay
+import me.weishu.kernelsu.ui.component.SWITCH_STYLE_KEY
+import me.weishu.kernelsu.ui.component.SwitchStyle
+import me.weishu.kernelsu.ui.component.globalScrollEffectController
+import me.weishu.kernelsu.ui.component.backgroundScrollFollowController
+import me.weishu.kernelsu.ui.component.rememberBackgroundScrollFollowState
+import me.weishu.kernelsu.ui.component.rememberGlobalScrollEffectState
+import me.weishu.kernelsu.ui.component.sanitizeNightBackgroundPassthroughOpacity
+import me.weishu.kernelsu.ui.component.snow.LocalSeasonStyle
+import me.weishu.kernelsu.ui.component.snow.SEASON_STYLE_KEY
+import me.weishu.kernelsu.ui.component.snow.SeasonStyle
+import me.weishu.kernelsu.ui.component.pixel.LocalPixelStyle
+import me.weishu.kernelsu.ui.component.pixel.PIXEL_STYLE_KEY
+import me.weishu.kernelsu.ui.component.pixel.PixelStyle
+import me.weishu.kernelsu.ui.component.rain.LocalRainStyle
+import me.weishu.kernelsu.ui.component.rain.RAIN_STYLE_KEY
+import me.weishu.kernelsu.ui.component.rain.RainStyle
 import me.weishu.kernelsu.ui.theme.KernelSUTheme
+import me.weishu.kernelsu.ui.theme.LocalColorMode
+import me.weishu.kernelsu.ui.theme.THEME_SYNC_STRATEGY_KEY
 import me.weishu.kernelsu.ui.theme.ThemeController
+import me.weishu.kernelsu.ui.theme.ThemePreferenceKeys
+import me.weishu.kernelsu.ui.theme.resolveEffectiveDarkMode
+import me.weishu.kernelsu.ui.util.CUSTOM_WALLPAPER_CROP_BOTTOM_KEY
+import me.weishu.kernelsu.ui.util.CUSTOM_WALLPAPER_CROP_LEFT_KEY
+import me.weishu.kernelsu.ui.util.CUSTOM_WALLPAPER_CROP_RIGHT_KEY
+import me.weishu.kernelsu.ui.util.CUSTOM_WALLPAPER_CROP_TOP_KEY
+import me.weishu.kernelsu.ui.util.CUSTOM_WALLPAPER_OPACITY_KEY
+import me.weishu.kernelsu.ui.util.CUSTOM_WALLPAPER_PASSTHROUGH_ENABLED_KEY
+import me.weishu.kernelsu.ui.util.CUSTOM_WALLPAPER_PASSTHROUGH_OPACITY_KEY
+import me.weishu.kernelsu.ui.util.CUSTOM_WALLPAPER_URI_KEY
+import me.weishu.kernelsu.ui.util.CUSTOM_VIDEO_BACKGROUND_DURATION_SECONDS_KEY
+import me.weishu.kernelsu.ui.util.CUSTOM_VIDEO_BACKGROUND_FRAME_RATE_KEY
+import me.weishu.kernelsu.ui.util.CUSTOM_VIDEO_BACKGROUND_URI_KEY
+import me.weishu.kernelsu.ui.util.CustomWallpaperCrop
+import me.weishu.kernelsu.ui.util.DEFAULT_CUSTOM_VIDEO_BACKGROUND_DURATION_SECONDS
+import me.weishu.kernelsu.ui.util.DEFAULT_CUSTOM_VIDEO_BACKGROUND_FRAME_RATE
+import me.weishu.kernelsu.ui.util.DEFAULT_CUSTOM_WALLPAPER_CROP
+import me.weishu.kernelsu.ui.util.DEFAULT_CUSTOM_WALLPAPER_OPACITY
+import me.weishu.kernelsu.ui.util.DEFAULT_CUSTOM_WALLPAPER_PASSTHROUGH_OPACITY
+import me.weishu.kernelsu.ui.util.GLOBAL_BACKGROUND_VISUAL_KEYS
+import me.weishu.kernelsu.ui.util.MediaVisualSettings
+import me.weishu.kernelsu.ui.util.sanitizeCustomVideoBackgroundDurationSeconds
+import me.weishu.kernelsu.ui.util.sanitizeCustomVideoBackgroundFrameRate
+import me.weishu.kernelsu.ui.util.sanitizeCustomWallpaperCrop
+import me.weishu.kernelsu.ui.util.sanitizeCustomWallpaperOpacity
+import me.weishu.kernelsu.ui.util.sanitizeCustomWallpaperPassthroughOpacity
+import me.weishu.kernelsu.ui.util.readMediaVisualSettings
+import me.weishu.kernelsu.ui.util.LocalScrollAnimation
+import me.weishu.kernelsu.ui.util.LocalScrollAnimationEffect
+import me.weishu.kernelsu.ui.util.LocalInterfaceStyleTheme
+import me.weishu.kernelsu.ui.util.interfaceStyleTheme
 import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
 
 @SuppressLint("SetJavaScriptEnabled")
 class WebUIActivity : ComponentActivity() {
+    private val intentVersion = MutableStateFlow(0)
+
     override fun onCreate(savedInstanceState: Bundle?) {
 
         enableEdgeToEdge()
@@ -41,44 +118,291 @@ class WebUIActivity : ComponentActivity() {
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
 
         super.onCreate(savedInstanceState)
+        val hostActivity = this
 
         setContent {
             val context = LocalContext.current
             val prefs = context.getSharedPreferences("settings", MODE_PRIVATE)
-            val settingsRepo = remember { SettingsRepositoryImpl() }
-            var appSettings by remember { mutableStateOf(ThemeController.getAppSettings()) }
-            var uiModeValue by remember { mutableStateOf(settingsRepo.uiMode) }
+            var appSettings by remember { mutableStateOf(ThemeController.getAppSettings(context)) }
+            var uiModeValue by remember { mutableStateOf(prefs.getString("ui_mode", UiMode.DEFAULT_VALUE) ?: UiMode.DEFAULT_VALUE) }
+            var wallpaperState by remember { mutableStateOf(readWebUiWallpaperState(prefs)) }
+            var visualEffectsState by remember { mutableStateOf(readWebUiVisualEffectsState(prefs)) }
             val uiMode = remember(uiModeValue) {
                 UiMode.fromValue(uiModeValue)
             }
+            val localColorMode = appSettings.colorMode.value
+            val rainStyle = RainStyle.fromValue(visualEffectsState.rainStyle)
+            val pixelStyle = PixelStyle.fromValue(visualEffectsState.pixelStyle)
+            val externalTheme = remember(uiModeValue, visualEffectsState.rainStyle, visualEffectsState.pixelStyle) {
+                val variant = when (uiModeValue) {
+                    InterfaceStyle.Rain.value -> visualEffectsState.rainStyle
+                    InterfaceStyle.Pixel.value -> visualEffectsState.pixelStyle
+                    else -> null
+                }
+                interfaceStyleTheme(context, uiModeValue, variant)
+            }
+            val darkMode = resolveEffectiveDarkMode(
+                colorMode = appSettings.colorMode,
+                systemDark = isSystemInDarkTheme(),
+                interfaceStyle = uiModeValue,
+                rainStyle = rainStyle,
+                pixelStyle = pixelStyle,
+                interfaceTheme = externalTheme,
+            )
+            val selectedNightEffect = NightBackgroundEffect.fromValue(visualEffectsState.nightBackgroundEffect)
 
             DisposableEffect(prefs) {
                 val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-                    if (key in listOf("color_mode", "key_color", "color_style", "color_spec")) {
-                        appSettings = ThemeController.getAppSettings()
-                    } else if (key == "ui_mode") {
-                        uiModeValue = settingsRepo.uiMode
+                    if (key in themePreferenceKeys) {
+                        appSettings = ThemeController.getAppSettings(context)
+                    }
+                    if (key == "ui_mode") {
+                        uiModeValue = prefs.getString("ui_mode", UiMode.DEFAULT_VALUE) ?: UiMode.DEFAULT_VALUE
+                    }
+                    if (key in wallpaperPreferenceKeys) {
+                        wallpaperState = readWebUiWallpaperState(prefs)
+                    }
+                    if (key in visualEffectsPreferenceKeys) {
+                        visualEffectsState = readWebUiVisualEffectsState(prefs)
                     }
                 }
                 prefs.registerOnSharedPreferenceChangeListener(listener)
                 onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
             }
 
-            CompositionLocalProvider(LocalUiMode provides uiMode) {
+            CompositionLocalProvider(
+                LocalUiMode provides uiMode,
+                LocalInterfaceStyle provides uiModeValue,
+                LocalInterfaceStyleTheme provides externalTheme,
+                LocalColorMode provides localColorMode,
+                LocalSwitchStyle provides SwitchStyle.fromValue(visualEffectsState.switchStyle),
+                LocalSeasonStyle provides SeasonStyle.fromValue(visualEffectsState.seasonStyle),
+                LocalRainStyle provides rainStyle,
+                LocalPixelStyle provides pixelStyle,
+                LocalScrollAnimation provides visualEffectsState.globalScrollEnabled,
+                LocalScrollAnimationEffect provides GlobalScrollEffect.fromValue(visualEffectsState.globalScrollEffect),
+                LocalNightBackgroundEffectActive provides (
+                    darkMode &&
+                        !visualEffectsState.nightBackgroundPassthrough &&
+                        selectedNightEffect != NightBackgroundEffect.Off
+                    ),
+            ) {
                 KernelSUTheme(appSettings = appSettings, uiMode = uiMode) {
-                    MainContent(activity = this, onFinish = { finish() })
+                    val globalScrollEffectState = rememberGlobalScrollEffectState(
+                        enabled = visualEffectsState.globalScrollEnabled,
+                        effectValue = visualEffectsState.globalScrollEffect,
+                    )
+                    val backgroundScrollFollowState = rememberBackgroundScrollFollowState(
+                        enabled = wallpaperState.scrollFollowEnabled,
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .backgroundScrollFollowController(
+                                state = backgroundScrollFollowState,
+                                pointerFallbackEnabled = true,
+                            )
+                            .globalScrollEffectController(
+                                state = globalScrollEffectState,
+                                pointerFallbackEnabled = true,
+                            ),
+                    ) {
+                        CustomWallpaperRoot(
+                            uriString = wallpaperState.uriString,
+                            videoUriString = wallpaperState.videoUriString,
+                            videoDurationSeconds = wallpaperState.videoDurationSeconds,
+                            videoFrameRate = wallpaperState.videoFrameRate,
+                            opacity = wallpaperState.opacity,
+                            crop = wallpaperState.crop,
+                            visualSettings = wallpaperState.visualSettings,
+                            passthroughEnabled = wallpaperState.passthroughEnabled,
+                            passthroughOpacity = wallpaperState.passthroughOpacity,
+                            backgroundScrollFollowState = backgroundScrollFollowState,
+                        ) {
+                            if (!visualEffectsState.nightBackgroundPassthrough) {
+                                NightBackgroundEffectOverlay(
+                                    enabled = darkMode,
+                                    effectValue = selectedNightEffect.value,
+                                    passthrough = false,
+                                )
+                            }
+                            MainContent(
+                                activity = hostActivity,
+                                intentVersion = intentVersion,
+                                onFinish = hostActivity::finish,
+                            )
+                        }
+                        if (visualEffectsState.nightBackgroundPassthrough) {
+                            NightBackgroundEffectOverlay(
+                                enabled = darkMode,
+                                effectValue = selectedNightEffect.value,
+                                passthrough = true,
+                                passthroughOpacity = visualEffectsState.nightBackgroundPassthroughOpacity,
+                            )
+                        }
+                        GlobalSnowEffectOverlay(
+                            enabled = darkMode && visualEffectsState.globalSnowEnabled,
+                            effectValue = visualEffectsState.globalSnowEffect,
+                        )
+                        GlobalScrollEffectOverlay(state = globalScrollEffectState)
+                        ThemeModeTransitionOverlay(darkMode = darkMode)
+                    }
                 }
             }
         }
     }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        intentVersion.update { it + 1 }
+    }
 }
 
-@Composable
-private fun MainContent(activity: ComponentActivity, onFinish: () -> Unit) {
-    val moduleId = remember { activity.intent.data?.getQueryParameter("id") }
-    val webUIState = remember { WebUIState() }
+private data class WebUiWallpaperState(
+    val uriString: String?,
+    val videoUriString: String?,
+    val videoDurationSeconds: Int,
+    val videoFrameRate: Int,
+    val scrollFollowEnabled: Boolean,
+    val opacity: Float,
+    val crop: CustomWallpaperCrop,
+    val visualSettings: MediaVisualSettings,
+    val passthroughEnabled: Boolean,
+    val passthroughOpacity: Float,
+)
 
-    LaunchedEffect(moduleId) {
+private data class WebUiVisualEffectsState(
+    val switchStyle: String,
+    val seasonStyle: String,
+    val rainStyle: String,
+    val pixelStyle: String,
+    val globalSnowEnabled: Boolean,
+    val globalSnowEffect: String,
+    val nightBackgroundEffect: String,
+    val nightBackgroundPassthrough: Boolean,
+    val nightBackgroundPassthroughOpacity: Float,
+    val globalScrollEnabled: Boolean,
+    val globalScrollEffect: String,
+)
+
+private fun readWebUiWallpaperState(prefs: SharedPreferences): WebUiWallpaperState {
+    return WebUiWallpaperState(
+        uriString = prefs.getString(CUSTOM_WALLPAPER_URI_KEY, null),
+        videoUriString = prefs.getString(CUSTOM_VIDEO_BACKGROUND_URI_KEY, null),
+        videoDurationSeconds = sanitizeCustomVideoBackgroundDurationSeconds(
+            prefs.getInt(
+                CUSTOM_VIDEO_BACKGROUND_DURATION_SECONDS_KEY,
+                DEFAULT_CUSTOM_VIDEO_BACKGROUND_DURATION_SECONDS,
+            )
+        ),
+        videoFrameRate = sanitizeCustomVideoBackgroundFrameRate(
+            prefs.getInt(
+                CUSTOM_VIDEO_BACKGROUND_FRAME_RATE_KEY,
+                DEFAULT_CUSTOM_VIDEO_BACKGROUND_FRAME_RATE,
+            )
+        ),
+        scrollFollowEnabled = prefs.getBoolean(BACKGROUND_SCROLL_FOLLOW_ENABLED_KEY, false),
+        opacity = sanitizeCustomWallpaperOpacity(
+            prefs.getFloat(CUSTOM_WALLPAPER_OPACITY_KEY, DEFAULT_CUSTOM_WALLPAPER_OPACITY)
+        ),
+        crop = sanitizeCustomWallpaperCrop(
+            CustomWallpaperCrop(
+                left = prefs.getFloat(CUSTOM_WALLPAPER_CROP_LEFT_KEY, DEFAULT_CUSTOM_WALLPAPER_CROP.left),
+                top = prefs.getFloat(CUSTOM_WALLPAPER_CROP_TOP_KEY, DEFAULT_CUSTOM_WALLPAPER_CROP.top),
+                right = prefs.getFloat(CUSTOM_WALLPAPER_CROP_RIGHT_KEY, DEFAULT_CUSTOM_WALLPAPER_CROP.right),
+                bottom = prefs.getFloat(CUSTOM_WALLPAPER_CROP_BOTTOM_KEY, DEFAULT_CUSTOM_WALLPAPER_CROP.bottom),
+            )
+        ),
+        visualSettings = prefs.readMediaVisualSettings(GLOBAL_BACKGROUND_VISUAL_KEYS),
+        passthroughEnabled = prefs.getBoolean(CUSTOM_WALLPAPER_PASSTHROUGH_ENABLED_KEY, false),
+        passthroughOpacity = sanitizeCustomWallpaperPassthroughOpacity(
+            prefs.getFloat(
+                CUSTOM_WALLPAPER_PASSTHROUGH_OPACITY_KEY,
+                DEFAULT_CUSTOM_WALLPAPER_PASSTHROUGH_OPACITY
+            )
+        ),
+    )
+}
+
+private fun readWebUiVisualEffectsState(prefs: SharedPreferences): WebUiVisualEffectsState {
+    return WebUiVisualEffectsState(
+        switchStyle = prefs.getString(SWITCH_STYLE_KEY, SwitchStyle.DEFAULT_VALUE) ?: SwitchStyle.DEFAULT_VALUE,
+        seasonStyle = prefs.getString(SEASON_STYLE_KEY, SeasonStyle.DEFAULT_VALUE) ?: SeasonStyle.DEFAULT_VALUE,
+        rainStyle = prefs.getString(RAIN_STYLE_KEY, RainStyle.DEFAULT_VALUE) ?: RainStyle.DEFAULT_VALUE,
+        pixelStyle = prefs.getString(PIXEL_STYLE_KEY, PixelStyle.DEFAULT_VALUE) ?: PixelStyle.DEFAULT_VALUE,
+        globalSnowEnabled = prefs.getBoolean(GLOBAL_SNOW_ENABLED_KEY, false),
+        globalSnowEffect = prefs.getString(GLOBAL_SNOW_EFFECT_KEY, GlobalSnowEffect.DEFAULT_VALUE)
+            ?: GlobalSnowEffect.DEFAULT_VALUE,
+        nightBackgroundEffect = prefs.getString(
+            NIGHT_BACKGROUND_EFFECT_KEY,
+            NightBackgroundEffect.DEFAULT_VALUE,
+        ) ?: NightBackgroundEffect.DEFAULT_VALUE,
+        nightBackgroundPassthrough = prefs.getBoolean(NIGHT_BACKGROUND_PASSTHROUGH_KEY, false),
+        nightBackgroundPassthroughOpacity = sanitizeNightBackgroundPassthroughOpacity(
+            prefs.getFloat(
+                NIGHT_BACKGROUND_PASSTHROUGH_OPACITY_KEY,
+                DEFAULT_NIGHT_BACKGROUND_PASSTHROUGH_OPACITY,
+            )
+        ),
+        globalScrollEnabled = prefs.getBoolean(GLOBAL_SCROLL_EFFECT_ENABLED_KEY, false),
+        globalScrollEffect = prefs.getString(GLOBAL_SCROLL_EFFECT_KEY, GlobalScrollEffect.DEFAULT_VALUE)
+            ?: GlobalScrollEffect.DEFAULT_VALUE,
+    )
+}
+
+private val themePreferenceKeys = buildSet {
+    add("ui_mode")
+    add(THEME_SYNC_STRATEGY_KEY)
+    addAll(ThemePreferenceKeys)
+    InterfaceStyle.entries.forEach { style ->
+        ThemePreferenceKeys.forEach { key ->
+            add("${key}_${style.value}")
+        }
+    }
+}
+
+private val wallpaperPreferenceKeys = buildSet {
+    add(CUSTOM_WALLPAPER_URI_KEY)
+    add(CUSTOM_WALLPAPER_OPACITY_KEY)
+    add(CUSTOM_WALLPAPER_CROP_LEFT_KEY)
+    add(CUSTOM_WALLPAPER_CROP_TOP_KEY)
+    add(CUSTOM_WALLPAPER_CROP_RIGHT_KEY)
+    add(CUSTOM_WALLPAPER_CROP_BOTTOM_KEY)
+    add(CUSTOM_WALLPAPER_PASSTHROUGH_ENABLED_KEY)
+    add(CUSTOM_WALLPAPER_PASSTHROUGH_OPACITY_KEY)
+    add(CUSTOM_VIDEO_BACKGROUND_URI_KEY)
+    add(CUSTOM_VIDEO_BACKGROUND_DURATION_SECONDS_KEY)
+    add(CUSTOM_VIDEO_BACKGROUND_FRAME_RATE_KEY)
+    add(BACKGROUND_SCROLL_FOLLOW_ENABLED_KEY)
+    addAll(GLOBAL_BACKGROUND_VISUAL_KEYS.all)
+}
+
+private val visualEffectsPreferenceKeys = setOf(
+    SWITCH_STYLE_KEY,
+    SEASON_STYLE_KEY,
+    RAIN_STYLE_KEY,
+    PIXEL_STYLE_KEY,
+    GLOBAL_SNOW_ENABLED_KEY,
+    GLOBAL_SNOW_EFFECT_KEY,
+    NIGHT_BACKGROUND_EFFECT_KEY,
+    NIGHT_BACKGROUND_PASSTHROUGH_KEY,
+    NIGHT_BACKGROUND_PASSTHROUGH_OPACITY_KEY,
+    GLOBAL_SCROLL_EFFECT_ENABLED_KEY,
+    GLOBAL_SCROLL_EFFECT_KEY,
+)
+
+@Composable
+private fun MainContent(
+    activity: ComponentActivity,
+    intentVersion: StateFlow<Int>,
+    onFinish: () -> Unit,
+) {
+    val intentTick by intentVersion.collectAsStateWithLifecycle()
+    val moduleId = remember(intentTick) { activity.intent.moduleId() }
+    val webUIState = remember(moduleId) { WebUIState() }
+
+    LaunchedEffect(moduleId, webUIState) {
         if (moduleId == null) {
             onFinish()
             return@LaunchedEffect
@@ -86,7 +410,7 @@ private fun MainContent(activity: ComponentActivity, onFinish: () -> Unit) {
         prepareWebView(activity, moduleId, webUIState)
     }
 
-    DisposableEffect(Unit) {
+    DisposableEffect(webUIState) {
         onDispose { webUIState.dispose(activity) }
     }
 
@@ -115,27 +439,23 @@ private fun MainContent(activity: ComponentActivity, onFinish: () -> Unit) {
     }
 }
 
+private fun Intent.moduleId(): String? {
+    getStringExtra("id")?.takeIf { it.isNotBlank() }?.let { return it }
+
+    val intentData = this.data ?: return null
+    if (!intentData.scheme.equals("kernelsu", ignoreCase = true) || !intentData.host.equals("webui", ignoreCase = true)) {
+        return null
+    }
+
+    return intentData.lastPathSegment?.takeIf { it.isNotBlank() }
+}
+
 @Composable
 private fun LoadingContent() {
-    when (LocalUiMode.current) {
-        UiMode.Miuix -> {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                InfiniteProgressIndicator()
-            }
-        }
-
-        UiMode.Material -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background),
-                contentAlignment = Alignment.Center
-            ) {
-                androidx.compose.material3.LoadingIndicator()
-            }
-        }
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        InfiniteProgressIndicator()
     }
 }

@@ -5,10 +5,15 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Rect
+import android.graphics.RectF
 import android.net.Uri
 import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
+import androidx.annotation.StringRes
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
@@ -17,33 +22,17 @@ import androidx.core.net.toUri
 import com.topjohnwu.superuser.io.SuFile
 import com.topjohnwu.superuser.io.SuFileInputStream
 import me.weishu.kernelsu.R
-import me.weishu.kernelsu.data.repository.SettingsRepositoryImpl
 import me.weishu.kernelsu.ui.MainActivity
-import me.weishu.kernelsu.ui.screen.module.ShortcutType
 import me.weishu.kernelsu.ui.util.getRootShell
 import me.weishu.kernelsu.ui.util.isColorOS
 import me.weishu.kernelsu.ui.util.isHyperOS
 import me.weishu.kernelsu.ui.util.isMiui
+import me.weishu.kernelsu.ui.webui.WebUIActivity
 
 object Shortcut {
 
     private const val TAG = "ModuleShortcut"
-    const val SCHEME_KSU = "ksu"
-    const val HOST_ACTION = "action"
-    const val HOST_WEBUI = "webui"
-
-    fun buildShortcutUri(moduleId: String, type: ShortcutType): Uri {
-        val host = when (type) {
-            ShortcutType.Action -> HOST_ACTION
-            ShortcutType.WebUI -> HOST_WEBUI
-        }
-        return Uri.Builder()
-            .scheme(SCHEME_KSU)
-            .authority(host)
-            .appendQueryParameter("id", moduleId)
-            .appendQueryParameter("token", SettingsRepositoryImpl().intentToken)
-            .build()
-    }
+    private const val ADAPTIVE_ICON_SAFE_ZONE_SCALE = 2f / 3f
 
     fun createModuleActionShortcut(
         context: Context,
@@ -54,12 +43,12 @@ object Shortcut {
         val shortcutId = "module_action_$moduleId"
         val shortcutIntent = Intent(context, MainActivity::class.java).apply {
             action = Intent.ACTION_VIEW
-            data = buildShortcutUri(moduleId, ShortcutType.Action)
+            putExtra("shortcut_type", "module_action")
+            putExtra("module_id", moduleId)
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         }
-        createModuleShortcut(
+        createShortcut(
             context = context,
-            moduleId = moduleId,
             name = name,
             iconUri = iconUri,
             shortcutId = shortcutId,
@@ -75,14 +64,15 @@ object Shortcut {
         iconUri: String?
     ) {
         val shortcutId = "module_webui_$moduleId"
-        val shortcutIntent = Intent(context, MainActivity::class.java).apply {
+        val shortcutIntent = Intent(context, WebUIActivity::class.java).apply {
             action = Intent.ACTION_VIEW
-            data = buildShortcutUri(moduleId, ShortcutType.WebUI)
+            data = "kernelsu://webui/$moduleId".toUri()
+            putExtra("id", moduleId)
+            putExtra("from_webui_shortcut", true)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
         }
-        createModuleShortcut(
+        createShortcut(
             context = context,
-            moduleId = moduleId,
             name = name,
             iconUri = iconUri,
             shortcutId = shortcutId,
@@ -91,37 +81,64 @@ object Shortcut {
         )
     }
 
-    private fun createModuleShortcut(
+    fun createManagerShortcut(
         context: Context,
-        moduleId: String,
+        iconBitmap: Bitmap,
+        name: String,
+    ) {
+        val shortcutIntent = Intent(context, MainActivity::class.java).apply {
+            action = Intent.ACTION_MAIN
+            addCategory(Intent.CATEGORY_LAUNCHER)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
+        val iconBitmapWithSafeInset = iconBitmap.withAdaptiveIconSafeInset()
+        createShortcut(
+            context = context,
+            name = name.trim().take(40).ifBlank { context.getString(R.string.app_name) },
+            iconUri = null,
+            customIcon = IconCompat.createWithAdaptiveBitmap(iconBitmapWithSafeInset),
+            shortcutId = "manager_custom_icon",
+            shortcutIntent = shortcutIntent,
+            logPrefix = "createManagerShortcut",
+            createdMessageRes = R.string.settings_app_icon_custom_created,
+            updatedMessageRes = R.string.settings_app_icon_custom_updated,
+        )
+    }
+
+    private fun createShortcut(
+        context: Context,
         name: String,
         iconUri: String?,
         shortcutId: String,
         shortcutIntent: Intent,
-        logPrefix: String
+        logPrefix: String,
+        customIcon: IconCompat? = null,
+        @StringRes createdMessageRes: Int = R.string.module_shortcut_created,
+        @StringRes updatedMessageRes: Int = R.string.module_shortcut_updated,
     ) {
         val hasPinned = hasPinnedShortcut(context, shortcutId)
         Log.d(TAG, "$logPrefix: shortcutId=$shortcutId, hasPinned=$hasPinned")
 
-        val iconCompat = createShortcutIcon(context, iconUri)
+        val iconCompat = customIcon ?: createShortcutIcon(context, iconUri)
         val finalIcon = iconCompat ?: IconCompat.createWithResource(context, R.mipmap.ic_launcher)
 
         val shortcut = ShortcutInfoCompat.Builder(context, shortcutId)
             .setShortLabel(name)
+            .setLongLabel(name)
             .setIntent(shortcutIntent)
             .setIcon(finalIcon)
             .build()
 
         try {
-            Log.d(TAG, "$logPrefix: pushDynamicShortcut() called for moduleId=$moduleId")
+            Log.d(TAG, "$logPrefix: pushDynamicShortcut() called for shortcutId=$shortcutId")
             ShortcutManagerCompat.pushDynamicShortcut(context, shortcut)
         } catch (t: Throwable) {
-            Log.w(TAG, "$logPrefix: pushDynamicShortcut() threw exception for moduleId=$moduleId: ${t.message}", t)
+            Log.w(TAG, "$logPrefix: pushDynamicShortcut() threw exception for shortcutId=$shortcutId: ${t.message}", t)
         }
 
         if (hasPinned) {
             Log.d(TAG, "$logPrefix: detected existing pinned shortcut, updating only")
-            Toast.makeText(context, context.getString(R.string.module_shortcut_updated), Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(updatedMessageRes), Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -154,24 +171,24 @@ object Shortcut {
         }
 
         val pinned = try {
-            Log.d(TAG, "$logPrefix: requestPinShortcut() called for moduleId=$moduleId")
+            Log.d(TAG, "$logPrefix: requestPinShortcut() called for shortcutId=$shortcutId")
             val result = ShortcutManagerCompat.requestPinShortcut(context, shortcut, null)
             Log.d(TAG, "$logPrefix: requestPinShortcut() result=$result")
             result
         } catch (t: Throwable) {
-            Log.w(TAG, "$logPrefix: requestPinShortcut() threw exception for moduleId=$moduleId: ${t.message}", t)
+            Log.w(TAG, "$logPrefix: requestPinShortcut() threw exception for shortcutId=$shortcutId: ${t.message}", t)
             false
         }
 
         if (pinned) {
-            Log.d(TAG, "$logPrefix: pinned shortcut created successfully for moduleId=$moduleId")
+            Log.d(TAG, "$logPrefix: pinned shortcut created successfully for shortcutId=$shortcutId")
             Toast.makeText(
                 context,
-                context.getString(R.string.module_shortcut_created),
+                context.getString(createdMessageRes),
                 Toast.LENGTH_SHORT
             ).show()
         } else {
-            Log.w(TAG, "$logPrefix: pinned shortcut not created, showing permission hint for moduleId=$moduleId")
+            Log.w(TAG, "$logPrefix: pinned shortcut not created, showing permission hint for shortcutId=$shortcutId")
             showShortcutPermissionHint(context)
         }
     }
@@ -257,6 +274,28 @@ object Shortcut {
     private fun createShortcutIcon(context: Context, iconUri: String?): IconCompat? {
         val bitmap = loadShortcutBitmap(context, iconUri) ?: return null
         return IconCompat.createWithBitmap(bitmap)
+    }
+
+    private fun Bitmap.withAdaptiveIconSafeInset(): Bitmap {
+        val side = maxOf(width, height)
+        if (side <= 0) {
+            return this
+        }
+        val output = Bitmap.createBitmap(side, side, Bitmap.Config.ARGB_8888)
+        val contentSide = side * ADAPTIVE_ICON_SAFE_ZONE_SCALE
+        val scale = minOf(contentSide / width, contentSide / height)
+        val drawWidth = width * scale
+        val drawHeight = height * scale
+        val left = (side - drawWidth) / 2f
+        val top = (side - drawHeight) / 2f
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG or Paint.FILTER_BITMAP_FLAG)
+        Canvas(output).drawBitmap(
+            this,
+            Rect(0, 0, width, height),
+            RectF(left, top, left + drawWidth, top + drawHeight),
+            paint
+        )
+        return output
     }
 
     private fun hasPinnedShortcut(context: Context, id: String): Boolean {

@@ -57,7 +57,10 @@ fun <T> MultiSelectDialog(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded))
+        sheetState = rememberBottomSheetState(
+            SheetValue.Hidden,
+            setOf(SheetValue.PartiallyExpanded)
+        )
     ) {
         Column(
             modifier = Modifier

@@ -1,18 +1,20 @@
 package me.weishu.kernelsu
 
 import android.app.Application
+import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.os.Build
 import android.os.UserManager
 import android.system.Os
-import androidx.lifecycle.ViewModelProvider
+import android.util.Log
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
-import me.weishu.kernelsu.data.repository.SettingsRepositoryImpl
-import me.weishu.kernelsu.ui.viewmodel.SuperUserViewModel
 import okhttp3.Cache
 import okhttp3.OkHttpClient
 import org.lsposed.hiddenapibypass.HiddenApiBypass
+import me.weishu.kernelsu.ui.util.AppLanguageManager
+import me.weishu.kernelsu.stealth.StealthModeStore
+import me.weishu.kernelsu.ui.webmanager.ManagerAppSettingsStore
 import java.io.File
 import java.util.Locale
 
@@ -21,18 +23,30 @@ lateinit var ksuApp: KernelSUApplication
 class KernelSUApplication : Application(), ViewModelStoreOwner {
 
     companion object {
-        fun setEnableOnBackInvokedCallback(appInfo: ApplicationInfo, enable: Boolean) {
-            runCatching {
+        private const val TAG = "KernelSUApplication"
+
+        fun setEnableOnBackInvokedCallback(appInfo: ApplicationInfo, enable: Boolean): Boolean {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return false
+            return runCatching {
+                HiddenApiBypass.addHiddenApiExemptions(
+                    "Landroid/content/pm/ApplicationInfo;->setEnableOnBackInvokedCallback"
+                )
                 val applicationInfoClass = ApplicationInfo::class.java
                 val method = applicationInfoClass.getDeclaredMethod("setEnableOnBackInvokedCallback", Boolean::class.javaPrimitiveType)
                 method.isAccessible = true
                 method.invoke(appInfo, enable)
-            }
+            }.onFailure { error ->
+                Log.w(TAG, "update predictive back callback failed", error)
+            }.isSuccess
         }
     }
 
     lateinit var okhttpClient: OkHttpClient
     private val appViewModelStore by lazy { ViewModelStore() }
+
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(AppLanguageManager.wrapContext(base))
+    }
 
     private fun isUserUnlocked(): Boolean =
         getSystemService(UserManager::class.java)?.isUserUnlocked == true
@@ -40,39 +54,43 @@ class KernelSUApplication : Application(), ViewModelStoreOwner {
     override fun onCreate() {
         super.onCreate()
         ksuApp = this
+        AppLanguageManager.syncPlatformLanguage(this)
+
+        runCatching { Os.setenv("TMPDIR", cacheDir.absolutePath, true) }
+            .onFailure { Log.w(TAG, "set TMPDIR failed", it) }
+        okhttpClient = createOkHttpClient()
 
         if (!isUserUnlocked()) {
             return
         }
 
+        StealthModeStore.reconcileFromRootAsync(this)
+        ManagerAppSettingsStore.reconcileFromRootAsync(this)
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            val enable = SettingsRepositoryImpl().enablePredictiveBack
-            HiddenApiBypass.addHiddenApiExemptions("Landroid/content/pm/ApplicationInfo;->setEnableOnBackInvokedCallback")
+            val prefs = this.getSharedPreferences("settings", MODE_PRIVATE)
+            val enable = prefs.getBoolean("enable_predictive_back", false)
             setEnableOnBackInvokedCallback(applicationInfo, enable)
         }
 
-        val superUserViewModel = ViewModelProvider(this)[SuperUserViewModel::class.java]
-        superUserViewModel.loadAppList()
-
         val webroot = File(dataDir, "webroot")
         if (!webroot.exists()) {
-            webroot.mkdir()
+            runCatching { webroot.mkdir() }
+                .onFailure { Log.w(TAG, "create webroot failed", it) }
         }
-
-        // Provide working env for rust's temp_dir()
-        Os.setenv("TMPDIR", cacheDir.absolutePath, true)
-
-        okhttpClient =
-            OkHttpClient.Builder().cache(Cache(File(cacheDir, "okhttp"), 10 * 1024 * 1024))
-                .addInterceptor { block ->
-                    block.proceed(
-                        block.request().newBuilder()
-                            .header("User-Agent", "KernelSU/${BuildConfig.VERSION_CODE}")
-                            .header("Accept-Language", Locale.getDefault().toLanguageTag()).build()
-                    )
-                }.build()
     }
 
     override val viewModelStore: ViewModelStore
         get() = appViewModelStore
+
+    private fun createOkHttpClient(): OkHttpClient {
+        return OkHttpClient.Builder().cache(Cache(File(cacheDir, "okhttp"), 10 * 1024 * 1024))
+            .addInterceptor { block ->
+                block.proceed(
+                    block.request().newBuilder()
+                        .header("User-Agent", "KernelSU/${BuildConfig.VERSION_CODE}")
+                        .header("Accept-Language", Locale.getDefault().toLanguageTag()).build()
+                )
+            }.build()
+    }
 }

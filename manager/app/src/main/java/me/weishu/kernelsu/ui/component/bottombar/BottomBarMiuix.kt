@@ -1,34 +1,67 @@
 package me.weishu.kernelsu.ui.component.bottombar
 
 import androidx.annotation.StringRes
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Cottage
 import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import me.weishu.kernelsu.Natives
 import me.weishu.kernelsu.R
 import me.weishu.kernelsu.ui.LocalMainPagerState
+import me.weishu.kernelsu.ui.component.CustomNavigationIconImage
 import me.weishu.kernelsu.ui.component.FloatingBottomBar
 import me.weishu.kernelsu.ui.component.FloatingBottomBarItem
+import me.weishu.kernelsu.ui.component.liquid.isLiquidGlassTheme
+import me.weishu.kernelsu.ui.component.liquid.liquidGlassSurfaceColor
+import me.weishu.kernelsu.ui.component.pixel.isPixelInterfaceStyle
+import me.weishu.kernelsu.ui.component.pixel.pixelNavigationContainerColor
+import me.weishu.kernelsu.ui.component.pixel.pixelNavigationSurface
+import me.weishu.kernelsu.ui.component.rain.isRainInterfaceStyle
+import me.weishu.kernelsu.ui.component.rain.rainNavigationContainerColor
+import me.weishu.kernelsu.ui.component.rain.rainNavigationIndicator
+import me.weishu.kernelsu.ui.component.rain.rainNavigationSurface
+import me.weishu.kernelsu.ui.component.snow.isSnowInterfaceStyle
+import me.weishu.kernelsu.ui.component.snow.seasonNavigationContainerColor
+import me.weishu.kernelsu.ui.component.snow.seasonNavigationIndicator
+import me.weishu.kernelsu.ui.component.snow.seasonNavigationSurface
 import me.weishu.kernelsu.ui.theme.LocalEnableFloatingBottomBar
 import me.weishu.kernelsu.ui.theme.LocalEnableFloatingBottomBarBlur
 import me.weishu.kernelsu.ui.util.BlurredBar
+import me.weishu.kernelsu.ui.util.CustomNavigationIconState
+import me.weishu.kernelsu.ui.util.CustomNavigationIconSet
+import me.weishu.kernelsu.ui.util.CustomNavigationIconSlot
+import me.weishu.kernelsu.ui.util.LocalCustomNavigationIcons
 import top.yukonga.miuix.kmp.basic.Badge
 import top.yukonga.miuix.kmp.basic.BadgedBox
 import top.yukonga.miuix.kmp.basic.Icon
@@ -43,75 +76,118 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 @Composable
 fun BottomBarMiuix(
     blurBackdrop: LayerBackdrop?,
-    backdrop: Backdrop,
+    backdrop: Backdrop?,
     navigationBadge: NavigationBadgeState,
+    destinations: List<MainDestination>,
     modifier: Modifier,
 ) {
-    val fullFeatured = Natives.isFullFeatured()
-    if (!fullFeatured) return
-
     val mainState = LocalMainPagerState.current
     val enableFloatingBottomBar = LocalEnableFloatingBottomBar.current
     val enableFloatingBottomBarBlur = LocalEnableFloatingBottomBarBlur.current
+    val isLiquidGlass = isLiquidGlassTheme()
+    val isSnowStyle = isSnowInterfaceStyle()
+    val isRainStyle = isRainInterfaceStyle()
+    val isPixelStyle = isPixelInterfaceStyle()
 
-    val items = BottomBarDestination.entries.map { destination ->
-        NavigationItem(
-            label = stringResource(destination.label),
-            icon = destination.icon,
-        )
+    val customIcons = LocalCustomNavigationIcons.current
+    val barColor = if (isPixelStyle) {
+        pixelNavigationContainerColor()
+    } else if (isRainStyle) {
+        rainNavigationContainerColor()
+    } else if (blurBackdrop != null) {
+        Color.Transparent
+    } else if (isLiquidGlass) {
+        liquidGlassSurfaceColor().copy(alpha = 0.72f)
+    } else if (isSnowStyle) {
+        seasonNavigationContainerColor()
+    } else {
+        MiuixTheme.colorScheme.surface
     }
     if (!enableFloatingBottomBar) {
-        BlurredBar(blurBackdrop) {
-            NavigationBar(
-                modifier = modifier,
-                color = if (blurBackdrop != null) Color.Transparent else MiuixTheme.colorScheme.surface,
-                content = {
-                    items.forEachIndexed { index, item ->
-                        NavigationBarItem(
-                            modifier = Modifier.weight(1f),
-                            icon = item.icon,
-                            label = item.label,
-                            selected = mainState.selectedPage == index,
-                            onClick = {
-                                mainState.animateToPage(index)
-                            },
-                            badge = navigationBadgeFor(index, navigationBadge),
-                        )
-                    }
+        val navigationShape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
+        val navigationModifier = modifier.then(
+            when {
+                isPixelStyle -> Modifier.pixelNavigationSurface(navigationShape)
+                isRainStyle -> Modifier.rainNavigationSurface(navigationShape, paintBackground = false)
+                isSnowStyle -> Modifier.seasonNavigationSurface(navigationShape, paintBackground = false)
+                else -> Modifier
+            },
+        )
+        BlurredBar(blurBackdrop, blurActive = !isPixelStyle) {
+            if (customIcons.hasCustomization) {
+                MiuixCustomNavigationBar(
+                    modifier = navigationModifier,
+                    color = barColor,
+                    destinations = destinations,
+                    customIcons = customIcons,
+                    selectedIndex = mainState.selectedPage,
+                    navigationBadge = navigationBadge,
+                    onSelected = mainState::animateToPage,
+                )
+            } else {
+                val items = destinations.map { destination ->
+                    NavigationItem(
+                        label = customIcons.labelFor(destination, stringResource(destination.label)),
+                        icon = destination.icon,
+                    )
                 }
-            )
+                NavigationBar(
+                    modifier = navigationModifier,
+                    color = barColor,
+                    content = {
+                        destinations.forEachIndexed { index, destination ->
+                            val item = items[index]
+                            NavigationBarItem(
+                                modifier = Modifier.weight(1f),
+                                icon = item.icon,
+                                label = item.label,
+                                selected = mainState.selectedPage == index,
+                                onClick = {
+                                    mainState.animateToPage(index)
+                                },
+                                badge = navigationBadgeFor(destination, navigationBadge),
+                            )
+                        }
+                    }
+                )
+            }
         }
     } else {
-        val bottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-            .let { inset -> if (inset != 0.dp) 8.dp + inset else 28.dp }
         FloatingBottomBar(
             modifier = modifier
-                .pointerInput(Unit) {
-                    detectTapGestures { }
-                }
-                .padding(start = 28.dp, end = 28.dp, bottom = bottomPadding),
-            selectedIndex = mainState.selectedPage,
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = {},
+                )
+                .padding(bottom = 12.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
+            selectedIndex = { mainState.selectedPage },
             onSelected = { mainState.animateToPage(it) },
             backdrop = backdrop,
-            tabsCount = items.size,
-            isBlurEnabled = enableFloatingBottomBarBlur,
-        ) { activateTab ->
-            items.forEachIndexed { index, item ->
+            tabsCount = destinations.size,
+            isBlurEnabled = enableFloatingBottomBarBlur && backdrop != null,
+        ) {
+            destinations.forEachIndexed { index, destination ->
+                val label = customIcons.labelFor(destination, stringResource(destination.label))
+                val badge = navigationBadgeFor(destination, navigationBadge, floating = true)
                 FloatingBottomBarItem(
-                    selected = mainState.selectedPage == index,
                     onClick = {
-                        activateTab(index)
+                        mainState.animateToPage(index)
                     },
                     modifier = Modifier.defaultMinSize(minWidth = 76.dp)
                 ) {
-                    // Icon and label take LocalContentColor so the FloatingBottomBar backdrop copy
-                    // can recolor them to the accent tone inside the indicator pill.
-                    val badge = navigationBadgeFor(index, navigationBadge, floating = true)
                     val icon: @Composable () -> Unit = {
-                        Icon(
-                            imageVector = item.icon,
-                            contentDescription = item.label,
-                        )
+                        CustomNavigationIconImage(
+                            state = customIcons.stateFor(destination),
+                            contentDescription = label,
+                            modifier = Modifier.size(24.dp),
+                        ) {
+                            Icon(
+                                imageVector = destination.icon,
+                                contentDescription = label,
+                                tint = MiuixTheme.colorScheme.onSurface
+                            )
+                        }
                     }
                     if (badge != null) {
                         BadgedBox(badge = { badge() }) { icon() }
@@ -119,9 +195,10 @@ fun BottomBarMiuix(
                         icon()
                     }
                     Text(
-                        text = item.label,
+                        text = label,
                         fontSize = 11.sp,
                         lineHeight = 14.sp,
+                        color = MiuixTheme.colorScheme.onSurface,
                         maxLines = 1,
                         softWrap = false,
                         overflow = TextOverflow.Visible
@@ -132,22 +209,136 @@ fun BottomBarMiuix(
     }
 }
 
-enum class BottomBarDestination(
-    @get:StringRes val label: Int,
-    val icon: ImageVector,
+@Composable
+private fun MiuixCustomNavigationBar(
+    modifier: Modifier,
+    color: Color,
+    destinations: List<MainDestination>,
+    customIcons: CustomNavigationIconSet,
+    selectedIndex: Int,
+    navigationBadge: NavigationBadgeState,
+    onSelected: (Int) -> Unit,
 ) {
-    Home(R.string.home, Icons.Rounded.Cottage),
-    SuperUser(R.string.superuser, Icons.Rounded.Security),
-    Module(R.string.module, Icons.Rounded.Extension),
-    Setting(R.string.settings, Icons.Rounded.Settings)
+    val navPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(color)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp)
+                .padding(horizontal = 6.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            destinations.forEachIndexed { index, destination ->
+                MiuixCustomNavigationBarItem(
+                    destination = destination,
+                    state = customIcons.stateFor(destination),
+                    selected = selectedIndex == index,
+                    badge = navigationBadgeFor(destination, navigationBadge),
+                    onClick = { onSelected(index) },
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(navPadding))
+    }
+}
+
+@Composable
+private fun RowScope.MiuixCustomNavigationBarItem(
+    destination: MainDestination,
+    state: CustomNavigationIconState,
+    selected: Boolean,
+    badge: (@Composable () -> Unit)?,
+    onClick: () -> Unit,
+) {
+    val label = state.displayLabel(stringResource(destination.label))
+    val isSnowStyle = isSnowInterfaceStyle()
+    val isRainStyle = isRainInterfaceStyle()
+    val itemShape = if (isSnowStyle || isRainStyle) RoundedCornerShape(10.dp) else CircleShape
+    val iconTint = if (selected) {
+        MiuixTheme.colorScheme.primary
+    } else {
+        MiuixTheme.colorScheme.onSurface.copy(alpha = 0.72f)
+    }
+    Column(
+        modifier = Modifier
+            .weight(1f)
+            .fillMaxHeight()
+            .clip(itemShape)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            ),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .then(
+                    if (selected && isSnowStyle) {
+                        Modifier.seasonNavigationIndicator(itemShape)
+                    } else if (selected && isRainStyle) {
+                        Modifier.rainNavigationIndicator(
+                            shape = itemShape,
+                            interactionKey = destination,
+                        )
+                    } else {
+                        Modifier.background(
+                            if (selected) {
+                                MiuixTheme.colorScheme.primary.copy(alpha = 0.14f)
+                            } else {
+                                Color.Transparent
+                            },
+                            itemShape,
+                        )
+                    },
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            val icon: @Composable () -> Unit = {
+                CustomNavigationIconImage(
+                    state = state,
+                    contentDescription = label,
+                    modifier = Modifier.size(24.dp),
+                    alpha = if (selected) 1f else 0.72f,
+                ) {
+                    Icon(
+                        imageVector = destination.icon,
+                        contentDescription = label,
+                        modifier = Modifier.size(24.dp),
+                        tint = iconTint,
+                    )
+                }
+            }
+            if (badge != null) {
+                BadgedBox(badge = { badge() }) { icon() }
+            } else {
+                icon()
+            }
+        }
+        Text(
+            text = label,
+            fontSize = 11.sp,
+            lineHeight = 14.sp,
+            color = if (selected) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurface,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Visible,
+        )
+    }
 }
 
 internal fun navigationBadgeFor(
-    index: Int,
+    destination: MainDestination,
     state: NavigationBadgeState,
     floating: Boolean = false,
 ): (@Composable () -> Unit)? {
-    val badge = badgeFor(index, state) ?: return null
+    val badge = badgeFor(destination, state) ?: return null
     return when (badge.tone) {
         BadgeTone.Alert -> {
             {
@@ -160,8 +351,16 @@ internal fun navigationBadgeFor(
         BadgeTone.Accent -> {
             {
                 Badge(
-                    containerColor = if (floating) MiuixTheme.colorScheme.primaryContainer else MiuixTheme.colorScheme.primary,
-                    contentColor = if (floating) MiuixTheme.colorScheme.onPrimaryContainer else MiuixTheme.colorScheme.onPrimary,
+                    containerColor = if (floating) {
+                        MiuixTheme.colorScheme.primaryContainer
+                    } else {
+                        MiuixTheme.colorScheme.primary
+                    },
+                    contentColor = if (floating) {
+                        MiuixTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MiuixTheme.colorScheme.onPrimary
+                    },
                 ) {
                     Text(badge.count.toString())
                 }
