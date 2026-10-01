@@ -12,11 +12,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.net.URI
-import java.security.KeyFactory
 import java.security.MessageDigest
 import java.security.NoSuchAlgorithmException
-import java.security.Signature
-import java.security.spec.X509EncodedKeySpec
 import java.util.Base64
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
@@ -712,15 +709,10 @@ internal fun verifyManagerPluginCatalogSignature(
     val signatureBytes = Base64.getMimeDecoder().decode(signatureText.toString(Charsets.UTF_8).trim())
     require(signatureBytes.size == 64) { "Plugin catalog signature is invalid" }
     val keyBytes = Base64.getDecoder().decode(publicKeyBase64)
-    val publicKey = KeyFactory.getInstance("Ed25519").generatePublic(X509EncodedKeySpec(keyBytes))
     val payloads = listOfNotNull(catalog, catalog.withCrlfLineEndings())
-    require(payloads.any { payload ->
-        Signature.getInstance("Ed25519").run {
-            initVerify(publicKey)
-            update(payload)
-            verify(signatureBytes)
-        }
-    }) { "Plugin catalog signature verification failed" }
+    require(verifyCatalogEd25519Signature(payloads, signatureBytes, keyBytes)) {
+        "Plugin catalog signature verification failed"
+    }
 }
 
 private fun ByteArray.withCrlfLineEndings(): ByteArray? {

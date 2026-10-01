@@ -1,7 +1,7 @@
 {
   "schema": "io.github.fixz.apkesu.interface-style-catalog",
   "version": 3,
-  "generatedAt": 1790848999588,
+  "generatedAt": 1790869656047,
   "styles": [
     {
       "id": "liquid-glass",
@@ -338,6 +338,18 @@
       "sha256": "9b476797051de3ce4ada7ba16746f074ab26fb4260e95127e3e3ba167a9753e6",
       "sizeBytes": 1098,
       "accent": 4278221012
+    },
+    {
+      "id": "sidebar-widget",
+      "name": "侧栏组件 / Sidebar widgets",
+      "summary": "参考图同款蓝灰渐变侧栏，右侧沿用 Material 主页；支持时间日期、天气、闹钟、自定义图片、导航排序与平板布局。",
+      "engine": "sidebar_widget",
+      "variant": null,
+      "version": 3,
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/sidebar-widget.ksstyle",
+      "sha256": "0d2af579c41e6fb08106dbb2f4d0f6b4d3a0bfb04b5f6f1cfacd4673ff717dc8",
+      "sizeBytes": 1028,
+      "accent": 4284323039
     }
   ]
 }

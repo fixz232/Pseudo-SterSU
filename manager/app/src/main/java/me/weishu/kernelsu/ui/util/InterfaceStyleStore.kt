@@ -17,11 +17,8 @@ import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.net.URI
-import java.security.KeyFactory
 import java.security.MessageDigest
 import java.security.NoSuchAlgorithmException
-import java.security.Signature
-import java.security.spec.X509EncodedKeySpec
 import java.util.Base64
 import java.util.Locale
 import java.util.UUID
@@ -881,11 +878,9 @@ internal fun verifyInterfaceStyleCatalogSignature(
     val signatureBytes = Base64.getMimeDecoder().decode(signatureText.toString(Charsets.UTF_8).trim())
     require(signatureBytes.size == 64) { "Interface style catalog signature is invalid" }
     val keyBytes = Base64.getDecoder().decode(publicKeyBase64)
-    val publicKey = KeyFactory.getInstance("Ed25519").generatePublic(X509EncodedKeySpec(keyBytes))
-    val verifier = Signature.getInstance("Ed25519")
-    verifier.initVerify(publicKey)
-    verifier.update(catalog)
-    require(verifier.verify(signatureBytes)) { "Interface style catalog signature verification failed" }
+    require(verifyCatalogEd25519Signature(listOf(catalog), signatureBytes, keyBytes)) {
+        "Interface style catalog signature verification failed"
+    }
 }
 
 private fun verifyBundledInterfaceStyleCatalogSignature(catalog: ByteArray, signature: ByteArray) {

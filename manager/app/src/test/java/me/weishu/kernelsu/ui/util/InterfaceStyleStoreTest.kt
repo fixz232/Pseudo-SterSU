@@ -1,6 +1,7 @@
 package me.weishu.kernelsu.ui.util
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.ByteArrayOutputStream
@@ -12,6 +13,13 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
 class InterfaceStyleStoreTest {
+    @Test
+    fun `catalog crypto provider excludes Android Keystore implementations`() {
+        assertFalse(isUsableCatalogCryptoProvider("AndroidKeyStore"))
+        assertFalse(isUsableCatalogCryptoProvider("AndroidKeyStoreBCWorkaround"))
+        assertTrue(isUsableCatalogCryptoProvider("Conscrypt"))
+        assertTrue(isUsableCatalogCryptoProvider("SunEC"))
+    }
     @Test
     fun defaultCatalogUsesCurrentThemeStoreRepository() {
         assertEquals(
