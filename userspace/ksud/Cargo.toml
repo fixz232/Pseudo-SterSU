@@ -17,9 +17,9 @@ rust-embed = { version = "8", features = [
 ] }
 which = "8"
 sha1 = "0.11"
-base16ct = { version = "0.2", features = ["alloc"] }
+base16ct = { version = "1.0", features = ["alloc"] }
 sha256 = "1"
-p256 = { version = "0.13", default-features = false, features = ["ecdsa"] }
+p256 = { version = "0.14", default-features = false, features = ["ecdsa"] }
 tempfile = "3"
 chrono = "0.4"
 regex-lite = "0.1"
@@ -60,4 +60,4 @@ adb_client = { git = "https://github.com/5ec1cff/adb_client", rev = "d97a966435b
 prop-rs-android = { git = "https://github.com/MySU-org/ksu_props", rev = "6f5723105d8d4cacad31d83d343defbf032c7b33" }
 
 [build-dependencies]
-bindgen = "0.72"
+bindgen = "0.73"
