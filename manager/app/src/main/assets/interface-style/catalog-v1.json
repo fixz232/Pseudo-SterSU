@@ -1,7 +1,7 @@
 {
   "schema": "io.github.fixz.apkesu.interface-style-catalog",
   "version": 3,
-  "generatedAt": 1790149591317,
+  "generatedAt": 1790848999588,
   "styles": [
     {
       "id": "liquid-glass",
@@ -10,22 +10,10 @@
       "engine": "liquid_glass",
       "variant": null,
       "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/packages/liquid-glass.ksstyle",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/liquid-glass.ksstyle",
       "sha256": "49b1bbac8b486ca47cf3d1b7fecc3d7e8659a3a2255e45a40fc3694981b20b4c",
       "sizeBytes": 1033,
       "accent": 4283987338
-    },
-    {
-      "id": "kernel-elite",
-      "name": "内核精英 / Kernel Elite",
-      "summary": "终端 HUD 风格的内核、授权和模块管理界面，支持日间与夜间调色板。",
-      "engine": "alpha",
-      "variant": null,
-      "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/packages/kernel-elite.ksstyle",
-      "sha256": "537fe3a486878d16bbfa8bf4ddb00a291e863a479b35673e537b173c4b6ecefb",
-      "sizeBytes": 1114,
-      "accent": 4278258918
     },
     {
       "id": "season-spring",
@@ -34,7 +22,7 @@
       "engine": "snow",
       "variant": "spring",
       "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/packages/season-spring.ksstyle",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/season-spring.ksstyle",
       "sha256": "411d3e4b5b4dfdaa40a5bfbe3184705bec447317679a2a65aa11b65e023a161e",
       "sizeBytes": 319573,
       "accent": 4283404098
@@ -46,7 +34,7 @@
       "engine": "snow",
       "variant": "summer",
       "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/packages/season-summer.ksstyle",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/season-summer.ksstyle",
       "sha256": "d29d5de152d4b66d0180df7a365142f60efd48285e7d724a719e4395d35463f4",
       "sizeBytes": 398009,
       "accent": 4279663744
@@ -58,7 +46,7 @@
       "engine": "snow",
       "variant": "autumn",
       "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/packages/season-autumn.ksstyle",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/season-autumn.ksstyle",
       "sha256": "773f4729a055b64ea6b7188e38075d78261715ab26d883cc5c03a0091ddede2e",
       "sizeBytes": 552539,
       "accent": 4288309803
@@ -70,7 +58,7 @@
       "engine": "snow",
       "variant": "winter",
       "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/packages/season-winter.ksstyle",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/season-winter.ksstyle",
       "sha256": "5c99ff5be69d92ce43f50efd5fa2e6d5970b3ff5420e0bb61c7d176c2b64b09a",
       "sizeBytes": 369629,
       "accent": 4280848006
@@ -82,7 +70,7 @@
       "engine": "rain",
       "variant": "light_rain",
       "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/packages/rain-light.ksstyle",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/rain-light.ksstyle",
       "sha256": "13585c230d29d9e55589ba03ca08a1be2fcd7c80f75d55a1724a615336a54915",
       "sizeBytes": 1142,
       "accent": 4284380326
@@ -94,7 +82,7 @@
       "engine": "rain",
       "variant": "medium_rain",
       "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/packages/rain-medium.ksstyle",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/rain-medium.ksstyle",
       "sha256": "51d5dd6fad46b5553939270ada9a7e58b7ca2711b660fb92b5650a4ae31c8185",
       "sizeBytes": 1150,
       "accent": 4283397015
@@ -106,7 +94,7 @@
       "engine": "rain",
       "variant": "heavy_rain",
       "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/packages/rain-heavy.ksstyle",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/rain-heavy.ksstyle",
       "sha256": "aee06bc2281e2545a7a6d33bc5ac26719aa7bbedf295b0181f8fe5090366e8ff",
       "sizeBytes": 1151,
       "accent": 4282087023
@@ -118,7 +106,7 @@
       "engine": "rain",
       "variant": "thunderstorm",
       "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/packages/rain-thunderstorm.ksstyle",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/rain-thunderstorm.ksstyle",
       "sha256": "0b14212a790ab23acf7b65611c8b0aabe00c52ba1ba9463c7e226ecf60eddb86",
       "sizeBytes": 1164,
       "accent": 4284907432
@@ -130,7 +118,7 @@
       "engine": "rain",
       "variant": "after_rain",
       "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/packages/rain-after.ksstyle",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/rain-after.ksstyle",
       "sha256": "87289bcfbc5021a3da638b644564fdef78d731b9f5725c435240f2b322146be9",
       "sizeBytes": 1145,
       "accent": 4285631643
@@ -142,7 +130,7 @@
       "engine": "pixel",
       "variant": "classic_handheld",
       "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/packages/pixel-classic-handheld.ksstyle",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/pixel-classic-handheld.ksstyle",
       "sha256": "69df368f82534624cd4bb13e9d178a57c4751e0bcb0d24e5cc790ed2875fb00b",
       "sizeBytes": 1259,
       "accent": 4283783999
@@ -154,7 +142,7 @@
       "engine": "pixel",
       "variant": "neon_arcade",
       "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/packages/pixel-neon-arcade.ksstyle",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/pixel-neon-arcade.ksstyle",
       "sha256": "df78776109a93b20b04b8534319f29628cc3ac2f62fc2ba8d6fcef2ff918de19",
       "sizeBytes": 1226,
       "accent": 4278222715
@@ -166,7 +154,7 @@
       "engine": "pixel",
       "variant": "pastoral_fields",
       "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/packages/pixel-pastoral-fields.ksstyle",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/pixel-pastoral-fields.ksstyle",
       "sha256": "6b24a33e8a37cf41ac92ddf8660af9d4df648e46f5318e709e503ca75fea60df",
       "sizeBytes": 1245,
       "accent": 4284380752
@@ -178,7 +166,7 @@
       "engine": "pixel",
       "variant": "star_voyage",
       "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/packages/pixel-star-voyage.ksstyle",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/pixel-star-voyage.ksstyle",
       "sha256": "8b6dc1635bb6b3e4336d433adfb6a163c1d246f45c17ee3dcedaf1e3e14afce5",
       "sizeBytes": 1241,
       "accent": 4283595463
@@ -190,7 +178,7 @@
       "engine": "pixel",
       "variant": "ink_jade",
       "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/packages/pixel-ink-jade.ksstyle",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/pixel-ink-jade.ksstyle",
       "sha256": "c5d42f8fd135e7844659c40cc7c7319188b80565fc58884e9e610aca1afbedb2",
       "sizeBytes": 1240,
       "accent": 4282216542
@@ -202,7 +190,7 @@
       "engine": "pixel",
       "variant": "rust_wasteland",
       "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/packages/pixel-rust-wasteland.ksstyle",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/pixel-rust-wasteland.ksstyle",
       "sha256": "551b5588acc73ae71a28e96727d0f2bbe00acfd4113a51de348e18e542fe9957",
       "sizeBytes": 1240,
       "accent": 4286730296
@@ -214,7 +202,7 @@
       "engine": "pixel",
       "variant": "ocean_depths",
       "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/packages/pixel-ocean-depths.ksstyle",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/pixel-ocean-depths.ksstyle",
       "sha256": "400f06e1b98ab010fdbdb8a322a75e496ebcc39b034e2e9eb74ff9b698450f75",
       "sizeBytes": 1248,
       "accent": 4279696010
@@ -226,7 +214,7 @@
       "engine": "pixel",
       "variant": "cyber_hacker",
       "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/packages/pixel-cyber-hacker.ksstyle",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/pixel-cyber-hacker.ksstyle",
       "sha256": "44ef046d60460e931a25bb76e616b9c1326d99bde2e756f6c89deae344a764f7",
       "sizeBytes": 1224,
       "accent": 4288371967
@@ -238,7 +226,7 @@
       "engine": "pixel",
       "variant": "three_kingdoms",
       "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/packages/pixel-three-kingdoms.ksstyle",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/pixel-three-kingdoms.ksstyle",
       "sha256": "a986b943e7a2afd7e36488dfb2d598d6aac9fdb4f98c0dc9e5871637dac6a73f",
       "sizeBytes": 1255,
       "accent": 4284242255
@@ -250,7 +238,7 @@
       "engine": "pixel",
       "variant": "bianliang_market",
       "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/packages/pixel-bianliang-market.ksstyle",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/pixel-bianliang-market.ksstyle",
       "sha256": "f5c43430648cfc3d6b4100e017ea5c21790653e5138353994007aaf2f3ad9bc6",
       "sizeBytes": 1251,
       "accent": 4285744527
@@ -262,7 +250,7 @@
       "engine": "pixel",
       "variant": "fishing_harbor",
       "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/packages/pixel-fishing-harbor.ksstyle",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/pixel-fishing-harbor.ksstyle",
       "sha256": "16a83826d051b397c23347bba9e782a34f2963ebb55a2f39e1fd55b66bf8fea3",
       "sizeBytes": 1242,
       "accent": 4285093797
@@ -274,7 +262,7 @@
       "engine": "pixel",
       "variant": "tribal_jungle",
       "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/packages/pixel-tribal-jungle.ksstyle",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/pixel-tribal-jungle.ksstyle",
       "sha256": "b14923c17c152967d0bd3e3408a8f308055d79fb689404ecedb86525024841f7",
       "sizeBytes": 1232,
       "accent": 4283592005
@@ -286,7 +274,7 @@
       "engine": "pixel",
       "variant": "lava_valley",
       "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/packages/pixel-lava-valley.ksstyle",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/pixel-lava-valley.ksstyle",
       "sha256": "549283e2f07fa6e041e5ae41ba7a36f6e6d8409f44bef24a5ad84165ae8a1a84",
       "sizeBytes": 1256,
       "accent": 4290266156
@@ -298,7 +286,7 @@
       "engine": "pixel",
       "variant": "dunhuang_desert",
       "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/packages/pixel-dunhuang-desert.ksstyle",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/pixel-dunhuang-desert.ksstyle",
       "sha256": "b7672c624479e5d5125bd4b2b9c1a9d1349a78b6bfea9cbd8244073388958a49",
       "sizeBytes": 1242,
       "accent": 4286278799
@@ -310,7 +298,7 @@
       "engine": "pixel",
       "variant": "viking_snowfield",
       "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/packages/pixel-viking-snowfield.ksstyle",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/pixel-viking-snowfield.ksstyle",
       "sha256": "1f1836df4b238d6b5348cf20c8401b77e95262936476b4c70bec221fc381fb8e",
       "sizeBytes": 1248,
       "accent": 4283395978
@@ -322,7 +310,7 @@
       "engine": "pixel",
       "variant": "jiangnan_watertown",
       "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/packages/pixel-jiangnan-watertown.ksstyle",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/pixel-jiangnan-watertown.ksstyle",
       "sha256": "31204f93e9cda1dcc9c632128599608024e546ce6b586bff04d3d2e8af348349",
       "sizeBytes": 1249,
       "accent": 4283987311
@@ -334,10 +322,22 @@
       "engine": "pixel",
       "variant": "cloud_town",
       "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/packages/pixel-cloud-town.ksstyle",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/pixel-cloud-town.ksstyle",
       "sha256": "bf35b431c7ad3b7434caffcb4f8c2456eaea8ff00dfd2d546ef22369648a4559",
       "sizeBytes": 1239,
       "accent": 4285308569
+    },
+    {
+      "id": "windows-fluent",
+      "name": "Windows 流畅设计 / Windows Fluent",
+      "summary": "Windows 11 Fluent 风格的清爽系统界面，使用 Mica 中性色、紧凑 8dp 圆角，并完整适配浅色与深色模式。",
+      "engine": "alpha",
+      "variant": null,
+      "version": 3,
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/windows-fluent.ksstyle",
+      "sha256": "9b476797051de3ce4ada7ba16746f074ab26fb4260e95127e3e3ba167a9753e6",
+      "sizeBytes": 1098,
+      "accent": 4278221012
     }
   ]
 }

@@ -1,0 +1,162 @@
+package me.weishu.kernelsu.ui.util
+
+import android.content.Context
+import android.content.SharedPreferences
+import androidx.core.content.edit
+
+enum class SidebarWidgetType(val value: String) {
+    Clock("clock"),
+    Weather("weather"),
+    Alarm("alarm"),
+    Image("image");
+
+    companion object {
+        fun fromValue(value: String?): SidebarWidgetType =
+            entries.firstOrNull { it.value == value } ?: Clock
+    }
+}
+
+enum class SidebarClockStyle(val value: String) {
+    Stacked("stacked"),
+    Compact("compact"),
+    DateFirst("date_first");
+
+    companion object {
+        fun fromValue(value: String?): SidebarClockStyle =
+            entries.firstOrNull { it.value == value } ?: Stacked
+    }
+}
+
+enum class SidebarImageShape(val value: String) {
+    Circle("circle"),
+    Square("square"),
+    Diamond("diamond"),
+    Star("star"),
+    Triangle("triangle");
+
+    companion object {
+        fun fromValue(value: String?): SidebarImageShape =
+            entries.firstOrNull { it.value == value } ?: Circle
+    }
+}
+
+enum class SidebarNavigationPosition(val value: String) {
+    Top("top"),
+    Center("center"),
+    Bottom("bottom");
+
+    companion object {
+        fun fromValue(value: String?): SidebarNavigationPosition =
+            entries.firstOrNull { it.value == value } ?: Bottom
+    }
+}
+
+const val SIDEBAR_NAV_HOME = "home"
+const val SIDEBAR_NAV_KPM = "kpm"
+const val SIDEBAR_NAV_SUPERUSER = "superuser"
+const val SIDEBAR_NAV_MODULE = "module"
+const val SIDEBAR_NAV_SETTINGS = "settings"
+
+val SIDEBAR_NAVIGATION_IDS = listOf(
+    SIDEBAR_NAV_HOME,
+    SIDEBAR_NAV_KPM,
+    SIDEBAR_NAV_SUPERUSER,
+    SIDEBAR_NAV_MODULE,
+    SIDEBAR_NAV_SETTINGS,
+)
+
+data class SidebarWidgetConfig(
+    val widgetType: SidebarWidgetType = SidebarWidgetType.Clock,
+    val clockStyle: SidebarClockStyle = SidebarClockStyle.Stacked,
+    val weatherLabel: String = "",
+    val weatherTemperature: String = "",
+    val imageUriString: String? = null,
+    val imageShape: SidebarImageShape = SidebarImageShape.Circle,
+    val navigationPosition: SidebarNavigationPosition = SidebarNavigationPosition.Bottom,
+    val navigationOrder: List<String> = SIDEBAR_NAVIGATION_IDS,
+) {
+    fun normalized(): SidebarWidgetConfig = copy(
+        weatherLabel = weatherLabel.trim().take(MAX_WEATHER_LABEL_LENGTH),
+        weatherTemperature = weatherTemperature.trim().take(MAX_WEATHER_TEMPERATURE_LENGTH),
+        imageUriString = imageUriString?.trim()?.takeIf(String::isNotEmpty),
+        navigationOrder = normalizeSidebarNavigationOrder(navigationOrder),
+    )
+}
+
+fun normalizeSidebarNavigationOrder(
+    requested: List<String>,
+    available: List<String> = SIDEBAR_NAVIGATION_IDS,
+): List<String> {
+    val supported = available.distinct().filter { it in SIDEBAR_NAVIGATION_IDS }
+    if (supported.isEmpty()) return emptyList()
+    val requestedValid = requested.filter { it in supported }.distinct()
+    return requestedValid + supported.filterNot(requestedValid::contains)
+}
+
+fun readSidebarWidgetConfig(context: Context): SidebarWidgetConfig {
+    val prefs = sidebarWidgetPreferences(context)
+    val navigationOrder = prefs.getString(SIDEBAR_NAVIGATION_ORDER_KEY, null)
+        ?.split(',')
+        .orEmpty()
+        .map(String::trim)
+        .filter(String::isNotEmpty)
+    return SidebarWidgetConfig(
+        widgetType = SidebarWidgetType.fromValue(prefs.getString(SIDEBAR_WIDGET_TYPE_KEY, null)),
+        clockStyle = SidebarClockStyle.fromValue(prefs.getString(SIDEBAR_CLOCK_STYLE_KEY, null)),
+        weatherLabel = prefs.getString(SIDEBAR_WEATHER_LABEL_KEY, "").orEmpty(),
+        weatherTemperature = prefs.getString(SIDEBAR_WEATHER_TEMPERATURE_KEY, "").orEmpty(),
+        imageUriString = prefs.getString(SIDEBAR_IMAGE_URI_KEY, null),
+        imageShape = SidebarImageShape.fromValue(prefs.getString(SIDEBAR_IMAGE_SHAPE_KEY, null)),
+        navigationPosition = SidebarNavigationPosition.fromValue(
+            prefs.getString(SIDEBAR_NAVIGATION_POSITION_KEY, null)
+        ),
+        navigationOrder = navigationOrder.ifEmpty { SIDEBAR_NAVIGATION_IDS },
+    ).normalized()
+}
+
+fun writeSidebarWidgetConfig(context: Context, config: SidebarWidgetConfig) {
+    val value = config.normalized()
+    sidebarWidgetPreferences(context).edit(commit = true) {
+        putString(SIDEBAR_WIDGET_TYPE_KEY, value.widgetType.value)
+        putString(SIDEBAR_CLOCK_STYLE_KEY, value.clockStyle.value)
+        putString(SIDEBAR_WEATHER_LABEL_KEY, value.weatherLabel)
+        putString(SIDEBAR_WEATHER_TEMPERATURE_KEY, value.weatherTemperature)
+        if (value.imageUriString == null) {
+            remove(SIDEBAR_IMAGE_URI_KEY)
+        } else {
+            putString(SIDEBAR_IMAGE_URI_KEY, value.imageUriString)
+        }
+        putString(SIDEBAR_IMAGE_SHAPE_KEY, value.imageShape.value)
+        putString(SIDEBAR_NAVIGATION_POSITION_KEY, value.navigationPosition.value)
+        putString(SIDEBAR_NAVIGATION_ORDER_KEY, value.navigationOrder.joinToString(","))
+    }
+}
+
+internal fun sidebarWidgetPreferences(context: Context): SharedPreferences =
+    context.applicationContext.getSharedPreferences(SIDEBAR_WIDGET_PREFS_NAME, Context.MODE_PRIVATE)
+
+internal fun isSidebarWidgetPreference(key: String?): Boolean = key in SIDEBAR_WIDGET_KEYS
+
+const val SIDEBAR_WIDGET_IMAGE_STORAGE_KEY = "sidebar_widget_custom_image"
+
+private const val SIDEBAR_WIDGET_PREFS_NAME = "settings"
+private const val SIDEBAR_WIDGET_TYPE_KEY = "sidebar_widget_type"
+private const val SIDEBAR_CLOCK_STYLE_KEY = "sidebar_widget_clock_style"
+private const val SIDEBAR_WEATHER_LABEL_KEY = "sidebar_widget_weather_label"
+private const val SIDEBAR_WEATHER_TEMPERATURE_KEY = "sidebar_widget_weather_temperature"
+private const val SIDEBAR_IMAGE_URI_KEY = "sidebar_widget_image_uri"
+private const val SIDEBAR_IMAGE_SHAPE_KEY = "sidebar_widget_image_shape"
+private const val SIDEBAR_NAVIGATION_POSITION_KEY = "sidebar_widget_navigation_position"
+private const val SIDEBAR_NAVIGATION_ORDER_KEY = "sidebar_widget_navigation_order"
+private const val MAX_WEATHER_LABEL_LENGTH = 24
+private const val MAX_WEATHER_TEMPERATURE_LENGTH = 12
+private val SIDEBAR_WIDGET_KEYS = setOf(
+    SIDEBAR_WIDGET_TYPE_KEY,
+    SIDEBAR_CLOCK_STYLE_KEY,
+    SIDEBAR_WEATHER_LABEL_KEY,
+    SIDEBAR_WEATHER_TEMPERATURE_KEY,
+    SIDEBAR_IMAGE_URI_KEY,
+    SIDEBAR_IMAGE_SHAPE_KEY,
+    SIDEBAR_NAVIGATION_POSITION_KEY,
+    SIDEBAR_NAVIGATION_ORDER_KEY,
+)

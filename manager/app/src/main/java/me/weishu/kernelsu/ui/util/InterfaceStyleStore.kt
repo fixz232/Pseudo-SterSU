@@ -81,6 +81,9 @@ data class InterfaceStyleDownloadProgress(
             ?.let { (downloaded.toDouble() / it).toFloat().coerceIn(0f, 1f) }
 }
 
+const val INTERFACE_STYLE_PACKAGE_EXTENSION = "ksstyle"
+const val INTERFACE_STYLE_PACKAGE_MIME_TYPE = "application/zip"
+
 private const val INTERFACE_STYLE_SCHEMA = "io.github.fixz.apkesu.interface-style-catalog"
 private const val INTERFACE_STYLE_STATE_SCHEMA = "io.github.fixz.apkesu.interface-style-state"
 private const val INTERFACE_STYLE_BUNDLE_SCHEMA = "io.github.fixz.apkesu.interface-style-bundle"
@@ -102,17 +105,28 @@ private const val PREFS_NAME = "interface-style-download"
 private const val MODE_KEY = "proxy_mode"
 private const val CUSTOM_PROXY_KEY = "custom_proxy"
 private const val DEFAULT_CATALOG_URL =
-    "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/catalog-v1.json"
+    "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/catalog-v1.json"
 private const val DEFAULT_CATALOG_SIGNATURE_URL =
-    "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/catalog-v1.sig"
+    "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/catalog-v1.sig"
+private const val SIDEBAR_WIDGET_PACKAGE_ASSET = "interface-style/packages/sidebar-widget.ksstyle"
 private const val CATALOG_PUBLIC_KEY_B64 =
-    "MCowBQYDK2VwAyEAsuUUb5hSL7V2e89TyM0XRJ9IKY6VSOqP9a5a/OMeCts="
+    "MCowBQYDK2VwAyEAwGidBgSY/SZ25RAsBN3O2SpnFX0RuoMpE6wZqy/LaR0="
 private const val BUNDLE_MANIFEST_PATH = "manifest.json"
 private const val THEME_RESOURCE_PATH = "theme.json"
 private const val WALLPAPER_RESOURCE_PATH = "wallpaper.jpg"
 private val ID_PATTERN = Regex("[a-z0-9][a-z0-9._-]{1,79}")
 private val HASH_PATTERN = Regex("[a-fA-F0-9]{64}")
-private val ALLOWED_ENGINES = setOf("miuix", "material", "liquid_glass", "snow", "rain", "pixel", "skrootpro", "alpha")
+private val ALLOWED_ENGINES = setOf(
+    "miuix",
+    "material",
+    "liquid_glass",
+    "snow",
+    "rain",
+    "pixel",
+    "skrootpro",
+    "alpha",
+    "sidebar_widget",
+)
 private val ALLOWED_VARIANTS = mapOf(
     "snow" to setOf("spring", "summer", "autumn", "winter"),
     "rain" to setOf("light_rain", "medium_rain", "heavy_rain", "thunderstorm", "after_rain"),
@@ -126,10 +140,30 @@ private val ALLOWED_VARIANTS = mapOf(
 private val ALLOWED_GITHUB_HOSTS = setOf("raw.githubusercontent.com", "github.com", "objects.githubusercontent.com")
 private val ALLOWED_PROXY_HOSTS = setOf("ghproxy.net")
 private val ALLOWED_BUNDLE_PATHS = setOf(BUNDLE_MANIFEST_PATH, THEME_RESOURCE_PATH, WALLPAPER_RESOURCE_PATH)
+private val APK_TRUSTED_INTERFACE_STYLES = listOf(
+    InterfaceStylePackage(
+        id = "sidebar-widget",
+        name = "Sidebar widgets",
+        summary = "Blue-gray widget sidebar with Material content, custom icons, ordering, and tablet layout.",
+        engine = "sidebar_widget",
+        variant = null,
+        version = 3,
+        downloadUrl =
+            "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/sidebar-widget.ksstyle",
+        sha256 = "0d2af579c41e6fb08106dbb2f4d0f6b4d3a0bfb04b5f6f1cfacd4673ff717dc8",
+        sizeBytes = 1028L,
+        accent = 4284323039L,
+    )
+)
 
 internal data class InterfaceStyleBundle(
     val manifest: ByteArray,
     val resources: Map<String, ByteArray>,
+)
+
+private data class VerifiedInterfaceStylePackage(
+    val bytes: ByteArray,
+    val bundle: InterfaceStyleBundle,
 )
 
 private data class InterfaceStyleResource(
@@ -143,6 +177,9 @@ private data class InterfaceStyleResource(
 internal const val INTERFACE_STYLE_RESULT_KEY = "interface_style_store_result"
 
 fun interfaceStyleCatalogUrl(): String = DEFAULT_CATALOG_URL
+
+fun interfaceStylePackageFileName(style: InterfaceStylePackage): String =
+    "${style.id}-v${style.version}.$INTERFACE_STYLE_PACKAGE_EXTENSION"
 
 fun readInterfaceStyleDownloadPreferences(context: Context): InterfaceStyleDownloadPreferences {
     val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -395,7 +432,11 @@ class InterfaceStyleCatalogRepository(
         val cached = readCatalogFile(cacheFile, cacheSignatureFile)
         try {
             if (!forceNetwork && cached != null) {
-                return@withContext InterfaceStyleCatalogSnapshot(cached, InterfaceStyleCatalogSource.Cache, offline = true)
+                return@withContext InterfaceStyleCatalogSnapshot(
+                    cached.withApkTrustedStyles(),
+                    InterfaceStyleCatalogSource.Cache,
+                    offline = true,
+                )
             }
             val catalogBytes = downloadCatalogFile(DEFAULT_CATALOG_URL, MAX_CATALOG_BYTES, "application/json")
             val signatureBytes = downloadCatalogFile(DEFAULT_CATALOG_SIGNATURE_URL, MAX_SIGNATURE_BYTES, "text/plain")
@@ -404,13 +445,17 @@ class InterfaceStyleCatalogRepository(
             cacheFile.parentFile?.mkdirs()
             writeAtomic(cacheSignatureFile, signatureBytes)
             writeAtomic(cacheFile, catalogBytes)
-            InterfaceStyleCatalogSnapshot(catalog, InterfaceStyleCatalogSource.Network, offline = false)
+            InterfaceStyleCatalogSnapshot(
+                catalog.withApkTrustedStyles(),
+                InterfaceStyleCatalogSource.Network,
+                offline = false,
+            )
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (error: Throwable) {
             cached?.let {
                 return@withContext InterfaceStyleCatalogSnapshot(
-                    catalog = it,
+                    catalog = it.withApkTrustedStyles(),
                     source = InterfaceStyleCatalogSource.Cache,
                     offline = true,
                     errorMessage = error.safeInterfaceStyleMessage(),
@@ -419,7 +464,7 @@ class InterfaceStyleCatalogRepository(
             val bundled = runCatching { readBundledCatalog() }
                 .getOrElse { InterfaceStyleCatalog(generatedAt = 0L, styles = emptyList()) }
             InterfaceStyleCatalogSnapshot(
-                catalog = bundled,
+                catalog = bundled.withApkTrustedStyles(),
                 source = InterfaceStyleCatalogSource.Bundled,
                 offline = true,
                 errorMessage = error.safeInterfaceStyleMessage(),
@@ -481,26 +526,63 @@ class InterfaceStyleInstaller(
         preferences: InterfaceStyleDownloadPreferences = readInterfaceStyleDownloadPreferences(appContext),
         onProgress: (InterfaceStyleDownloadProgress) -> Unit = {},
     ): InstalledInterfaceStyle = withContext(Dispatchers.IO) {
+        val verified = downloadVerifiedPackage(style, preferences, onProgress)
+        registry.install(style, verified.bundle)
+    }
+
+    suspend fun downloadPackage(
+        style: InterfaceStylePackage,
+        preferences: InterfaceStyleDownloadPreferences = readInterfaceStyleDownloadPreferences(appContext),
+        onProgress: (InterfaceStyleDownloadProgress) -> Unit = {},
+    ): ByteArray = withContext(Dispatchers.IO) {
+        downloadVerifiedPackage(style, preferences, onProgress).bytes
+    }
+
+    private fun downloadVerifiedPackage(
+        style: InterfaceStylePackage,
+        preferences: InterfaceStyleDownloadPreferences,
+        onProgress: (InterfaceStyleDownloadProgress) -> Unit,
+    ): VerifiedInterfaceStylePackage {
         validatePackage(style)
         require(style.sizeBytes in 1..MAX_PACKAGE_BYTES) { "Interface style package size is invalid" }
         var lastError: Throwable? = null
         for (url in resolveInterfaceStyleUrls(style.downloadUrl, preferences)) {
             try {
-                return@withContext downloadAndInstall(url, style, onProgress)
+                return downloadAndVerify(url, style, onProgress)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
                 lastError = error
             }
         }
-        throw lastError ?: IllegalStateException("Interface style download failed")
+        return runCatching { readBundledVerifiedPackage(style) }
+            .getOrElse { bundledError ->
+                lastError?.apply { addSuppressed(bundledError) }
+                    ?.let { throw it }
+                throw bundledError
+            }
     }
 
-    private fun downloadAndInstall(
+    private fun readBundledVerifiedPackage(style: InterfaceStylePackage): VerifiedInterfaceStylePackage {
+        require(style.id == "sidebar-widget") { "No bundled fallback exists for this interface style" }
+        val bytes = appContext.assets.open(SIDEBAR_WIDGET_PACKAGE_ASSET).use {
+            it.readLimited(MAX_PACKAGE_BYTES, total = style.sizeBytes)
+        }
+        require(bytes.size.toLong() == style.sizeBytes) { "Bundled interface style package is incomplete" }
+        val hash = MessageDigest.getInstance("SHA-256").digest(bytes).toHexString()
+        require(hash.equals(style.sha256, ignoreCase = true)) {
+            "Bundled interface style SHA-256 verification failed"
+        }
+        val bundle = parseInterfaceStyleBundle(bytes, style)
+        validateBundleImages(bundle)
+        return VerifiedInterfaceStylePackage(bytes = bytes, bundle = bundle)
+    }
+
+    private fun downloadAndVerify(
         url: String,
         style: InterfaceStylePackage,
         onProgress: (InterfaceStyleDownloadProgress) -> Unit,
-    ): InstalledInterfaceStyle {
+    ): VerifiedInterfaceStylePackage {
         val initialHost = URI(url).host.lowercase(Locale.ROOT)
         val request = Request.Builder().url(url).header("Accept", "application/octet-stream").build()
         client.newCall(request).execute().use { response ->
@@ -519,7 +601,7 @@ class InterfaceStyleInstaller(
             require(actualHash.equals(style.sha256, ignoreCase = true)) { "Interface style SHA-256 verification failed" }
             val bundle = parseInterfaceStyleBundle(bytes, style)
             validateBundleImages(bundle)
-            return registry.install(style, bundle)
+            return VerifiedInterfaceStylePackage(bytes = bytes, bundle = bundle)
         }
     }
 
@@ -529,6 +611,11 @@ class InterfaceStyleInstaller(
         BitmapFactory.decodeByteArray(wallpaper, 0, wallpaper.size, options)
         validateWallpaperBounds(options)
     }
+}
+
+private fun InterfaceStyleCatalog.withApkTrustedStyles(): InterfaceStyleCatalog {
+    val existingIds = styles.mapTo(mutableSetOf()) { it.id }
+    return copy(styles = styles + APK_TRUSTED_INTERFACE_STYLES.filterNot { it.id in existingIds })
 }
 
 private fun validateWallpaperFile(file: File) {

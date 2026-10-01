@@ -249,12 +249,12 @@ fun InstallScreen() {
                 selectedLkm is LkmSelection.PathMaskKmiString -> LkmSelection.KmiNone
                 else -> selectedLkm
             }
-            val selectedPartition = when (method) {
-                is InstallMethod.DirectInstall,
-                is InstallMethod.DirectInstallToInactiveSlot -> partitionOptions.getOrNull(selectedPartitionIndex)
-
-                else -> null
-            }
+            val selectedPartition = resolveDirectInstallPartition(
+                method = method,
+                hasCustomSelected = hasCustomSelected,
+                selectedPartitionName = selectedPartitionName,
+                availablePartitions = partitionOptions,
+            )
             val bootUri = when (method) {
                 is InstallMethod.SelectFile -> method.uri
                 else -> null

@@ -15,9 +15,16 @@ class InterfaceStyleStoreTest {
     @Test
     fun defaultCatalogUsesCurrentThemeStoreRepository() {
         assertEquals(
-            "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles/catalog-v1.json",
+            "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/catalog-v1.json",
             interfaceStyleCatalogUrl(),
         )
+    }
+
+    @Test
+    fun packageFileNameIsStableAndUsesStyleIdentity() {
+        val style = packageFor("pixel-cloud-town", "pixel", "cloud_town", 4284380326)
+
+        assertEquals("pixel-cloud-town-v3.ksstyle", interfaceStylePackageFileName(style))
     }
 
     @Test
@@ -28,6 +35,18 @@ class InterfaceStyleStoreTest {
         assertEquals("snow", catalog.styles[0].engine)
         assertEquals("spring", catalog.styles[0].variant)
         assertEquals("pixel", catalog.styles[1].engine)
+    }
+
+    @Test
+    fun catalogParsesSidebarWidgetEngineWithoutVariant() {
+        val catalog = parseInterfaceStyleCatalog(
+            validCatalog()
+                .replace("\"engine\": \"snow\"", "\"engine\": \"sidebar_widget\"")
+                .replace("\"variant\": \"spring\"", "\"variant\": null"),
+        )
+
+        assertEquals("sidebar_widget", catalog.styles.first().engine)
+        assertEquals(null, catalog.styles.first().variant)
     }
 
     @Test(expected = IllegalArgumentException::class)

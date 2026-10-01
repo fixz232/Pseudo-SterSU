@@ -4,8 +4,20 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.security.KeyPairGenerator
+import java.security.MessageDigest
+import java.security.Signature
+import java.util.Base64
 
 class PluginStoreTest {
+    @Test
+    fun defaultCatalogUsesActiveRepository() {
+        assertEquals(
+            "https://raw.githubusercontent.com/fixz232/Pseudo-SterSU/main/plugin-store/catalog-v1.json",
+            managerPluginCatalogUrl(),
+        )
+    }
+
     @Test
     fun catalogContainsEveryAllowlistedPlugin() {
         val catalog = parseManagerPluginCatalog(validCatalog())
@@ -48,14 +60,21 @@ class PluginStoreTest {
         val url = "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/packages/remote-management-suite.ksplugin"
         val urls = resolvePluginDownloadUrls(url, PluginDownloadRoute.Accelerator)
 
-        assertEquals(2, urls.size)
-        assertTrue(urls.first().startsWith("https://ghproxy.net/"))
+        assertEquals(4, urls.size)
+        assertEquals(
+            "https://ghproxy.net/https://raw.githubusercontent.com/fixz232/Pseudo-SterSU/main/plugin-store/packages/remote-management-suite.ksplugin",
+            urls[0],
+        )
+        assertEquals(
+            "https://raw.githubusercontent.com/fixz232/Pseudo-SterSU/main/plugin-store/packages/remote-management-suite.ksplugin",
+            urls[1],
+        )
         assertEquals(url, urls.last())
     }
 
     @Test
     fun catalogRouteKeepsCatalogAndSignatureOnTheSameRoute() {
-        val url = "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/catalog-v1.json"
+        val url = managerPluginCatalogUrl()
         val pairs = resolvePluginCatalogUrls(url, PluginDownloadRoute.Accelerator)
 
         assertEquals(2, pairs.size)
@@ -63,8 +82,25 @@ class PluginStoreTest {
         assertTrue(pairs.first().second.endsWith("/catalog-v1.sig"))
         assertEquals(url, pairs.last().first)
         assertEquals(
-            "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/catalog-v1.sig",
+            "https://raw.githubusercontent.com/fixz232/Pseudo-SterSU/main/plugin-store/catalog-v1.sig",
             pairs.last().second,
+        )
+    }
+
+    @Test
+    fun catalogSignatureAcceptsGithubLineEndingNormalization() {
+        val keyPair = KeyPairGenerator.getInstance("Ed25519").generateKeyPair()
+        val signedCatalog = "{\r\n  \"version\": 1\r\n}\r\n".toByteArray()
+        val downloadedCatalog = "{\n  \"version\": 1\n}\n".toByteArray()
+        val signer = Signature.getInstance("Ed25519").apply {
+            initSign(keyPair.private)
+            update(signedCatalog)
+        }
+
+        verifyManagerPluginCatalogSignature(
+            downloadedCatalog,
+            Base64.getEncoder().encode(signer.sign()),
+            Base64.getEncoder().encodeToString(keyPair.public.encoded),
         )
     }
 
@@ -82,6 +118,23 @@ class PluginStoreTest {
         assertFalse(pluginPackageMatchesCatalog(downloaded.copy(description = "different"), entry))
         assertFalse(pluginPackageMatchesCatalog(downloaded.copy(downloadUrl = "https://raw.githubusercontent.com/other/file"), entry))
         assertFalse(pluginPackageMatchesCatalog(downloaded.copy(version = 1), entry))
+    }
+
+    @Test
+    fun packageHashAcceptsGithubLineEndingNormalization() {
+        val signedPackage = "{\r\n  \"version\": 1\r\n}\r\n".toByteArray()
+        val downloadedPackage = "{\n  \"version\": 1\n}\n".toByteArray()
+        val entry = pluginPackage(version = 1).copy(
+            sizeBytes = signedPackage.size.toLong(),
+            sha256 = MessageDigest.getInstance("SHA-256")
+                .digest(signedPackage)
+                .joinToString("") { "%02x".format(it.toInt() and 0xff) },
+        )
+
+        assertTrue(
+            pluginPackageBytesMatchingCatalog(downloadedPackage, entry)
+                .contentEquals(signedPackage)
+        )
     }
 
     @Test

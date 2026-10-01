@@ -345,13 +345,13 @@ private fun DeltaSupportCard(actions: HomeActions) {
                     DeltaPillButton(
                         text = "GitHub",
                         icon = Icons.AutoMirrored.Rounded.OpenInNew,
-                        onClick = { actions.onOpenUrl("https://github.com/fixz232/ApkeSU.git") },
+                        onClick = { actions.onOpenUrl("https://github.com/fixz232/Pseudo-SterSU") },
                         modifier = Modifier.weight(1f),
                     )
                     DeltaPillButton(
                         text = "Sponsor",
                         icon = Icons.Rounded.FavoriteBorder,
-                        onClick = { actions.onOpenUrl("https://github.com/fixz232/ApkeSU.git") },
+                        onClick = { actions.onOpenUrl("https://github.com/fixz232/Pseudo-SterSU") },
                         modifier = Modifier.weight(1f),
                     )
                 }

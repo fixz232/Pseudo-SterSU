@@ -39,4 +39,52 @@ class SusfsApplicationHidingTest {
     fun userUidIsNotProtectedByUidRule() {
         assertTrue(!isProtectedSusfsPackage("com.example.notes", 10123, "com.example.manager"))
     }
+
+    @Test
+    fun applicationHidingConfigRoundTrips() {
+        val encoded = encodeSusfsApplicationHidingConfig(
+            entries = listOf(
+                SusfsApplicationHidingConfigEntry("com.example.wallet", true),
+                SusfsApplicationHidingConfigEntry("com.example.notes", false),
+            ),
+            exportedAt = 1L,
+        )
+
+        assertEquals(
+            listOf(
+                SusfsApplicationHidingConfigEntry("com.example.notes", false),
+                SusfsApplicationHidingConfigEntry("com.example.wallet", true),
+            ),
+            parseSusfsApplicationHidingConfig(encoded),
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun applicationHidingConfigRejectsDuplicatePackages() {
+        parseSusfsApplicationHidingConfig(
+            """
+                {
+                  "schema": "io.github.fixz.stersu.susfs-app-hiding",
+                  "version": 1,
+                  "applications": [
+                    {"packageName": "com.example.notes", "hidden": true},
+                    {"packageName": "com.example.notes", "hidden": false}
+                  ]
+                }
+            """.trimIndent(),
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun applicationHidingConfigRejectsUnknownSchema() {
+        parseSusfsApplicationHidingConfig(
+            """
+                {
+                  "schema": "example.invalid",
+                  "version": 1,
+                  "applications": []
+                }
+            """.trimIndent(),
+        )
+    }
 }

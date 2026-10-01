@@ -178,7 +178,10 @@ fun HomePager(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        if (interfaceStyle == InterfaceStyle.Material.value) {
+        if (
+            interfaceStyle == InterfaceStyle.Material.value ||
+            interfaceStyle == InterfaceStyle.SidebarWidget.value
+        ) {
             HomePagerMaterial(
             state = displayState,
                 actions = actions,

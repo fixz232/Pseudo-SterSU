@@ -11,17 +11,20 @@ internal const val CLOUD_THEME_CREATOR_REGISTRY_SCHEMA =
 internal const val CLOUD_THEME_CREATOR_REGISTRY_VERSION = 1
 internal const val CLOUD_THEME_SUBMISSION_SCHEMA =
     "io.github.fixz.apkesu.theme-submission"
-internal const val CLOUD_THEME_GITHUB_OWNER = "Dama926"
-internal const val CLOUD_THEME_STORE_REPOSITORY_PATH = "Dama926/ApkeSU-ThemeStore"
-private const val CLOUD_THEME_LEGACY_STORE_REPOSITORY_PATH = "fixz232/ApkeSU-ThemeStore"
-private const val CLOUD_THEME_LEGACY_CREATOR_REVIEWER = "fixz232"
+internal const val CLOUD_THEME_GITHUB_OWNER = "fixz232"
+internal const val CLOUD_THEME_STORE_REPOSITORY_PATH = "fixz232/SterSU-ThemeStore"
+private val CLOUD_THEME_LEGACY_STORE_REPOSITORY_PATHS = listOf(
+    "Dama926/ApkeSU-ThemeStore",
+    "fixz232/ApkeSU-ThemeStore",
+)
+private const val CLOUD_THEME_LEGACY_CREATOR_REVIEWER = "Dama926"
 internal const val CLOUD_THEME_SUBMISSION_VERSION = 1
 internal const val CLOUD_THEME_DEFAULT_CREATOR_REGISTRY_URL =
-    "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/theme-store/creators/v1/creators.json"
+    "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/theme-store/creators/v1/creators.json"
 internal const val CLOUD_THEME_GITHUB_REPOSITORY_URL =
-    "https://github.com/Dama926/ApkeSU-ThemeStore"
+    "https://github.com/fixz232/SterSU-ThemeStore"
 internal const val CLOUD_THEME_DEFAULT_COVER_URL =
-    "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/theme-store/assets/default-cover.png"
+    "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/theme-store/assets/default-cover.png"
 internal const val CLOUD_THEME_CREATOR_REVIEWER = CLOUD_THEME_GITHUB_OWNER
 internal const val CLOUD_THEME_MAX_CREATOR_REGISTRY_BYTES = 512L * 1024L
 internal const val CLOUD_THEME_MAX_GITHUB_ISSUES_BYTES = 2L * 1024L * 1024L
@@ -284,15 +287,17 @@ internal fun parseCloudThemeCreatorRegistry(json: String): CloudThemeCreatorRegi
  * current repository.
  */
 internal fun migrateCloudThemeStoreUrl(rawUrl: String): String =
-    rawUrl
-        .replace(
-            "https://github.com/$CLOUD_THEME_LEGACY_STORE_REPOSITORY_PATH",
-            CLOUD_THEME_GITHUB_REPOSITORY_URL,
-        )
-        .replace(
-            "https://raw.githubusercontent.com/$CLOUD_THEME_LEGACY_STORE_REPOSITORY_PATH/main",
-            "https://raw.githubusercontent.com/$CLOUD_THEME_STORE_REPOSITORY_PATH/main",
-        )
+    CLOUD_THEME_LEGACY_STORE_REPOSITORY_PATHS.fold(rawUrl) { migratedUrl, legacyRepository ->
+        migratedUrl
+            .replace(
+                "https://github.com/$legacyRepository",
+                CLOUD_THEME_GITHUB_REPOSITORY_URL,
+            )
+            .replace(
+                "https://raw.githubusercontent.com/$legacyRepository/main",
+                "https://raw.githubusercontent.com/$CLOUD_THEME_STORE_REPOSITORY_PATH/main",
+            )
+    }
 
 internal fun buildCloudThemeSubmissionManifest(draft: CloudThemeSubmissionDraft): String {
     val github = normalizeCloudThemeGithubLogin(draft.githubLogin)

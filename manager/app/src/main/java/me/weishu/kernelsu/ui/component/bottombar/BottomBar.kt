@@ -441,6 +441,7 @@ internal fun CustomNavigationIconSet.labelFor(destination: MainDestination, fall
 
 @Composable
 fun useNavigationRail(enableFloatingBottomBar: Boolean): Boolean {
+    if (LocalInterfaceStyle.current == InterfaceStyle.SidebarWidget.value) return true
     return shouldShowSplitPane() && !(LocalUiMode.current == UiMode.Miuix && enableFloatingBottomBar)
 }
 
@@ -454,6 +455,11 @@ fun BottomBar(
     val mainState = LocalMainPagerState.current
     if (!mainState.fullFeatured || mainState.stealthModeEnabled) return
     val destinations = mainDestinations(mainState.kpmActive, mainState.stealthModeEnabled)
+
+    if (LocalInterfaceStyle.current == InterfaceStyle.SidebarWidget.value) {
+        SidebarWidgetRail(navigationBadge, destinations, modifier)
+        return
+    }
 
     if (LocalUiMode.current == UiMode.Material) {
         BottomBarMaterial(navigationBadge, destinations)

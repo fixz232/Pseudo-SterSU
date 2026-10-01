@@ -11,7 +11,9 @@ enum class UiMode(val value: String) {
 
     companion object {
         fun fromValue(value: String): UiMode = when (value) {
-            Material.value -> Material
+            Material.value,
+            InterfaceStyle.SidebarWidget.value,
+            -> Material
             else -> Miuix
         }
 
@@ -28,7 +30,8 @@ enum class InterfaceStyle(val value: String, @StringRes val labelRes: Int) {
     Pixel("pixel", R.string.interface_style_pixel),
     Skrootpro("skrootpro", R.string.interface_style_skrootpro),
     Alpha("alpha", R.string.interface_style_alpha),
-    Delta("delta", R.string.interface_style_delta);
+    Delta("delta", R.string.interface_style_delta),
+    SidebarWidget("sidebar_widget", R.string.interface_style_sidebar_widget);
 
     companion object {
         /** The four styles that remain bundled in every APK. */
@@ -55,7 +58,10 @@ enum class InterfaceStyle(val value: String, @StringRes val labelRes: Int) {
             return entries.firstOrNull { it.value == value }?.value ?: Miuix.value
         }
 
-        fun isMiuixBased(value: String): Boolean = normalizeValue(value) != Material.value
+        fun isMiuixBased(value: String): Boolean = normalizeValue(value) !in setOf(
+            Material.value,
+            SidebarWidget.value,
+        )
     }
 }
 

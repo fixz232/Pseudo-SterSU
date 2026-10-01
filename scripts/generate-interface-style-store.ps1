@@ -9,7 +9,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 $zipTimestamp = [DateTimeOffset]::new(1980, 1, 1, 0, 0, 0, [TimeSpan]::Zero)
-$repositoryBase = 'https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/interface-styles'
+$repositoryBase = 'https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles'
 $packageDirectory = Join-Path $OutputDirectory 'interface-styles/packages'
 $catalogDirectory = Join-Path $OutputDirectory 'interface-styles'
 [System.IO.Directory]::CreateDirectory($packageDirectory) | Out-Null
@@ -109,32 +109,60 @@ function New-ThemeResource([object]$Style, [int]$StyleIndex) {
         ($Style.engine -eq 'pixel' -and $Style.variant -eq 'cyber_hacker')
     $lightPalette = New-StylePalette $Style.accent $false
     $darkPalette = New-StylePalette $Style.accent $true
-    if ($Style.id -eq 'kernel-elite') {
+    if ($Style.id -eq 'windows-fluent') {
         $lightPalette = [ordered]@{
-            background = '#FFF4F8FA'
-            backgroundAlt = '#FFFFFFFF'
+            background = '#FFF3F3F3'
+            backgroundAlt = '#FFF9F9F9'
             surface = '#FFFFFFFF'
-            surfaceAlt = '#FFE5EEF1'
-            primary = '#FF006A70'
-            secondary = '#FF8A5700'
-            outline = '#FF587177'
+            surfaceAlt = '#FFECECEC'
+            primary = '#FF0078D4'
+            secondary = '#FF005A9E'
+            outline = '#FFC7C7C7'
             highlight = '#FFFFFFFF'
-            shadow = '#FF203038'
-            muted = '#FF53676E'
-            content = '#FF132329'
+            shadow = '#FF202020'
+            muted = '#FF5D5D5D'
+            content = '#FF1B1B1B'
         }
         $darkPalette = [ordered]@{
-            background = '#FF10131A'
-            backgroundAlt = '#FF0B0E15'
-            surface = '#FF191C23'
-            surfaceAlt = '#FF272A31'
-            primary = '#FF00DCE6'
-            secondary = '#FFFFB300'
-            outline = '#FF3A494B'
-            highlight = '#FFE0FDFF'
-            shadow = '#FF080D13'
-            muted = '#FF849495'
-            content = '#FFE0E2EC'
+            background = '#FF202020'
+            backgroundAlt = '#FF1C1C1C'
+            surface = '#FF2B2B2B'
+            surfaceAlt = '#FF323232'
+            primary = '#FF60CDFF'
+            secondary = '#FF3AA0E5'
+            outline = '#FF5A5A5A'
+            highlight = '#FFFFFFFF'
+            shadow = '#FF000000'
+            muted = '#FFC5C5C5'
+            content = '#FFF5F5F5'
+        }
+    }
+    if ($Style.id -eq 'sidebar-widget') {
+        $lightPalette = [ordered]@{
+            background = '#FFF5F7FA'
+            backgroundAlt = '#FFEAF0F7'
+            surface = '#FFFFFFFF'
+            surfaceAlt = '#FFE4EBF3'
+            primary = '#FF4B86D6'
+            secondary = '#FF667B96'
+            outline = '#FFB5C0CE'
+            highlight = '#FFFFFFFF'
+            shadow = '#FF17202B'
+            muted = '#FF5B6878'
+            content = '#FF121A23'
+        }
+        $darkPalette = [ordered]@{
+            background = '#FF111820'
+            backgroundAlt = '#FF182332'
+            surface = '#FF1B2634'
+            surfaceAlt = '#FF243244'
+            primary = '#FF8BB9F5'
+            secondary = '#FFA9BBD1'
+            outline = '#FF51647C'
+            highlight = '#FFFFFFFF'
+            shadow = '#FF000000'
+            muted = '#FFBCC8D7'
+            content = '#FFF3F6FA'
         }
     }
     $motifs = @()
@@ -211,7 +239,8 @@ function New-ThemeResource([object]$Style, [int]$StyleIndex) {
 
     $isPixel = $Style.engine -eq 'pixel'
     $isGlass = $Style.engine -eq 'liquid_glass'
-    $isElite = $Style.id -eq 'kernel-elite'
+    $isWindowsFluent = $Style.id -eq 'windows-fluent'
+    $isSidebarWidget = $Style.id -eq 'sidebar-widget'
     return [ordered]@{
         schema = 'io.github.fixz.apkesu.interface-style-theme'
         version = 3
@@ -222,17 +251,17 @@ function New-ThemeResource([object]$Style, [int]$StyleIndex) {
         palette = [ordered]@{ light = $lightPalette; dark = $darkPalette }
         scene = $scene
         chrome = [ordered]@{
-            cardAlpha = if ($isGlass) { 0.54 } elseif ($isPixel) { 0.94 } elseif ($isElite) { 0.96 } else { 0.76 }
-            borderAlpha = if ($isGlass) { 0.70 } elseif ($isPixel) { 0.72 } elseif ($isElite) { 0.72 } else { 0.60 }
-            cornerDp = if ($isGlass) { 20.0 } elseif ($isPixel) { 0.0 } elseif ($isElite) { 8.0 } else { 14.0 }
-            unitDp = if ($isPixel) { 2.0 } else { 1.5 }
-            topBarAlpha = if ($isGlass) { 0.18 } elseif ($isElite) { 0.92 } else { 0.62 }
-            navigationAlpha = if ($isGlass) { 0.54 } elseif ($isPixel) { 0.94 } elseif ($isElite) { 0.96 } else { 0.62 }
+            cardAlpha = if ($isGlass) { 0.54 } elseif ($isPixel) { 0.94 } elseif ($isWindowsFluent -or $isSidebarWidget) { 0.98 } else { 0.76 }
+            borderAlpha = if ($isGlass) { 0.70 } elseif ($isPixel) { 0.72 } elseif ($isWindowsFluent) { 0.56 } elseif ($isSidebarWidget) { 0.42 } else { 0.60 }
+            cornerDp = if ($isGlass) { 20.0 } elseif ($isPixel) { 0.0 } elseif ($isWindowsFluent) { 8.0 } elseif ($isSidebarWidget) { 24.0 } else { 14.0 }
+            unitDp = if ($isPixel) { 2.0 } elseif ($isWindowsFluent -or $isSidebarWidget) { 1.0 } else { 1.5 }
+            topBarAlpha = if ($isGlass) { 0.18 } elseif ($isWindowsFluent -or $isSidebarWidget) { 0.97 } else { 0.62 }
+            navigationAlpha = if ($isGlass) { 0.54 } elseif ($isPixel) { 0.94 } elseif ($isWindowsFluent -or $isSidebarWidget) { 0.96 } else { 0.62 }
         }
         glass = [ordered]@{
-            surfaceAlpha = if ($isGlass) { 0.54 } elseif ($isElite) { 0.96 } else { 0.70 }
-            blurDp = if ($isGlass) { 18.0 } else { 12.0 }
-            strokeAlpha = if ($isGlass) { 0.70 } elseif ($isElite) { 0.72 } else { 0.55 }
+            surfaceAlpha = if ($isGlass) { 0.54 } elseif ($isWindowsFluent -or $isSidebarWidget) { 0.94 } else { 0.70 }
+            blurDp = if ($isGlass) { 18.0 } elseif ($isWindowsFluent) { 16.0 } elseif ($isSidebarWidget) { 0.0 } else { 12.0 }
+            strokeAlpha = if ($isGlass) { 0.70 } elseif ($isWindowsFluent) { 0.48 } elseif ($isSidebarWidget) { 0.32 } else { 0.55 }
             refraction = $isGlass
             refractionHeightDp = if ($isGlass) { 16.0 } else { 0.0 }
             refractionAmountDp = if ($isGlass) { 9.0 } else { 0.0 }
@@ -258,7 +287,6 @@ function Write-ZipEntry(
 
 $styles = @(
     [ordered]@{ id='liquid-glass'; name='毛玻璃 / Frosted glass'; summary='半透明毛玻璃界面'; engine='liquid_glass'; variant=$null; accent=4283987338L },
-    [ordered]@{ id='kernel-elite'; name='内核精英 / Kernel Elite'; summary='终端 HUD 风格的内核、授权和模块管理界面，支持日间与夜间调色板。'; engine='alpha'; variant=$null; accent=4278258918L },
     [ordered]@{ id='season-spring'; name='春日 / Spring'; summary='四季主题：春日'; engine='snow'; variant='spring'; accent=4283404098L },
     [ordered]@{ id='season-summer'; name='盛夏 / Summer'; summary='四季主题：盛夏'; engine='snow'; variant='summer'; accent=4279663744L },
     [ordered]@{ id='season-autumn'; name='金秋 / Autumn'; summary='四季主题：金秋'; engine='snow'; variant='autumn'; accent=4288309803L },
@@ -284,7 +312,9 @@ $styles = @(
     [ordered]@{ id='pixel-dunhuang-desert'; name='敦煌沙海 / Dunhuang desert'; summary='像素风：敦煌沙海'; engine='pixel'; variant='dunhuang_desert'; accent=4286278799L },
     [ordered]@{ id='pixel-viking-snowfield'; name='维京雪原 / Viking snowfield'; summary='像素风：维京雪原'; engine='pixel'; variant='viking_snowfield'; accent=4283395978L },
     [ordered]@{ id='pixel-jiangnan-watertown'; name='江南水乡 / Jiangnan watertown'; summary='像素风：江南水乡'; engine='pixel'; variant='jiangnan_watertown'; accent=4283987311L },
-    [ordered]@{ id='pixel-cloud-town'; name='云上小镇 / Cloud town'; summary='像素风：云上小镇'; engine='pixel'; variant='cloud_town'; accent=4285308569L }
+    [ordered]@{ id='pixel-cloud-town'; name='云上小镇 / Cloud town'; summary='像素风：云上小镇'; engine='pixel'; variant='cloud_town'; accent=4285308569L },
+    [ordered]@{ id='windows-fluent'; name='Windows 流畅设计 / Windows Fluent'; summary='Windows 11 Fluent 风格的清爽系统界面，使用 Mica 中性色、紧凑 8dp 圆角，并完整适配浅色与深色模式。'; engine='alpha'; variant=$null; accent=4278221012L },
+    [ordered]@{ id='sidebar-widget'; name='侧栏组件 / Sidebar widgets'; summary='参考图同款蓝灰渐变侧栏，右侧沿用 Material 主页；支持时间日期、天气、闹钟、自定义图片、导航排序与平板布局。'; engine='sidebar_widget'; variant=$null; accent=4284323039L }
 )
 
 $styleIndex = 0
@@ -370,11 +400,11 @@ $catalogPath = Join-Path $catalogDirectory 'catalog-v1.json'
 [System.IO.File]::WriteAllText($CatalogAsset, $catalogJson, $utf8NoBom)
 
 $readme = @'
-# ApkeSU Interface Styles
+# SterSU Interface Styles
 
-This directory is generated by `scripts/generate-interface-style-store.ps1` in the ApkeSU source tree.
+This directory is generated by `scripts/generate-interface-style-store.ps1` in the SterSU source tree.
 
-Each `.ksstyle` file is a data-only ZIP bundle. Four-season bundles contain their wallpaper. Rain, pixel, and frosted-glass bundles contain their full palette, scene, animation, motif, chrome, and material parameters in a strict v3 declarative theme resource. Packages cannot contain scripts, DEX, native libraries, or arbitrary Web content. The Manager verifies the signed catalog, fixed GitHub URL, package and resource SHA-256 values, byte limits, ZIP entry allowlist, exact schema fields, numeric limits, engine, and variant before atomically installing a style.
+Each `.ksstyle` file is a data-only ZIP bundle. Four-season bundles contain their wallpaper. Rain, pixel, frosted-glass, Fluent, and sidebar-widget bundles contain their full palette, scene, animation, motif, chrome, and material parameters in a strict v3 declarative theme resource. Packages cannot contain scripts, DEX, native libraries, or arbitrary Web content. The Manager verifies the signed catalog, fixed GitHub URL, package and resource SHA-256 values, byte limits, ZIP entry allowlist, exact schema fields, numeric limits, engine, and variant before atomically installing a style.
 '@
 $readme = $readme -replace "`r`n", "`n"
 [System.IO.File]::WriteAllText((Join-Path $catalogDirectory 'README.md'), $readme, $utf8NoBom)

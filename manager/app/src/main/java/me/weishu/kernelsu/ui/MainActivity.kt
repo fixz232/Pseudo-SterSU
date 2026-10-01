@@ -64,6 +64,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -76,6 +77,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.core.net.toUri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -216,6 +218,7 @@ import me.weishu.kernelsu.ui.screen.settings.PreInstallStyleSettingsScreen
 import me.weishu.kernelsu.ui.screen.settings.SettingPager
 import me.weishu.kernelsu.ui.screen.settings.SettingsCategoryScreen
 import me.weishu.kernelsu.ui.screen.settings.SoundEffectsScreen
+import me.weishu.kernelsu.ui.screen.settings.SidebarWidgetSettingsScreen
 import me.weishu.kernelsu.ui.screen.settings.StartupAnimationScreen
 import me.weishu.kernelsu.ui.screen.settings.UiDecorationLibraryScreen
 import me.weishu.kernelsu.ui.screen.settings.VisualEffectsScreen
@@ -633,6 +636,7 @@ class MainActivity : ComponentActivity() {
                                 entry<Route.ColorPalette> { ColorPaletteScreen() }
                                 entry<Route.LauncherIcon> { LauncherIconScreen() }
                                 entry<Route.NavigationIcons> { NavigationIconScreen() }
+                                entry<Route.SidebarWidgetSettings> { SidebarWidgetSettingsScreen() }
                                 entry<Route.Backgrounds> { BackgroundSettingsScreen() }
                                 entry<Route.SoundEffects> { SoundEffectsScreen() }
                                 entry<Route.StartupAnimation> { StartupAnimationScreen() }
@@ -1530,6 +1534,18 @@ fun MainScreen(
                         modifier = Modifier
                             .weight(1f)
                             .consumeWindowInsets(startInsets)
+                            .then(
+                                if (interfaceStyle == InterfaceStyle.SidebarWidget.value) {
+                                    Modifier.clip(
+                                        RoundedCornerShape(
+                                            topStart = 28.dp,
+                                            bottomStart = 28.dp,
+                                        )
+                                    )
+                                } else {
+                                    Modifier
+                                }
+                            )
                     ) {
                         pagerContent(navBarBottomPadding)
                     }

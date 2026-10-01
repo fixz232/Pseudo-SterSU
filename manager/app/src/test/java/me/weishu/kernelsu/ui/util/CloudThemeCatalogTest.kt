@@ -17,11 +17,11 @@ class CloudThemeCatalogTest {
         assertEquals("aurora-night", theme.id)
         assertEquals("Appearance", catalog.categoryName(theme.categoryId))
         assertEquals(
-            "https://github.com/Dama926/ApkeSU-ThemeStore/releases/download/theme-1/aurora.kstheme",
+            "https://github.com/fixz232/SterSU-ThemeStore/releases/download/theme-1/aurora.kstheme",
             theme.downloadUrl,
         )
         assertEquals(
-            "https://raw.githubusercontent.com/Dama926/ApkeSU-ThemeStore/main/theme-store/media/aurora.png",
+            "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/theme-store/media/aurora.png",
             theme.coverUrl,
         )
         assertTrue(theme.isCompatible(32700L))

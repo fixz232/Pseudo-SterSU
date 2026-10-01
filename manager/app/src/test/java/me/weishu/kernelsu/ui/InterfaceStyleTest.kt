@@ -65,6 +65,16 @@ class InterfaceStyleTest {
     }
 
     @Test
+    fun sidebarWidgetIsDownloadedButUsesMaterialUiMode() {
+        val sidebarValue = InterfaceStyle.SidebarWidget.value
+        assertTrue(InterfaceStyle.SidebarWidget in InterfaceStyle.entries)
+        assertFalse(InterfaceStyle.SidebarWidget in InterfaceStyle.selectableEntries)
+        assertEquals(sidebarValue, InterfaceStyle.normalizeValue(sidebarValue))
+        assertEquals(UiMode.Material, UiMode.fromValue(sidebarValue))
+        assertFalse(InterfaceStyle.isMiuixBased(sidebarValue))
+    }
+
+    @Test
     fun unknownStyleFallsBackToMiuix() {
         assertEquals(InterfaceStyle.Miuix.value, InterfaceStyle.normalizeValue("unknown"))
         assertEquals(UiMode.Miuix, UiMode.fromValue("unknown"))
