@@ -4,7 +4,21 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $assetRoot = Join-Path $repoRoot 'manager/app/src/main/assets/plugin-store'
 $packageRoot = Join-Path $repoRoot 'plugin-store/packages'
+$pluginStoreBaseUrl = 'https://raw.githubusercontent.com/fixz232/Pseudo-SterSU/main/plugin-store'
+$utf8NoBom = [Text.UTF8Encoding]::new($false)
 New-Item -ItemType Directory -Force -Path $assetRoot, $packageRoot | Out-Null
+
+function Write-LfUtf8NoBom {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$Content
+    )
+    $normalized = $Content.Replace("`r`n", "`n").Replace("`r", "`n")
+    if (-not $normalized.EndsWith("`n")) {
+        $normalized += "`n"
+    }
+    [IO.File]::WriteAllText($Path, $normalized, $utf8NoBom)
+}
 
 $plugins = @(
     @{ id='rescue-protection'; name='救砖保护'; summary='备份、验证并恢复启动镜像，降低连续启动失败风险。'; description='提供启动镜像备份、深度校验、恢复事务和救援日志。所有操作仍由版本化 ksud 接口执行。'; slots=@('toolbox.rescue'); instructions=@('先确认 boot/init_boot 备份完整并保留可用恢复路径。','启用保护后重启验证；恢复操作会显示校验结果和事务状态。'); minKsud=32800 },
@@ -30,12 +44,12 @@ foreach ($plugin in $plugins) {
         slots=$plugin.slots
         minManagerVersionCode=32800
         minKsudVersionCode=$plugin.minKsud
-        downloadUrl="https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/packages/$($plugin.id).ksplugin"
+        downloadUrl="$pluginStoreBaseUrl/packages/$($plugin.id).ksplugin"
         sha256=''
         sizeBytes=0
     }
     $path = Join-Path $packageRoot "$($plugin.id).ksplugin"
-    $package | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $path -Encoding utf8NoBOM
+    Write-LfUtf8NoBom -Path $path -Content ($package | ConvertTo-Json -Depth 8)
 }
 
 $catalogPlugins = foreach ($plugin in $plugins) {
@@ -51,7 +65,7 @@ $catalogPlugins = foreach ($plugin in $plugins) {
         slots=$plugin.slots
         minManagerVersionCode=32800
         minKsudVersionCode=$plugin.minKsud
-        downloadUrl="https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/packages/$($plugin.id).ksplugin"
+        downloadUrl="$pluginStoreBaseUrl/packages/$($plugin.id).ksplugin"
         sha256=([Security.Cryptography.SHA256]::HashData($bytes) | ForEach-Object { $_.ToString('x2') }) -join ''
         sizeBytes=$bytes.Length
     }
@@ -64,8 +78,8 @@ $catalog = [ordered]@{
     plugins=@($catalogPlugins)
 }
 $catalogJson = $catalog | ConvertTo-Json -Depth 10
-Set-Content -LiteralPath (Join-Path $assetRoot 'catalog-v1.json') -Value $catalogJson -Encoding utf8NoBOM
-Set-Content -LiteralPath (Join-Path $repoRoot 'plugin-store/catalog-v1.json') -Value $catalogJson -Encoding utf8NoBOM
+Write-LfUtf8NoBom -Path (Join-Path $assetRoot 'catalog-v1.json') -Content $catalogJson
+Write-LfUtf8NoBom -Path (Join-Path $repoRoot 'plugin-store/catalog-v1.json') -Content $catalogJson
 $catalogDestination = Join-Path $repoRoot 'plugin-store/catalog-v1.json'
 if ((Resolve-Path (Join-Path $assetRoot 'catalog-v1.json')).Path -ne $catalogDestination) {
     Copy-Item -LiteralPath (Join-Path $assetRoot 'catalog-v1.json') -Destination $catalogDestination -Force

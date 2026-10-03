@@ -349,6 +349,13 @@ private fun AppearanceSettingsContent(
 ) {
     val styles = InterfaceStyle.selectableEntries
     SettingsGroup(stringResource(R.string.settings_group_interface)) {
+        SettingsActionRow(
+            title = stringResource(R.string.sidebar_widget_settings_title),
+            summary = stringResource(R.string.sidebar_design_entry_summary),
+            icon = Icons.Rounded.Tune,
+            onClick = { onOpen(Route.SidebarWidgetSettings) },
+        )
+        SettingsDivider()
         SettingsChoiceRow(
             title = stringResource(R.string.settings_ui_mode),
             summary = stringResource(R.string.settings_ui_mode_summary),

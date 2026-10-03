@@ -78,6 +78,7 @@ Native GKI KPM 接口的来源、兼容范围、SukiSU-Ultra 参考提交、Kern
 - [simonpunk/susfs4ksu](https://gitlab.com/simonpunk/susfs4ksu) GKI SUSFS 源码补丁来源（固定版本见 [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md)）
 - [ReSukiSU](https://github.com/ReSukiSU/ReSukiSU) 动态管理器功能设计、IOCTL 编号与加载思路参考
 - [FolkPatch](https://github.com/LyraVoid/FolkPatch) UI框架代码引用
+- [Aster](https://github.com/LyraVoid/Aster) 侧栏导航、页面布局与统一界面结构的设计参考；感谢 LyraVoid 与贡献者。SterSU 为独立适配，非 Aster 官方发行版，详见 [UI 设计来源说明](./docs/ASTER_UI_DESIGN_NOTICE.md)。
 - [skrootpro](https://github.com/abcz316/SKRoot-linuxKernelRoot)UI框架借鉴
 - [kowsu](https://github.com/KOWX712/KernelSU.git) ko文件来源
 - [Kernel-Assisted Superuser](https://git.zx2c4.com/kernel-assisted-superuser/about/): KernelSU设计灵感来源

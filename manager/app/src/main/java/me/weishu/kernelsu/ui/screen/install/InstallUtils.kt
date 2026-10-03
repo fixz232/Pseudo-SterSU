@@ -14,6 +14,23 @@ internal fun BootPatchMode.supportsInstallMethod(method: InstallMethod?): Boolea
     this != BootPatchMode.NativeKpm || method is InstallMethod.SelectFile ||
         method is InstallMethod.DownloadFile && method.partition == "boot"
 
+internal fun resolveDirectInstallPartition(
+    method: InstallMethod,
+    hasCustomSelected: Boolean,
+    selectedPartitionName: String?,
+    availablePartitions: List<String>,
+): String? {
+    if (method !is InstallMethod.DirectInstall &&
+        method !is InstallMethod.DirectInstallToInactiveSlot
+    ) {
+        return null
+    }
+    // The displayed default can be transient while partition probes finish.
+    // Let ksud choose from the current KMI and slot unless the user overrides it.
+    if (!hasCustomSelected) return null
+    return selectedPartitionName?.takeIf(availablePartitions::contains)
+}
+
 @Parcelize
 internal sealed class InstallMethod : Parcelable {
     data class SelectFile(

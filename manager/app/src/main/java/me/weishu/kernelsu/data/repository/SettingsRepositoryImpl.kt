@@ -1080,6 +1080,7 @@ class SettingsRepositoryImpl : SettingsRepository {
             InterfaceStyle.Rain.value -> ThemePreset.RAIN
             InterfaceStyle.Pixel.value -> ThemePreset.PIXEL
             InterfaceStyle.Material.value -> ThemePreset.CLEAN_TOOL
+            InterfaceStyle.SidebarWidget.value -> ThemePreset.CLEAN_TOOL
             else -> ThemePreset.CLEAN_TOOL
         }
         val preservedColorMode = themeMode

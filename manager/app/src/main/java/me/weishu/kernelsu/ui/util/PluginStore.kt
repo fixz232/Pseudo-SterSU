@@ -12,11 +12,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.net.URI
-import java.security.KeyFactory
 import java.security.MessageDigest
 import java.security.NoSuchAlgorithmException
-import java.security.Signature
-import java.security.spec.X509EncodedKeySpec
 import java.util.Base64
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
@@ -146,8 +143,12 @@ private const val CATALOG_MAX_AGE_MILLIS = 24L * 60L * 60L * 1000L
 private const val MAX_DESCRIPTION_LENGTH = 2_000
 private const val MAX_INSTRUCTION_COUNT = 16
 private const val MAX_INSTRUCTION_LENGTH = 360
+private const val ACTIVE_PLUGIN_STORE_BASE_URL =
+    "https://raw.githubusercontent.com/fixz232/Pseudo-SterSU/main/plugin-store"
+private const val LEGACY_PLUGIN_STORE_BASE_URL =
+    "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main"
 private const val DEFAULT_CATALOG_URL =
-    "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/catalog-v1.json"
+    "$ACTIVE_PLUGIN_STORE_BASE_URL/catalog-v1.json"
 
 // This is an X.509 SubjectPublicKeyInfo encoding for the release catalog key.
 // The corresponding private key is deliberately kept outside source control.
@@ -308,7 +309,7 @@ class ManagerPluginCatalogRepository(
                     // mixing routes would make valid pairs look invalid.
                     val catalogBytes = download(candidateCatalogUrl, MAX_CATALOG_BYTES, "application/json")
                     val signatureBytes = download(candidateSignatureUrl, MAX_SIGNATURE_BYTES, "text/plain")
-                    verifyCatalogSignature(catalogBytes, signatureBytes)
+                    verifyManagerPluginCatalogSignature(catalogBytes, signatureBytes)
                     val catalog = parseManagerPluginCatalog(catalogBytes.toString(Charsets.UTF_8))
                     atomicWrite(catalogCache, catalogBytes)
                     atomicWrite(signatureCache, signatureBytes)
@@ -352,7 +353,7 @@ class ManagerPluginCatalogRepository(
         return runCatching {
             val catalog = AtomicFile(catalogFile).openRead().use { it.readLimited(MAX_CATALOG_BYTES) }
             val signature = AtomicFile(signatureFile).openRead().use { it.readLimited(MAX_SIGNATURE_BYTES) }
-            verifyCatalogSignature(catalog, signature)
+            verifyManagerPluginCatalogSignature(catalog, signature)
             parseManagerPluginCatalog(catalog.toString(Charsets.UTF_8))
         }.getOrNull()
     }
@@ -440,20 +441,15 @@ class ManagerPluginInstaller(
                 "Plugin download redirected to an unsupported host"
             }
             val declaredLength = response.body.contentLength()
-            require(declaredLength < 0L || declaredLength == expected.sizeBytes) {
-                "Plugin byte count does not match catalog"
+            require(declaredLength < 0L || declaredLength <= MAX_PACKAGE_BYTES) {
+                "Plugin response is too large"
             }
-            val digest = MessageDigest.getInstance("SHA-256")
             val bytes = response.body.byteStream().readLimited(
                 MAX_PACKAGE_BYTES,
                 { read -> onProgress(PluginDownloadProgress(read, expected.sizeBytes)) },
-                digest,
             )
-            require(bytes.size.toLong() == expected.sizeBytes) { "Plugin package is incomplete" }
-            require(digest.digest().toHexString().equals(expected.sha256, ignoreCase = true)) {
-                "Plugin SHA-256 verification failed"
-            }
-            val packageJson = JSONObject(bytes.toString(Charsets.UTF_8))
+            val verifiedBytes = pluginPackageBytesMatchingCatalog(bytes, expected)
+            val packageJson = JSONObject(verifiedBytes.toString(Charsets.UTF_8))
             require(packageJson.optString("schema") == PLUGIN_PACKAGE_SCHEMA) {
                 "Plugin package schema is invalid"
             }
@@ -472,6 +468,21 @@ internal fun pluginPackageMatchesCatalog(
 ): Boolean = downloaded.sha256.isEmpty() &&
     downloaded.sizeBytes == 0L &&
     downloaded == catalogEntry.copy(sha256 = "", sizeBytes = 0L)
+
+internal fun pluginPackageBytesMatchingCatalog(
+    downloaded: ByteArray,
+    catalogEntry: ManagerPluginPackage,
+): ByteArray {
+    val payloads = listOfNotNull(downloaded, downloaded.withCrlfLineEndings())
+    val sizeMatches = payloads.filter { it.size.toLong() == catalogEntry.sizeBytes }
+    require(sizeMatches.isNotEmpty()) { "Plugin byte count does not match catalog" }
+    return sizeMatches.firstOrNull { payload ->
+        MessageDigest.getInstance("SHA-256")
+            .digest(payload)
+            .toHexString()
+            .equals(catalogEntry.sha256, ignoreCase = true)
+    } ?: throw IllegalArgumentException("Plugin SHA-256 verification failed")
+}
 
 internal fun isPluginCatalogStale(generatedAt: Long, now: Long = System.currentTimeMillis()): Boolean =
     generatedAt <= 0L ||
@@ -650,10 +661,19 @@ private fun validatePluginUrl(raw: String): String {
 
 internal fun resolvePluginDownloadUrls(raw: String, route: PluginDownloadRoute): List<String> {
     val original = validatePluginUrl(raw)
+    val directUrls = listOfNotNull(migrateLegacyPluginStoreUrl(original), original).distinct()
     return when (route) {
-        PluginDownloadRoute.Direct -> listOf(original)
-        PluginDownloadRoute.Accelerator -> listOf("https://$ACCELERATOR_HOST/$original", original)
+        PluginDownloadRoute.Direct -> directUrls
+        PluginDownloadRoute.Accelerator -> directUrls.flatMap { url ->
+            listOf("https://$ACCELERATOR_HOST/$url", url)
+        }
     }
+}
+
+private fun migrateLegacyPluginStoreUrl(raw: String): String? {
+    val legacyPrefix = "$LEGACY_PLUGIN_STORE_BASE_URL/"
+    if (!raw.startsWith(legacyPrefix)) return null
+    return "$ACTIVE_PLUGIN_STORE_BASE_URL/${raw.removePrefix(legacyPrefix)}"
 }
 
 internal fun resolvePluginCatalogUrls(
@@ -681,20 +701,44 @@ private fun isAllowedPluginHost(host: String): Boolean {
     return normalized in ALLOWED_GITHUB_HOSTS || normalized == ACCELERATOR_HOST
 }
 
-private fun verifyCatalogSignature(catalog: ByteArray, signatureText: ByteArray) {
+internal fun verifyManagerPluginCatalogSignature(
+    catalog: ByteArray,
+    signatureText: ByteArray,
+    publicKeyBase64: String = CATALOG_PUBLIC_KEY_B64,
+) {
     val signatureBytes = Base64.getMimeDecoder().decode(signatureText.toString(Charsets.UTF_8).trim())
     require(signatureBytes.size == 64) { "Plugin catalog signature is invalid" }
-    val keyBytes = Base64.getDecoder().decode(CATALOG_PUBLIC_KEY_B64)
-    val publicKey = KeyFactory.getInstance("Ed25519").generatePublic(X509EncodedKeySpec(keyBytes))
-    val verifier = Signature.getInstance("Ed25519")
-    verifier.initVerify(publicKey)
-    verifier.update(catalog)
-    require(verifier.verify(signatureBytes)) { "Plugin catalog signature verification failed" }
+    val keyBytes = Base64.getDecoder().decode(publicKeyBase64)
+    val payloads = listOfNotNull(catalog, catalog.withCrlfLineEndings())
+    require(verifyCatalogEd25519Signature(payloads, signatureBytes, keyBytes)) {
+        "Plugin catalog signature verification failed"
+    }
+}
+
+private fun ByteArray.withCrlfLineEndings(): ByteArray? {
+    var loneLfCount = 0
+    for (index in indices) {
+        if (this[index] == '\n'.code.toByte() && (index == 0 || this[index - 1] != '\r'.code.toByte())) {
+            loneLfCount++
+        }
+    }
+    if (loneLfCount == 0) return null
+
+    val normalized = ByteArray(size + loneLfCount)
+    var target = 0
+    for (index in indices) {
+        val value = this[index]
+        if (value == '\n'.code.toByte() && (index == 0 || this[index - 1] != '\r'.code.toByte())) {
+            normalized[target++] = '\r'.code.toByte()
+        }
+        normalized[target++] = value
+    }
+    return normalized
 }
 
 private fun verifyBundledCatalogSignature(catalog: ByteArray, signature: ByteArray) {
     try {
-        verifyCatalogSignature(catalog, signature)
+        verifyManagerPluginCatalogSignature(catalog, signature)
     } catch (_: NoSuchAlgorithmException) {
         // Bundled assets are protected by the signed APK. Some vendor
         // images omit the Ed25519 provider, so keep the local catalog
@@ -705,7 +749,6 @@ private fun verifyBundledCatalogSignature(catalog: ByteArray, signature: ByteArr
 private fun java.io.InputStream.readLimited(
     maximumBytes: Long,
     onRead: ((Long) -> Unit)? = null,
-    digest: MessageDigest? = null,
 ): ByteArray {
     val output = java.io.ByteArrayOutputStream()
     val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
@@ -715,7 +758,6 @@ private fun java.io.InputStream.readLimited(
         if (count < 0) break
         total += count
         require(total <= maximumBytes) { "Plugin response is too large" }
-        digest?.update(buffer, 0, count)
         output.write(buffer, 0, count)
         onRead?.invoke(total)
     }

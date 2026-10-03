@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -355,9 +356,9 @@ private fun CloudThemeInterfaceStyleEntry(onClick: () -> Unit) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(12.dp))
             .clickable(role = Role.Button, onClick = onClick),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(12.dp),
         color = cloudThemeSurfaceColor(),
         tonalElevation = if (LocalInterfaceStyle.current == InterfaceStyle.Skrootpro.value) 0.dp else 1.dp,
     ) {
@@ -369,7 +370,7 @@ private fun CloudThemeInterfaceStyleEntry(onClick: () -> Unit) {
             Box(
                 modifier = Modifier
                     .size(42.dp)
-                    .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(8.dp)),
+                    .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -414,9 +415,9 @@ private fun CloudThemeUsagePreview(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(12.dp))
             .clickable(role = Role.Button, onClick = onClick),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(12.dp),
         color = cloudThemeSurfaceColor(),
         tonalElevation = if (LocalInterfaceStyle.current == InterfaceStyle.Skrootpro.value) 0.dp else 1.dp,
     ) {
@@ -430,7 +431,7 @@ private fun CloudThemeUsagePreview(
                     .size(42.dp)
                     .background(
                         MaterialTheme.colorScheme.primaryContainer,
-                        RoundedCornerShape(8.dp),
+                        RoundedCornerShape(10.dp),
                     ),
                 contentAlignment = Alignment.Center,
             ) {
@@ -484,68 +485,89 @@ private fun CloudThemeDiscoverHeader(
     refreshing: Boolean,
     onRefresh: () -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = cloudThemeSurfaceColor(),
+        tonalElevation = if (LocalInterfaceStyle.current == InterfaceStyle.Skrootpro.value) 0.dp else 1.dp,
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.cloud_theme_discover_heading),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = cloudThemeTextColor(),
-                )
-                Text(
-                    text = stringResource(R.string.store_summary),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = cloudThemeMutedColor(),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = stringResource(
-                        R.string.cloud_theme_catalog_count,
-                        snapshot?.catalog?.themes?.count {
-                            it.status == CloudThemePublicationStatus.Published
-                        } ?: 0,
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = cloudThemeMutedColor(),
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(10.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Image,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = stringResource(R.string.cloud_theme_discover_heading),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = cloudThemeTextColor(),
+                    )
+                    Text(
+                        text = stringResource(R.string.store_summary),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = cloudThemeMutedColor(),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = stringResource(
+                            R.string.cloud_theme_catalog_count,
+                            snapshot?.catalog?.themes?.count {
+                                it.status == CloudThemePublicationStatus.Published
+                            } ?: 0,
+                        ),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                IconButton(enabled = !refreshing, onClick = onRefresh) {
+                    Icon(
+                        imageVector = Icons.Rounded.Refresh,
+                        contentDescription = stringResource(R.string.cloud_theme_refresh),
+                        tint = cloudThemeTextColor(),
+                    )
+                }
             }
-            IconButton(enabled = !refreshing, onClick = onRefresh) {
-                Icon(
-                    imageVector = Icons.Rounded.Refresh,
-                    contentDescription = stringResource(R.string.cloud_theme_refresh),
-                    tint = cloudThemeTextColor(),
-                )
-            }
-        }
-        snapshot?.let { current ->
-            if (current.offline || current.source == CloudThemeCatalogSource.Bundled) {
-                CloudThemeStatusBand(
-                    icon = Icons.Rounded.CloudOff,
-                    text = stringResource(
-                        if (current.source == CloudThemeCatalogSource.Bundled) {
-                            R.string.cloud_theme_bundled_catalog
-                        } else {
-                            R.string.cloud_theme_offline_catalog
-                        }
-                    ),
-                    isError = current.errorMessage != null,
-                )
-            }
-            if (current.fetchedAt > 0L) {
-                Text(
-                    text = stringResource(
-                        R.string.cloud_theme_catalog_updated,
-                        formatCloudThemeDate(current.fetchedAt),
-                    ),
-                    modifier = Modifier.padding(horizontal = 4.dp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = cloudThemeMutedColor(),
-                )
+            snapshot?.let { current ->
+                if (current.offline || current.source == CloudThemeCatalogSource.Bundled) {
+                    CloudThemeStatusBand(
+                        icon = Icons.Rounded.CloudOff,
+                        text = stringResource(
+                            if (current.source == CloudThemeCatalogSource.Bundled) {
+                                R.string.cloud_theme_bundled_catalog
+                            } else {
+                                R.string.cloud_theme_offline_catalog
+                            }
+                        ),
+                        isError = current.errorMessage != null,
+                    )
+                }
+                if (current.fetchedAt > 0L) {
+                    Text(
+                        text = stringResource(
+                            R.string.cloud_theme_catalog_updated,
+                            formatCloudThemeDate(current.fetchedAt),
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = cloudThemeMutedColor(),
+                    )
+                }
             }
         }
     }
@@ -603,9 +625,9 @@ private fun CloudThemeCard(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(12.dp),
         color = cloudThemeSurfaceColor(),
         tonalElevation = if (LocalInterfaceStyle.current == InterfaceStyle.Skrootpro.value) 0.dp else 1.dp,
     ) {
@@ -710,6 +732,13 @@ private fun CloudThemeCard(
                         style = MaterialTheme.typography.labelSmall,
                         color = cloudThemeMutedColor(),
                         maxLines = 1,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+                        contentDescription = stringResource(R.string.cloud_theme_detail_title),
+                        modifier = Modifier.size(18.dp),
+                        tint = cloudThemeMutedColor(),
                     )
                 }
             }

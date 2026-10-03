@@ -5,5 +5,6 @@ import androidx.compose.runtime.Immutable
 @Immutable
 data class LinkInfo(
     val fullText: String,
-    val url: String
+    val url: String,
+    val summary: String? = null,
 )

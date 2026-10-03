@@ -210,6 +210,7 @@ fun CustomWallpaperRoot(
     backgroundScrollFollowState: BackgroundScrollFollowState? = null,
     pagerBackgrounds: List<CustomBackgroundState> = emptyList(),
     horizontalPagerPosition: (() -> Float)? = null,
+    backgroundLayerModifier: Modifier = Modifier,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val isLiquidGlass = isLiquidGlassTheme()
@@ -223,24 +224,27 @@ fun CustomWallpaperRoot(
             .fillMaxSize()
             .background(surfaceColor),
     ) {
-        if (usePagerBackgrounds) {
-            PagerAnchoredBackgroundLayers(
-                backgrounds = pagerBackgrounds,
-                pagerPosition = horizontalPagerPosition,
-                isLiquidGlass = isLiquidGlass,
-                modifier = backgroundMotionModifier,
-            )
-        } else {
-            CustomBackgroundMedia(
-                imageUriString = uriString,
-                videoUriString = videoUriString,
-                videoDurationSeconds = videoDurationSeconds,
-                videoFrameRate = videoFrameRate,
-                opacity = if (isLiquidGlass) opacity.coerceAtMost(0.42f) else opacity,
-                crop = crop,
-                visualSettings = visualSettings,
-                modifier = backgroundMotionModifier,
-            )
+        // Capture only wallpaper siblings, never content that draws from that capture.
+        Box(Modifier.fillMaxSize().then(backgroundLayerModifier)) {
+            if (usePagerBackgrounds) {
+                PagerAnchoredBackgroundLayers(
+                    backgrounds = pagerBackgrounds,
+                    pagerPosition = horizontalPagerPosition,
+                    isLiquidGlass = isLiquidGlass,
+                    modifier = backgroundMotionModifier,
+                )
+            } else {
+                CustomBackgroundMedia(
+                    imageUriString = uriString,
+                    videoUriString = videoUriString,
+                    videoDurationSeconds = videoDurationSeconds,
+                    videoFrameRate = videoFrameRate,
+                    opacity = if (isLiquidGlass) opacity.coerceAtMost(0.42f) else opacity,
+                    crop = crop,
+                    visualSettings = visualSettings,
+                    modifier = backgroundMotionModifier,
+                )
+            }
         }
         content()
         if (passthroughEnabled) {

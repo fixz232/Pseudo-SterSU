@@ -1,9 +1,11 @@
 package me.weishu.kernelsu.ui.util
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.security.KeyPairGenerator
 import java.security.MessageDigest
 import java.security.Signature
@@ -13,11 +15,60 @@ import java.util.zip.ZipOutputStream
 
 class InterfaceStyleStoreTest {
     @Test
+    fun bundledSidebarGlassMatchesSignedCatalogAndPinnedMetadata() {
+        val assets = File("src/main/assets/interface-style")
+        val catalogBytes = File(assets, "catalog-v1.json").readBytes()
+        verifyInterfaceStyleCatalogSignature(catalogBytes, File(assets, "catalog-v1.sig").readBytes())
+        val style = parseInterfaceStyleCatalog(catalogBytes.toString(Charsets.UTF_8))
+            .styles.single { it.id == "sidebar-widget" }
+        assertEquals(style, trustedInterfaceStylePackage(style))
+
+        val packageBytes = File(assets, "packages/sidebar-widget.ksstyle").readBytes()
+        assertEquals(style.sizeBytes, packageBytes.size.toLong())
+        val hash = MessageDigest.getInstance("SHA-256").digest(packageBytes)
+            .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+        assertEquals(style.sha256, hash)
+        val bundle = parseInterfaceStyleBundle(packageBytes, style)
+        val theme = parseInterfaceStyleTheme(requireNotNull(bundle.resources["theme.json"]), style)
+        assertTrue(theme.glass.refraction)
+        assertEquals(12f, theme.glass.blurDp)
+        assertEquals(0f, theme.glass.chromaticAberration)
+        assertTrue(style.downloadUrl.endsWith("/sidebar-widget-glass-20261003.ksstyle"))
+    }
+
+    @Test
+    fun `catalog crypto provider excludes Android Keystore implementations`() {
+        assertFalse(isUsableCatalogCryptoProvider("AndroidKeyStore"))
+        assertFalse(isUsableCatalogCryptoProvider("AndroidKeyStoreBCWorkaround"))
+        assertTrue(isUsableCatalogCryptoProvider("Conscrypt"))
+        assertTrue(isUsableCatalogCryptoProvider("SunEC"))
+    }
+
+    @Test
+    fun pureJavaEd25519FallbackVerifiesAProviderGeneratedSignature() {
+        val keyPair = KeyPairGenerator.getInstance("Ed25519").generateKeyPair()
+        val payload = "signed catalog".toByteArray()
+        val signature = Signature.getInstance("Ed25519").apply {
+            initSign(keyPair.private)
+            update(payload)
+        }.sign()
+
+        assertTrue(PureJavaEd25519.verify(signature, keyPair.public.encoded, payload))
+        assertFalse(PureJavaEd25519.verify(signature, keyPair.public.encoded, "tampered".toByteArray()))
+    }
+    @Test
     fun defaultCatalogUsesCurrentThemeStoreRepository() {
         assertEquals(
             "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/catalog-v1.json",
             interfaceStyleCatalogUrl(),
         )
+    }
+
+    @Test
+    fun packageFileNameIsStableAndUsesStyleIdentity() {
+        val style = packageFor("pixel-cloud-town", "pixel", "cloud_town", 4284380326)
+
+        assertEquals("pixel-cloud-town-v3.ksstyle", interfaceStylePackageFileName(style))
     }
 
     @Test
@@ -28,6 +79,18 @@ class InterfaceStyleStoreTest {
         assertEquals("snow", catalog.styles[0].engine)
         assertEquals("spring", catalog.styles[0].variant)
         assertEquals("pixel", catalog.styles[1].engine)
+    }
+
+    @Test
+    fun catalogParsesSidebarWidgetEngineWithoutVariant() {
+        val catalog = parseInterfaceStyleCatalog(
+            validCatalog()
+                .replace("\"engine\": \"snow\"", "\"engine\": \"sidebar_widget\"")
+                .replace("\"variant\": \"spring\"", "\"variant\": null"),
+        )
+
+        assertEquals("sidebar_widget", catalog.styles.first().engine)
+        assertEquals(null, catalog.styles.first().variant)
     }
 
     @Test(expected = IllegalArgumentException::class)
@@ -95,6 +158,41 @@ class InterfaceStyleStoreTest {
     }
 
     @Test
+    fun emptyCustomProxyFallsBackToDirectGithub() {
+        val original = "https://raw.githubusercontent.com/fixz232/store/main/spring.ksstyle"
+        val urls = resolveInterfaceStyleUrls(
+            original,
+            InterfaceStyleDownloadPreferences(
+                mode = InterfaceStyleProxyMode.Custom,
+                customProxy = "",
+            ),
+        )
+
+        assertEquals(listOf(original), urls)
+    }
+
+    @Test
+    fun builtInStyleMetadataOverridesStaleCatalogEntry() {
+        val stale = packageFor("sidebar-widget", "alpha", "legacy", 4284380326)
+
+        val trusted = trustedInterfaceStylePackage(stale)
+
+        assertEquals("sidebar-widget", trusted.id)
+        assertEquals("sidebar_widget", trusted.engine)
+        assertEquals(null, trusted.variant)
+        assertEquals(983L, trusted.sizeBytes)
+    }
+
+    @Test
+    fun bundleWithNullVariantMatchesAStyleWithoutVariant() {
+        val expected = packageFor("sidebar-widget", "sidebar_widget", null, 4284380326)
+
+        val parsed = parseInterfaceStyleBundle(themeBundle(expected), expected)
+
+        assertTrue(parsed.resources.containsKey("theme.json"))
+    }
+
+    @Test
     fun declarativeBundleParsesAndVerifiesResourceHash() {
         val expected = packageFor("rain-light", "rain", "light_rain", 4284380326)
         val bundle = themeBundle(expected)
@@ -116,6 +214,19 @@ class InterfaceStyleStoreTest {
         assertEquals(1, theme.scene.motifs.size)
         assertEquals(14f, theme.chrome.cornerDp)
         assertEquals(12f, theme.glass.blurDp)
+    }
+
+    @Test
+    fun sidebarWidgetThemeAllowsZeroBlurRadius() {
+        val expected = packageFor("sidebar-widget", "sidebar_widget", null, 4284323039)
+        val theme = parseInterfaceStyleTheme(
+            themeJson(expected).toString(Charsets.UTF_8)
+                .replace("\"blurDp\":12.0", "\"blurDp\":0.0")
+                .toByteArray(),
+            expected,
+        )
+
+        assertEquals(0f, theme.glass.blurDp)
     }
 
     @Test

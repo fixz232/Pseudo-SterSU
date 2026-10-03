@@ -17,11 +17,8 @@ import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.net.URI
-import java.security.KeyFactory
 import java.security.MessageDigest
 import java.security.NoSuchAlgorithmException
-import java.security.Signature
-import java.security.spec.X509EncodedKeySpec
 import java.util.Base64
 import java.util.Locale
 import java.util.UUID
@@ -81,6 +78,9 @@ data class InterfaceStyleDownloadProgress(
             ?.let { (downloaded.toDouble() / it).toFloat().coerceIn(0f, 1f) }
 }
 
+const val INTERFACE_STYLE_PACKAGE_EXTENSION = "ksstyle"
+const val INTERFACE_STYLE_PACKAGE_MIME_TYPE = "application/zip"
+
 private const val INTERFACE_STYLE_SCHEMA = "io.github.fixz.apkesu.interface-style-catalog"
 private const val INTERFACE_STYLE_STATE_SCHEMA = "io.github.fixz.apkesu.interface-style-state"
 private const val INTERFACE_STYLE_BUNDLE_SCHEMA = "io.github.fixz.apkesu.interface-style-bundle"
@@ -105,6 +105,8 @@ private const val DEFAULT_CATALOG_URL =
     "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/catalog-v1.json"
 private const val DEFAULT_CATALOG_SIGNATURE_URL =
     "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/catalog-v1.sig"
+private const val SIDEBAR_WIDGET_PACKAGE_ASSET = "interface-style/packages/sidebar-widget.ksstyle"
+private const val WINDOWS_FLUENT_PACKAGE_ASSET = "interface-style/packages/windows-fluent.ksstyle"
 private const val CATALOG_PUBLIC_KEY_B64 =
     "MCowBQYDK2VwAyEAwGidBgSY/SZ25RAsBN3O2SpnFX0RuoMpE6wZqy/LaR0="
 private const val BUNDLE_MANIFEST_PATH = "manifest.json"
@@ -112,7 +114,17 @@ private const val THEME_RESOURCE_PATH = "theme.json"
 private const val WALLPAPER_RESOURCE_PATH = "wallpaper.jpg"
 private val ID_PATTERN = Regex("[a-z0-9][a-z0-9._-]{1,79}")
 private val HASH_PATTERN = Regex("[a-fA-F0-9]{64}")
-private val ALLOWED_ENGINES = setOf("miuix", "material", "liquid_glass", "snow", "rain", "pixel", "skrootpro", "alpha")
+private val ALLOWED_ENGINES = setOf(
+    "miuix",
+    "material",
+    "liquid_glass",
+    "snow",
+    "rain",
+    "pixel",
+    "skrootpro",
+    "alpha",
+    "sidebar_widget",
+)
 private val ALLOWED_VARIANTS = mapOf(
     "snow" to setOf("spring", "summer", "autumn", "winter"),
     "rain" to setOf("light_rain", "medium_rain", "heavy_rain", "thunderstorm", "after_rain"),
@@ -126,10 +138,43 @@ private val ALLOWED_VARIANTS = mapOf(
 private val ALLOWED_GITHUB_HOSTS = setOf("raw.githubusercontent.com", "github.com", "objects.githubusercontent.com")
 private val ALLOWED_PROXY_HOSTS = setOf("ghproxy.net")
 private val ALLOWED_BUNDLE_PATHS = setOf(BUNDLE_MANIFEST_PATH, THEME_RESOURCE_PATH, WALLPAPER_RESOURCE_PATH)
+private val APK_TRUSTED_INTERFACE_STYLES = listOf(
+    InterfaceStylePackage(
+        id = "windows-fluent",
+        name = "Windows 流畅设计 / Windows Fluent",
+        summary = "Windows 11 Fluent 风格的清爽系统界面，使用 Mica 中性色、紧凑 8dp 圆角，并完整适配浅色与深色模式。",
+        engine = "alpha",
+        variant = null,
+        version = 3,
+        downloadUrl =
+            "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/windows-fluent.ksstyle",
+        sha256 = "9b476797051de3ce4ada7ba16746f074ab26fb4260e95127e3e3ba167a9753e6",
+        sizeBytes = 1098L,
+        accent = 4278221012L,
+    ),
+    InterfaceStylePackage(
+        id = "sidebar-widget",
+        name = "侧栏组件",
+        summary = "黑白液态玻璃侧栏，支持左右切换、日夜主题、自定义天气 API、时钟、闹钟、图片和导航排序，适配平板；完整功能需支持新版侧栏的管理器。",
+        engine = "sidebar_widget",
+        variant = null,
+        version = 3,
+        downloadUrl =
+            "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/sidebar-widget-glass-20261003.ksstyle",
+        sha256 = "a27aaa28ceee4271861c68a339aed1db1684dc45e9521c2be760dfc15483a65f",
+        sizeBytes = 983L,
+        accent = 4279637526L,
+    )
+)
 
 internal data class InterfaceStyleBundle(
     val manifest: ByteArray,
     val resources: Map<String, ByteArray>,
+)
+
+private data class VerifiedInterfaceStylePackage(
+    val bytes: ByteArray,
+    val bundle: InterfaceStyleBundle,
 )
 
 private data class InterfaceStyleResource(
@@ -142,7 +187,17 @@ private data class InterfaceStyleResource(
 
 internal const val INTERFACE_STYLE_RESULT_KEY = "interface_style_store_result"
 
+/**
+ * Built-in style IDs are pinned to the metadata shipped with the APK. This
+ * keeps stale catalog entries from making a bundled package fail validation.
+ */
+internal fun trustedInterfaceStylePackage(style: InterfaceStylePackage): InterfaceStylePackage =
+    APK_TRUSTED_INTERFACE_STYLES.firstOrNull { it.id == style.id } ?: style
+
 fun interfaceStyleCatalogUrl(): String = DEFAULT_CATALOG_URL
+
+fun interfaceStylePackageFileName(style: InterfaceStylePackage): String =
+    "${style.id}-v${style.version}.$INTERFACE_STYLE_PACKAGE_EXTENSION"
 
 fun readInterfaceStyleDownloadPreferences(context: Context): InterfaceStyleDownloadPreferences {
     val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -342,7 +397,7 @@ class InterfaceStyleRegistry(context: Context) {
             require(manifest.optInt("version") == style.version)
             require(manifest.optString("id") == style.id)
             require(manifest.optString("engine") == style.engine)
-            require(manifest.optString("variant").takeIf(String::isNotBlank) == style.variant)
+            require(manifest.optNullableString("variant") == style.variant)
 
             val resource = parseBundleResources(manifest.optJSONArray("resources") ?: JSONArray()).single()
             require(resource.path == requiredPath)
@@ -395,7 +450,11 @@ class InterfaceStyleCatalogRepository(
         val cached = readCatalogFile(cacheFile, cacheSignatureFile)
         try {
             if (!forceNetwork && cached != null) {
-                return@withContext InterfaceStyleCatalogSnapshot(cached, InterfaceStyleCatalogSource.Cache, offline = true)
+                return@withContext InterfaceStyleCatalogSnapshot(
+                    cached.withApkTrustedStyles(),
+                    InterfaceStyleCatalogSource.Cache,
+                    offline = true,
+                )
             }
             val catalogBytes = downloadCatalogFile(DEFAULT_CATALOG_URL, MAX_CATALOG_BYTES, "application/json")
             val signatureBytes = downloadCatalogFile(DEFAULT_CATALOG_SIGNATURE_URL, MAX_SIGNATURE_BYTES, "text/plain")
@@ -404,13 +463,17 @@ class InterfaceStyleCatalogRepository(
             cacheFile.parentFile?.mkdirs()
             writeAtomic(cacheSignatureFile, signatureBytes)
             writeAtomic(cacheFile, catalogBytes)
-            InterfaceStyleCatalogSnapshot(catalog, InterfaceStyleCatalogSource.Network, offline = false)
+            InterfaceStyleCatalogSnapshot(
+                catalog.withApkTrustedStyles(),
+                InterfaceStyleCatalogSource.Network,
+                offline = false,
+            )
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (error: Throwable) {
             cached?.let {
                 return@withContext InterfaceStyleCatalogSnapshot(
-                    catalog = it,
+                    catalog = it.withApkTrustedStyles(),
                     source = InterfaceStyleCatalogSource.Cache,
                     offline = true,
                     errorMessage = error.safeInterfaceStyleMessage(),
@@ -419,7 +482,7 @@ class InterfaceStyleCatalogRepository(
             val bundled = runCatching { readBundledCatalog() }
                 .getOrElse { InterfaceStyleCatalog(generatedAt = 0L, styles = emptyList()) }
             InterfaceStyleCatalogSnapshot(
-                catalog = bundled,
+                catalog = bundled.withApkTrustedStyles(),
                 source = InterfaceStyleCatalogSource.Bundled,
                 offline = true,
                 errorMessage = error.safeInterfaceStyleMessage(),
@@ -481,26 +544,76 @@ class InterfaceStyleInstaller(
         preferences: InterfaceStyleDownloadPreferences = readInterfaceStyleDownloadPreferences(appContext),
         onProgress: (InterfaceStyleDownloadProgress) -> Unit = {},
     ): InstalledInterfaceStyle = withContext(Dispatchers.IO) {
+        val trustedStyle = trustedInterfaceStylePackage(style)
+        val verified = downloadVerifiedPackage(trustedStyle, preferences, onProgress)
+        registry.install(trustedStyle, verified.bundle)
+    }
+
+    suspend fun downloadPackage(
+        style: InterfaceStylePackage,
+        preferences: InterfaceStyleDownloadPreferences = readInterfaceStyleDownloadPreferences(appContext),
+        onProgress: (InterfaceStyleDownloadProgress) -> Unit = {},
+    ): ByteArray = withContext(Dispatchers.IO) {
+        downloadVerifiedPackage(trustedInterfaceStylePackage(style), preferences, onProgress).bytes
+    }
+
+    private fun downloadVerifiedPackage(
+        style: InterfaceStylePackage,
+        preferences: InterfaceStyleDownloadPreferences,
+        onProgress: (InterfaceStyleDownloadProgress) -> Unit,
+    ): VerifiedInterfaceStylePackage {
         validatePackage(style)
         require(style.sizeBytes in 1..MAX_PACKAGE_BYTES) { "Interface style package size is invalid" }
+        val directUrl = validateStyleUrl(style.downloadUrl)
+        val urls = runCatching {
+            resolveInterfaceStyleUrls(directUrl, preferences)
+        }.getOrElse {
+            // A stale or incomplete custom proxy setting must not prevent a
+            // verified package from using GitHub directly or the APK fallback.
+            listOf(directUrl)
+        }
         var lastError: Throwable? = null
-        for (url in resolveInterfaceStyleUrls(style.downloadUrl, preferences)) {
+        for (url in urls) {
             try {
-                return@withContext downloadAndInstall(url, style, onProgress)
+                return downloadAndVerify(url, style, onProgress)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
                 lastError = error
             }
         }
-        throw lastError ?: IllegalStateException("Interface style download failed")
+        return runCatching { readBundledVerifiedPackage(style) }
+            .getOrElse { bundledError ->
+                lastError?.apply { addSuppressed(bundledError) }
+                    ?.let { throw it }
+                throw bundledError
+            }
     }
 
-    private fun downloadAndInstall(
+    private fun readBundledVerifiedPackage(style: InterfaceStylePackage): VerifiedInterfaceStylePackage {
+        val asset = when (style.id) {
+            "sidebar-widget" -> SIDEBAR_WIDGET_PACKAGE_ASSET
+            "windows-fluent" -> WINDOWS_FLUENT_PACKAGE_ASSET
+            else -> error("No bundled fallback exists for this interface style")
+        }
+        val bytes = appContext.assets.open(asset).use {
+            it.readLimited(MAX_PACKAGE_BYTES, total = style.sizeBytes)
+        }
+        require(bytes.size.toLong() == style.sizeBytes) { "Bundled interface style package is incomplete" }
+        val hash = MessageDigest.getInstance("SHA-256").digest(bytes).toHexString()
+        require(hash.equals(style.sha256, ignoreCase = true)) {
+            "Bundled interface style SHA-256 verification failed"
+        }
+        val bundle = parseInterfaceStyleBundle(bytes, style)
+        validateBundleImages(bundle)
+        return VerifiedInterfaceStylePackage(bytes = bytes, bundle = bundle)
+    }
+
+    private fun downloadAndVerify(
         url: String,
         style: InterfaceStylePackage,
         onProgress: (InterfaceStyleDownloadProgress) -> Unit,
-    ): InstalledInterfaceStyle {
+    ): VerifiedInterfaceStylePackage {
         val initialHost = URI(url).host.lowercase(Locale.ROOT)
         val request = Request.Builder().url(url).header("Accept", "application/octet-stream").build()
         client.newCall(request).execute().use { response ->
@@ -519,7 +632,7 @@ class InterfaceStyleInstaller(
             require(actualHash.equals(style.sha256, ignoreCase = true)) { "Interface style SHA-256 verification failed" }
             val bundle = parseInterfaceStyleBundle(bytes, style)
             validateBundleImages(bundle)
-            return registry.install(style, bundle)
+            return VerifiedInterfaceStylePackage(bytes = bytes, bundle = bundle)
         }
     }
 
@@ -529,6 +642,11 @@ class InterfaceStyleInstaller(
         BitmapFactory.decodeByteArray(wallpaper, 0, wallpaper.size, options)
         validateWallpaperBounds(options)
     }
+}
+
+private fun InterfaceStyleCatalog.withApkTrustedStyles(): InterfaceStyleCatalog {
+    val trustedIds = APK_TRUSTED_INTERFACE_STYLES.mapTo(mutableSetOf()) { it.id }
+    return copy(styles = styles.filterNot { it.id in trustedIds } + APK_TRUSTED_INTERFACE_STYLES)
 }
 
 private fun validateWallpaperFile(file: File) {
@@ -582,10 +700,13 @@ internal fun parseInterfaceStyleBundle(
         "Unsupported interface style package"
     }
     require(manifest.optInt("version") == expected.version) { "Interface style package version does not match catalog" }
-    require(manifest.optString("id") == expected.id &&
-        manifest.optString("engine") == expected.engine &&
-        manifest.optString("variant").takeIf(String::isNotBlank) == expected.variant) {
-        "Interface style package metadata does not match catalog"
+    val packageId = manifest.optString("id")
+    val packageEngine = manifest.optString("engine")
+    val packageVariant = manifest.optNullableString("variant")
+    require(packageId == expected.id && packageEngine == expected.engine && packageVariant == expected.variant) {
+        "Interface style package metadata does not match catalog " +
+            "(package=$packageId/$packageEngine/$packageVariant, " +
+            "expected=${expected.id}/${expected.engine}/${expected.variant})"
     }
 
     val declaredResources = parseBundleResources(manifest.optJSONArray("resources") ?: JSONArray())
@@ -693,7 +814,7 @@ private fun parseStyle(item: JSONObject, requireUrl: Boolean): InterfaceStylePac
     require(ID_PATTERN.matches(id)) { "Interface style id is invalid" }
     val engine = item.optString("engine")
     require(engine in ALLOWED_ENGINES) { "Interface style engine is invalid" }
-    val variant = item.optString("variant").takeIf { it.isNotBlank() }
+    val variant = item.optNullableString("variant")
     val allowedVariants = ALLOWED_VARIANTS[engine]
     require(if (allowedVariants == null) variant == null else variant in allowedVariants) {
         "Interface style variant is invalid"
@@ -730,6 +851,17 @@ private fun styleJson(style: InterfaceStylePackage): JSONObject = JSONObject()
     .put("sha256", style.sha256)
     .put("sizeBytes", style.sizeBytes)
     .put("accent", style.accent)
+
+/**
+ * Android's JSONObject may expose a JSON null value as the literal string
+ * "null" through optString(). Treat both representations as Kotlin null so
+ * packages without a variant validate consistently on all Android releases.
+ */
+private fun JSONObject.optNullableString(name: String): String? =
+    opt(name)
+        ?.takeUnless { it == JSONObject.NULL }
+        ?.toString()
+        ?.takeUnless { it.isBlank() || it == "null" }
 
 private fun validatePackage(style: InterfaceStylePackage) {
     require(ID_PATTERN.matches(style.id))
@@ -772,7 +904,7 @@ internal fun resolveInterfaceStyleUrls(
         }
         InterfaceStyleProxyMode.Custom -> {
             val proxy = preferences.customProxy.trim().removeSuffix("/")
-            require(proxy.isNotBlank()) { "Custom proxy URL is empty" }
+            if (proxy.isBlank()) return listOf(original)
             val proxyUri = URI(proxy)
             require(proxyUri.scheme.equals("https", ignoreCase = true) && proxyUri.userInfo == null) {
                 "Custom proxy must use HTTPS"
@@ -794,11 +926,9 @@ internal fun verifyInterfaceStyleCatalogSignature(
     val signatureBytes = Base64.getMimeDecoder().decode(signatureText.toString(Charsets.UTF_8).trim())
     require(signatureBytes.size == 64) { "Interface style catalog signature is invalid" }
     val keyBytes = Base64.getDecoder().decode(publicKeyBase64)
-    val publicKey = KeyFactory.getInstance("Ed25519").generatePublic(X509EncodedKeySpec(keyBytes))
-    val verifier = Signature.getInstance("Ed25519")
-    verifier.initVerify(publicKey)
-    verifier.update(catalog)
-    require(verifier.verify(signatureBytes)) { "Interface style catalog signature verification failed" }
+    require(verifyCatalogEd25519Signature(listOf(catalog), signatureBytes, keyBytes)) {
+        "Interface style catalog signature verification failed"
+    }
 }
 
 private fun verifyBundledInterfaceStyleCatalogSignature(catalog: ByteArray, signature: ByteArray) {

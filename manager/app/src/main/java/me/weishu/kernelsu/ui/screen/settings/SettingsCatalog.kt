@@ -22,6 +22,7 @@ internal data class SettingsCatalogEntry(
 internal object SettingsCatalog {
     private val entries = listOf(
         entry("ui_style", SettingsCategory.Appearance, R.string.settings_ui_mode, R.string.settings_ui_mode_summary),
+        entry("sidebar_design", SettingsCategory.Appearance, R.string.sidebar_widget_settings_title, R.string.sidebar_design_entry_summary),
         entry("miuix_classic", SettingsCategory.Appearance, R.string.settings_miuix_classic_home_layout, R.string.settings_miuix_classic_home_layout_summary) {
             it.uiMode == InterfaceStyle.Miuix.value
         },

@@ -262,6 +262,7 @@ data class SettingsScreenActions(
     val onOpenLauncherIcon: () -> Unit,
     val onEditHomeTitle: () -> Unit,
     val onOpenNavigationIcons: () -> Unit,
+    val onOpenSidebarDesign: () -> Unit,
     val onOpenHomeLayout: () -> Unit,
     val onOpenHomeCardWallpapers: () -> Unit,
     val onOpenVisualEffects: () -> Unit,

@@ -86,6 +86,10 @@ sealed interface Route : NavKey, Parcelable {
 
     @Parcelize
     @Serializable
+    data object SidebarWidgetSettings : Route
+
+    @Parcelize
+    @Serializable
     data object Backgrounds : Route
 
     @Parcelize

@@ -56,6 +56,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -64,11 +65,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -99,6 +102,8 @@ import kotlinx.coroutines.launch
 import me.weishu.kernelsu.Natives
 import me.weishu.kernelsu.R
 import me.weishu.kernelsu.BuildConfig
+import me.weishu.kernelsu.ui.util.SidebarSide
+import me.weishu.kernelsu.ui.util.rememberSidebarWidgetConfig
 import me.weishu.kernelsu.ui.component.AutoHidingNavigationBar
 import me.weishu.kernelsu.ui.component.LocalBackgroundScrollFollowState
 import me.weishu.kernelsu.ui.component.backgroundScrollFollowController
@@ -127,6 +132,11 @@ import me.weishu.kernelsu.ui.component.bottombar.MainPagerState
 import me.weishu.kernelsu.ui.component.bottombar.mainDestinations
 import me.weishu.kernelsu.ui.component.bottombar.NavigationBadgeState
 import me.weishu.kernelsu.ui.component.bottombar.SideRail
+import me.weishu.kernelsu.ui.component.bottombar.LocalSidebarGlassBackdrop
+import me.weishu.kernelsu.ui.component.bottombar.canCaptureSidebarWallpaper
+import me.weishu.kernelsu.ui.component.bottombar.rememberSidebarGlassBackdrop
+import me.weishu.kernelsu.ui.component.bottombar.sidebarGlassUnderlay
+import me.weishu.kernelsu.ui.component.bottombar.sidebarPaneShape
 import me.weishu.kernelsu.ui.component.bottombar.rememberMainPagerState
 import me.weishu.kernelsu.ui.component.bottombar.useNavigationRail
 import me.weishu.kernelsu.ui.component.dialog.rememberConfirmDialog
@@ -216,6 +226,7 @@ import me.weishu.kernelsu.ui.screen.settings.PreInstallStyleSettingsScreen
 import me.weishu.kernelsu.ui.screen.settings.SettingPager
 import me.weishu.kernelsu.ui.screen.settings.SettingsCategoryScreen
 import me.weishu.kernelsu.ui.screen.settings.SoundEffectsScreen
+import me.weishu.kernelsu.ui.screen.settings.SidebarWidgetSettingsScreen
 import me.weishu.kernelsu.ui.screen.settings.StartupAnimationScreen
 import me.weishu.kernelsu.ui.screen.settings.UiDecorationLibraryScreen
 import me.weishu.kernelsu.ui.screen.settings.VisualEffectsScreen
@@ -633,6 +644,7 @@ class MainActivity : ComponentActivity() {
                                 entry<Route.ColorPalette> { ColorPaletteScreen() }
                                 entry<Route.LauncherIcon> { LauncherIconScreen() }
                                 entry<Route.NavigationIcons> { NavigationIconScreen() }
+                                entry<Route.SidebarWidgetSettings> { SidebarWidgetSettingsScreen() }
                                 entry<Route.Backgrounds> { BackgroundSettingsScreen() }
                                 entry<Route.SoundEffects> { SoundEffectsScreen() }
                                 entry<Route.StartupAnimation> { StartupAnimationScreen() }
@@ -801,6 +813,22 @@ class MainActivity : ComponentActivity() {
                     val hasCustomBackground =
                         !effectiveBackground.wallpaperUriString.isNullOrBlank() ||
                             !effectiveBackground.videoUriString.isNullOrBlank()
+                    val sidebarStyleActive = uiState.interfaceStyle == InterfaceStyle.SidebarWidget.value
+                    val sidebarGlassEnabled = if (sidebarStyleActive) rememberSidebarWidgetConfig().glassEnabled else false
+                    val sidebarGlassBackdrop = rememberSidebarGlassBackdrop(
+                        enabled = sidebarGlassEnabled && canCaptureSidebarWallpaper(
+                            sidebarActive = sidebarStyleActive,
+                            videoUri = effectiveBackground.videoUriString,
+                            pagerHasVideo = pagerBackgrounds.any { it.hasVideo },
+                        ),
+                    )
+                    val sidebarWallpaperModifier = if (sidebarStyleActive) {
+                        Modifier
+                            .then(sidebarGlassBackdrop?.let { Modifier.layerBackdrop(it) } ?: Modifier)
+                            .sidebarGlassUnderlay(darkMode)
+                    } else {
+                        Modifier
+                    }
                     val immersiveBackgroundActive =
                         seasonalStyleActive ||
                             rainStyleActive ||
@@ -845,10 +873,12 @@ class MainActivity : ComponentActivity() {
                                         mainPagerState.pagerState.currentPageOffsetFraction,
                                 )
                             },
+                            backgroundLayerModifier = sidebarWallpaperModifier,
                         ) {
                             CompositionLocalProvider(
                                 LocalImmersiveBackgroundActive provides immersiveBackgroundActive,
                                 LocalBackgroundScrollFollowState provides backgroundScrollFollowState,
+                                LocalSidebarGlassBackdrop provides sidebarGlassBackdrop,
                             ) {
                                 Box(modifier = Modifier.fillMaxSize()) {
                                     if (seasonalStyleActive && !hasCustomBackground) {
@@ -1395,6 +1425,12 @@ fun MainScreen(
     MainScreenBackHandler(mainPagerState, navController)
 
     val useNavigationRail = useNavigationRail(enableFloatingBottomBar)
+    val sidebarConfig = if (interfaceStyle == InterfaceStyle.SidebarWidget.value) {
+        rememberSidebarWidgetConfig()
+    } else {
+        null
+    }
+    val layoutDirection = LocalLayoutDirection.current
     val navigationBarVisibilityState = rememberNavigationBarVisibilityState(
         enabled = !useNavigationRail && (autoHideNavigationBar || scrollHideNavigationBar),
         autoHideAfterInactivity = autoHideNavigationBar,
@@ -1513,25 +1549,51 @@ fun MainScreen(
                 .navigationBarVisibilityController(navigationBarVisibilityState),
         ) {
         if (useNavigationRail) {
-            val startInsets = WindowInsets.systemBars.union(WindowInsets.displayCutout)
-                .only(WindowInsetsSides.Start)
+            val railAtStart = sidebarConfig?.let {
+                it.side.isAtStart(layoutDirection)
+            } ?: true
+            val railInsets = WindowInsets.systemBars.union(WindowInsets.displayCutout).only(
+                when (sidebarConfig?.side) {
+                    SidebarSide.Left -> WindowInsetsSides.Left
+                    SidebarSide.Right -> WindowInsetsSides.Right
+                    null -> WindowInsetsSides.Start
+                }
+            )
             val navBarBottomPadding = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
 
             Scaffold(
                 containerColor = Color.Transparent,
                 contentWindowInsets = WindowInsets(0, 0, 0, 0),
             ) { _ ->
-                Row {
-                    SideRail(
-                        blurBackdrop = blurBackdrop,
-                        navigationBadge = navigationBadge,
-                    )
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .consumeWindowInsets(startInsets)
-                    ) {
-                        pagerContent(navBarBottomPadding)
+                Row(modifier = Modifier.fillMaxSize()) {
+                    // Keep pager state and page effects when the rail changes sides.
+                    val panes = if (railAtStart) listOf(true, false) else listOf(false, true)
+                    panes.forEach { isRail ->
+                        key(isRail) {
+                            if (isRail) {
+                                SideRail(
+                                    blurBackdrop = blurBackdrop,
+                                    navigationBadge = navigationBadge,
+                                )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .consumeWindowInsets(railInsets)
+                                        .then(
+                                            if (sidebarConfig != null) {
+                                                Modifier.clip(
+                                                    sidebarPaneShape(edgeAtStart = railAtStart)
+                                                )
+                                            } else {
+                                                Modifier
+                                            }
+                                        )
+                                ) {
+                                    pagerContent(navBarBottomPadding)
+                                }
+                            }
+                        }
                     }
                 }
             }

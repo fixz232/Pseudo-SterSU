@@ -77,6 +77,7 @@ fun SettingPager(
                 navigator.push(Route.SettingsCategory(category.routeValue))
             },
             onPageModeChange = onPageModeChange,
+            onOpenSidebarDesign = { navigator.push(Route.SidebarWidgetSettings) },
         )
         return
     }
@@ -157,6 +158,7 @@ fun SettingPager(
         onOpenLauncherIcon = { navigator.push(Route.LauncherIcon) },
         onEditHomeTitle = { showHomeTitleDialog.value = true },
         onOpenNavigationIcons = { navigator.push(Route.NavigationIcons) },
+        onOpenSidebarDesign = { navigator.push(Route.SidebarWidgetSettings) },
         onOpenHomeLayout = { navigator.push(Route.HomeLayout) },
         onOpenHomeCardWallpapers = { navigator.push(Route.HomeCardWallpapers) },
         onOpenVisualEffects = { navigator.push(Route.VisualEffects) },

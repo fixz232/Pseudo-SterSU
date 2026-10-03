@@ -38,21 +38,29 @@ class SettingsCatalogTest {
     @Test
     fun appearanceCountTracksInterfaceSpecificEntry() {
         val base = SettingsUiState(uiMode = InterfaceStyle.Material.value)
-        assertEquals(4, SettingsCatalog.visibleEntryCount(SettingsCategory.Appearance, base))
+        assertEquals(5, SettingsCatalog.visibleEntryCount(SettingsCategory.Appearance, base))
         assertEquals(
-            5,
+            6,
             SettingsCatalog.visibleEntryCount(
                 SettingsCategory.Appearance,
                 base.copy(uiMode = InterfaceStyle.Miuix.value),
             ),
         )
         assertEquals(
-            5,
+            6,
             SettingsCatalog.visibleEntryCount(
                 SettingsCategory.Appearance,
                 base.copy(uiMode = InterfaceStyle.Pixel.value),
             ),
         )
+    }
+
+    @Test
+    fun sidebarDesignIsDiscoverableFromAppearanceForEveryStyle() {
+        for (style in InterfaceStyle.entries) {
+            val entries = SettingsCatalog.entriesFor(SettingsCategory.Appearance, SettingsUiState(uiMode = style.value))
+            assertEquals(1, entries.count { it.key == "sidebar_design" })
+        }
     }
 
     @Test

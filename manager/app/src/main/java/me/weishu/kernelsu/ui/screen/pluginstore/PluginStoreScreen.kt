@@ -1,6 +1,8 @@
 package me.weishu.kernelsu.ui.screen.pluginstore
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -8,6 +10,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -25,13 +28,15 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Extension
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Update
@@ -55,12 +60,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.verticalScroll
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.dropUnlessResumed
 import kotlinx.coroutines.CancellationException
@@ -110,7 +118,7 @@ fun PluginStoreScreen() {
     var busyId by remember { mutableStateOf<String?>(null) }
     var progress by remember { mutableStateOf<PluginDownloadProgress?>(null) }
     var route by remember { mutableStateOf(PluginDownloadRoute.Accelerator) }
-    var details by remember { mutableStateOf<ManagerPluginPackage?>(null) }
+    var detailsId by rememberSaveable { mutableStateOf<String?>(null) }
     var confirmRemoval by remember { mutableStateOf<ManagerPluginPackage?>(null) }
     var refreshing by remember { mutableStateOf(false) }
     var ksudStatus by remember { mutableStateOf<InstalledKsudStatus?>(null) }
@@ -270,6 +278,13 @@ fun PluginStoreScreen() {
         }
     }
 
+    val details = (catalog as? ManagerPluginCatalogSnapshotState.Ready)
+        ?.snapshot
+        ?.catalog
+        ?.plugins
+        ?.firstOrNull { it.id == detailsId }
+    BackHandler(enabled = detailsId != null) { detailsId = null }
+
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val useNavigationRail = maxWidth >= 720.dp
         Scaffold(
@@ -278,25 +293,31 @@ fun PluginStoreScreen() {
             contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
             topBar = {
                 TopAppBar(
-                    title = { Text(stringResource(R.string.store_title)) },
+                    title = {
+                        Text(details?.name ?: stringResource(R.string.store_title))
+                    },
                     navigationIcon = {
-                        IconButton(onClick = dropUnlessResumed { navigator.pop() }) {
+                        IconButton(onClick = {
+                            if (detailsId != null) detailsId = null else navigator.pop()
+                        }) {
                             Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.back))
                         }
                     },
                     actions = {
-                        IconButton(
-                            onClick = dropUnlessResumed { refresh(force = true) },
-                            enabled = busyId == null && !refreshing,
-                        ) {
-                            Icon(Icons.Rounded.Refresh, stringResource(R.string.plugin_store_refresh))
+                        if (detailsId == null) {
+                            IconButton(
+                                onClick = dropUnlessResumed { refresh(force = true) },
+                                enabled = busyId == null && !refreshing,
+                            ) {
+                                Icon(Icons.Rounded.Refresh, stringResource(R.string.plugin_store_refresh))
+                            }
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
                 )
             },
             bottomBar = {
-                if (!useNavigationRail) {
+                if (!useNavigationRail && detailsId == null) {
                     ThemeStoreNavigationBar(
                         selectedPage = ThemeStorePage.Plugins,
                         onSelected = onSelectedPage,
@@ -310,7 +331,7 @@ fun PluginStoreScreen() {
                     .fillMaxSize()
                     .padding(padding),
             ) {
-                if (useNavigationRail) {
+                if (useNavigationRail && detailsId == null) {
                     ThemeStoreNavigationRail(
                         selectedPage = ThemeStorePage.Plugins,
                         onSelected = onSelectedPage,
@@ -321,35 +342,84 @@ fun PluginStoreScreen() {
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .then(if (useNavigationRail) Modifier.navigationBarsPadding() else Modifier),
+                        .then(
+                            if (useNavigationRail || detailsId != null) {
+                                Modifier.navigationBarsPadding()
+                            } else {
+                                Modifier
+                            }
+                        ),
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .fillMaxSize()
-                            .widthIn(max = 960.dp)
-                            .padding(horizontal = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
+                    val selectedDetails = details
+                    if (selectedDetails != null) {
+                        val installedPlugin = installed.firstOrNull { it.plugin.id == selectedDetails.id }
+                        val compatibility = if (pluginCompatibilityResolved) {
+                            checkManagerPluginCompatibility(
+                                plugin = selectedDetails,
+                                managerVersionCode = BuildConfig.VERSION_CODE,
+                                ksudStatus = ksudStatus ?: InstalledKsudStatus(),
+                            )
+                        } else {
+                            null
+                        }
+                        PluginDetailContent(
+                            plugin = selectedDetails,
+                            installed = installedPlugin,
+                            updateAvailable = hasPluginUpdate(installedPlugin, selectedDetails),
+                            compatibility = compatibility,
+                            compatibilityResolved = pluginCompatibilityResolved,
+                            busy = busyId == selectedDetails.id,
+                            progress = if (busyId == selectedDetails.id) progress else null,
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .fillMaxSize()
+                                .widthIn(max = 840.dp),
+                            onInstall = { install(selectedDetails) },
+                            onRemove = { confirmRemoval = selectedDetails },
+                        )
+                    } else {
+                        Column(
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .fillMaxSize()
+                                .widthIn(max = 960.dp)
+                                .padding(horizontal = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
                         Surface(
                             color = MaterialTheme.colorScheme.surfaceContainerLow,
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Icon(
-                                    Icons.Rounded.Security,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                )
-                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Box(
+                                    modifier = Modifier
+                                        .width(46.dp)
+                                        .height(46.dp)
+                                        .background(
+                                            MaterialTheme.colorScheme.primaryContainer,
+                                            RoundedCornerShape(10.dp),
+                                        ),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.Extension,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    )
+                                }
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(3.dp),
+                                ) {
                                     Text(
                                         text = stringResource(R.string.store_tab_plugins),
-                                        style = MaterialTheme.typography.titleSmall,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.SemiBold,
                                     )
                                     Text(
                                         text = stringResource(R.string.plugin_store_security_notice),
@@ -437,7 +507,7 @@ fun PluginStoreScreen() {
                                                 progress = if (busyId == plugin.id) progress else null,
                                                 compatibility = compatibility,
                                                 compatibilityResolved = pluginCompatibilityResolved,
-                                                onDetails = { details = plugin },
+                                                onDetails = { detailsId = plugin.id },
                                                 onInstall = { install(plugin) },
                                                 onRemove = { confirmRemoval = plugin },
                                             )
@@ -447,47 +517,11 @@ fun PluginStoreScreen() {
                                 }
                             }
                         }
+                        }
                     }
                 }
             }
         }
-    }
-
-    details?.let { plugin ->
-        AlertDialog(
-            onDismissRequest = { details = null },
-            title = { Text(plugin.name) },
-            text = {
-                Column(
-                    modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(plugin.description)
-                    Text(stringResource(R.string.plugin_store_builtin_notice))
-                    Text(
-                        stringResource(
-                            R.string.plugin_store_compatibility,
-                            plugin.minManagerVersionCode,
-                            plugin.minKsudVersionCode,
-                        ),
-                    )
-                    Text(stringResource(R.string.plugin_store_version, plugin.version))
-                    Text(stringResource(R.string.plugin_store_instructions), style = MaterialTheme.typography.titleSmall)
-                    plugin.instructions.forEachIndexed { index, instruction ->
-                        Text(stringResource(R.string.plugin_store_instruction_item, index + 1, instruction))
-                    }
-                    if (plugin.slots.isNotEmpty()) {
-                        Text(stringResource(R.string.plugin_store_capabilities), style = MaterialTheme.typography.titleSmall)
-                        plugin.slots
-                            .sortedBy { it.id }
-                            .forEach { slot ->
-                                Text(stringResource(R.string.plugin_store_slot_item, pluginSlotLabel(slot)))
-                            }
-                    }
-                }
-            },
-            confirmButton = { TextButton(onClick = { details = null }) { Text(stringResource(R.string.close)) } },
-        )
     }
 
     confirmRemoval?.let { plugin ->
@@ -525,6 +559,253 @@ fun PluginStoreScreen() {
                 }
             },
         )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PluginDetailContent(
+    plugin: ManagerPluginPackage,
+    installed: InstalledManagerPlugin?,
+    updateAvailable: Boolean,
+    compatibility: ManagerPluginCompatibility?,
+    compatibilityResolved: Boolean,
+    busy: Boolean,
+    progress: PluginDownloadProgress?,
+    modifier: Modifier = Modifier,
+    onInstall: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    val incompatible = compatibilityResolved && compatibility?.isCompatible == false
+    LazyColumn(
+        modifier = modifier.padding(horizontal = 16.dp),
+        contentPadding = PaddingValues(vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        item {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(52.dp)
+                                .height(52.dp)
+                                .background(
+                                    MaterialTheme.colorScheme.primaryContainer,
+                                    RoundedCornerShape(12.dp),
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                Icons.Rounded.Extension,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = plugin.name,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Text(
+                                text = plugin.summary,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        if (installed != null) {
+                            Icon(
+                                Icons.Rounded.CheckCircle,
+                                contentDescription = stringResource(R.string.plugin_store_installed),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
+                    Text(
+                        text = plugin.description,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = stringResource(R.string.plugin_store_version, plugin.version),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (installed != null) {
+                        Text(
+                            text = stringResource(
+                                if (updateAvailable) R.string.plugin_store_version_update
+                                else R.string.plugin_store_version_installed,
+                                installed.plugin.version,
+                                plugin.version,
+                            ),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (updateAvailable) MaterialTheme.colorScheme.tertiary
+                            else MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    if (incompatible) {
+                        Text(
+                            text = stringResource(R.string.plugin_store_incompatible),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            }
+        }
+        item {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Rounded.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Text(
+                            text = stringResource(R.string.plugin_store_capabilities),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.plugin_store_builtin_notice),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = stringResource(
+                            R.string.plugin_store_compatibility,
+                            plugin.minManagerVersionCode,
+                            plugin.minKsudVersionCode,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (plugin.slots.isNotEmpty()) {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            plugin.slots.sortedBy { it.id }.forEach { slot ->
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.secondaryContainer,
+                                ) {
+                                    Text(
+                                        text = pluginSlotLabel(slot),
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        item {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Rounded.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Text(
+                            text = stringResource(R.string.plugin_store_instructions),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                    plugin.instructions.forEachIndexed { index, instruction ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                            ) {
+                                Text(
+                                    text = (index + 1).toString(),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                )
+                            }
+                            Text(
+                                text = instruction,
+                                modifier = Modifier.weight(1f),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        if (progress != null) {
+            item {
+                LinearProgressIndicator(
+                    progress = { progress.fraction ?: 0f },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (installed == null || updateAvailable) {
+                    Button(
+                        onClick = onInstall,
+                        enabled = !busy && compatibilityResolved && !incompatible,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                    ) {
+                        Icon(
+                            if (updateAvailable) Icons.Rounded.Update else Icons.Rounded.Download,
+                            contentDescription = null,
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(if (updateAvailable) R.string.plugin_store_update else R.string.plugin_store_enable))
+                    }
+                }
+                if (installed != null) {
+                    OutlinedButton(
+                        onClick = onRemove,
+                        enabled = !busy,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    ) {
+                        Icon(Icons.Rounded.Delete, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.plugin_store_remove))
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -656,18 +937,67 @@ private fun PluginCard(
     onRemove: () -> Unit,
 ) {
     val incompatible = compatibilityResolved && compatibility?.isCompatible == false
+    val shape = RoundedCornerShape(12.dp)
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = RoundedCornerShape(10.dp),
-        modifier = Modifier.fillMaxWidth(),
+        shape = shape,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .clickable(enabled = !busy, onClick = onDetails),
     ) {
-        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(plugin.name, style = MaterialTheme.typography.titleMedium)
-            Text(plugin.summary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(44.dp)
+                        .height(44.dp)
+                        .background(
+                            MaterialTheme.colorScheme.primaryContainer,
+                            RoundedCornerShape(10.dp),
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Rounded.Extension,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
                 }
-                if (installed != null) Icon(Icons.Rounded.CheckCircle, contentDescription = stringResource(R.string.plugin_store_installed), tint = MaterialTheme.colorScheme.primary)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        plugin.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        plugin.summary,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    if (installed != null) {
+                        Icon(
+                            Icons.Rounded.CheckCircle,
+                            contentDescription = stringResource(R.string.plugin_store_installed),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    Icon(
+                        Icons.AutoMirrored.Rounded.ArrowForward,
+                        contentDescription = stringResource(R.string.plugin_store_details),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             if (installed != null) {
                 Text(
@@ -679,6 +1009,12 @@ private fun PluginCard(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            } else {
+                Text(
+                    text = stringResource(R.string.plugin_store_version, plugin.version),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             if (incompatible) {
                 Text(
@@ -687,17 +1023,40 @@ private fun PluginCard(
                     color = MaterialTheme.colorScheme.error,
                 )
             }
+            if (plugin.slots.isNotEmpty()) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    plugin.slots.sortedBy { it.id }.take(3).forEach { slot ->
+                        Surface(
+                            shape = RoundedCornerShape(7.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                        ) {
+                            Text(
+                                text = pluginSlotLabel(slot),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            )
+                        }
+                    }
+                    if (plugin.slots.size > 3) {
+                        Text(
+                            text = "+${plugin.slots.size - 3}",
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
             if (progress != null) LinearProgressIndicator(progress = { progress.fraction ?: 0f }, modifier = Modifier.fillMaxWidth())
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                OutlinedButton(
-                    onClick = onDetails,
-                    enabled = !busy,
-                    modifier = Modifier.heightIn(min = 48.dp),
-                ) { Text(stringResource(R.string.plugin_store_details)) }
                 if (installed == null || updateAvailable) {
                     Button(
                         onClick = onInstall,

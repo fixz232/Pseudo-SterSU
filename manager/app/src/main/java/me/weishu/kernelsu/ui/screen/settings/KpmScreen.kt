@@ -406,8 +406,8 @@ private fun KpmStyledScreen(
             bottomInnerPadding = 0.dp,
         ) { padding -> content(padding) }
 
-        InterfaceStyle.Material.value -> Scaffold(
-            containerColor = Color.Transparent,
+        InterfaceStyle.Material.value, InterfaceStyle.SidebarWidget.value -> Scaffold(
+            containerColor = if (style == InterfaceStyle.SidebarWidget.value) MaterialTheme.colorScheme.surface else Color.Transparent,
             contentWindowInsets = WindowInsets.safeDrawing.only(
                 WindowInsetsSides.Top + WindowInsetsSides.Horizontal,
             ),
