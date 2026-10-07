@@ -133,8 +133,8 @@ data class PluginDownloadProgress(
 private const val PLUGIN_CATALOG_SCHEMA = "io.github.fixz.apkesu.plugin-catalog"
 private const val PLUGIN_PACKAGE_SCHEMA = "io.github.fixz.apkesu.plugin"
 private const val PLUGIN_SCHEMA_VERSION = 1
-private const val CATALOG_ASSET = "plugin-store/catalog-v1.json"
-private const val SIGNATURE_ASSET = "plugin-store/catalog-v1.sig"
+private const val CATALOG_ASSET = "plugin-store/catalog-v2.json"
+private const val SIGNATURE_ASSET = "plugin-store/catalog-v2.sig"
 private const val CATALOG_CACHE_NAME = "catalog-v2.json"
 private const val SIGNATURE_CACHE_NAME = "catalog-v2.sig"
 private const val STATE_FILE_NAME = "installed-v1.json"
@@ -154,7 +154,9 @@ private const val DEFAULT_CATALOG_URL =
 
 // This is an X.509 SubjectPublicKeyInfo encoding for the release catalog key.
 // The corresponding private key is deliberately kept outside source control.
-private const val CATALOG_PUBLIC_KEY_B64 = "MCowBQYDK2VwAyEAsuUUb5hSL7V2e89TyM0XRJ9IKY6VSOqP9a5a/OMeCts="
+private const val CATALOG_PUBLIC_KEY_B64 = "MCowBQYDK2VwAyEAIZ4tQbthCiLpZp4InJw/cuFWEjzFDABFbWnEd+ioI6g="
+// Retain the pinned legacy key for existing signed catalogs during migration.
+private const val LEGACY_CATALOG_PUBLIC_KEY_B64 = "MCowBQYDK2VwAyEAsuUUb5hSL7V2e89TyM0XRJ9IKY6VSOqP9a5a/OMeCts="
 
 private val PLUGIN_ID_PATTERN = Regex("[a-z][a-z0-9-]{1,63}")
 private val HASH_PATTERN = Regex("[a-fA-F0-9]{64}")
@@ -732,13 +734,16 @@ private fun isAllowedPluginHost(host: String): Boolean {
 internal fun verifyManagerPluginCatalogSignature(
     catalog: ByteArray,
     signatureText: ByteArray,
-    publicKeyBase64: String = CATALOG_PUBLIC_KEY_B64,
+    publicKeyBase64: String? = null,
 ) {
     val signatureBytes = Base64.getMimeDecoder().decode(signatureText.toString(Charsets.UTF_8).trim())
     require(signatureBytes.size == 64) { "Plugin catalog signature is invalid" }
-    val keyBytes = Base64.getDecoder().decode(publicKeyBase64)
+    val trustedKeys = publicKeyBase64?.let { listOf(it) }
+        ?: listOf(CATALOG_PUBLIC_KEY_B64, LEGACY_CATALOG_PUBLIC_KEY_B64)
     val payloads = listOfNotNull(catalog, catalog.withCrlfLineEndings())
-    require(verifyCatalogEd25519Signature(payloads, signatureBytes, keyBytes)) {
+    require(trustedKeys.any { key ->
+        verifyCatalogEd25519Signature(payloads, signatureBytes, Base64.getDecoder().decode(key))
+    }) {
         "Plugin catalog signature verification failed"
     }
 }

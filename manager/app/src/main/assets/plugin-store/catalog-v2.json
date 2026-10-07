@@ -1,7 +1,7 @@
 {
   "schema": "io.github.fixz.apkesu.plugin-catalog",
   "version": 1,
-  "generatedAt": 1791335646736,
+  "generatedAt": 1791352046531,
   "plugins": [
     {
       "id": "rescue-protection",

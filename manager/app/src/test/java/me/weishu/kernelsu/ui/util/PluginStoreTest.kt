@@ -1,10 +1,13 @@
 package me.weishu.kernelsu.ui.util
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlinx.coroutines.runBlocking
+import java.io.File
 import java.security.KeyPairGenerator
 import java.security.MessageDigest
 import java.security.Signature
@@ -125,6 +128,93 @@ class PluginStoreTest {
             Base64.getEncoder().encode(signer.sign()),
             Base64.getEncoder().encodeToString(keyPair.public.encoded),
         )
+    }
+
+    @Test
+    fun legacyBundledCatalogRemainsTrusted() {
+        val catalog = bundledCatalog(1)
+        verifyManagerPluginCatalogSignature(catalog, bundledSignature(1))
+
+        val parsed = parseManagerPluginCatalog(catalog.toString(Charsets.UTF_8))
+        assertEquals(ManagerPlugin.entries.size - 1, parsed.plugins.size)
+        assertFalse(parsed.plugins.any { it.id == ManagerPlugin.PathmaskLkm.id })
+    }
+
+    @Test
+    fun replacementSignedBundledCatalogIncludesEveryPlugin() {
+        val catalog = bundledCatalog(2)
+        verifyManagerPluginCatalogSignature(catalog, bundledSignature(2))
+
+        val parsed = parseManagerPluginCatalog(catalog.toString(Charsets.UTF_8))
+        assertEquals(ManagerPlugin.entries.map { it.id }.toSet(), parsed.plugins.map { it.id }.toSet())
+        assertTrue(parsed.plugins.any { it.id == ManagerPlugin.PathmaskLkm.id })
+    }
+
+    @Test
+    fun publishedAndBundledCatalogCopiesMatch() {
+        for (version in 1..2) {
+            assertArrayEquals(File("../../plugin-store/catalog-v$version.json").readBytes(), bundledCatalog(version))
+            assertArrayEquals(File("../../plugin-store/catalog-v$version.sig").readBytes(), bundledSignature(version))
+        }
+    }
+
+    @Test
+    fun replacementCatalogPackagesMatchSignedHashes() {
+        val bytes = bundledCatalog(2)
+        verifyManagerPluginCatalogSignature(bytes, bundledSignature(2))
+        val catalog = parseManagerPluginCatalog(bytes.toString(Charsets.UTF_8))
+        for (plugin in catalog.plugins) {
+            val downloaded = File("../../plugin-store/packages/${plugin.id}.ksplugin").readBytes()
+            val verified = pluginPackageBytesMatchingCatalog(downloaded, plugin)
+            assertEquals(plugin.sizeBytes, verified.size.toLong())
+        }
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun defaultTrustRejectsUnknownSigningKey() {
+        val keyPair = KeyPairGenerator.getInstance("Ed25519").generateKeyPair()
+        val catalog = bundledCatalog(2)
+        val signer = Signature.getInstance("Ed25519").apply {
+            initSign(keyPair.private)
+            update(catalog)
+        }
+        verifyManagerPluginCatalogSignature(catalog, Base64.getEncoder().encode(signer.sign()))
+    }
+
+    @Test
+    fun bothTrustedCatalogsRejectTampering() {
+        for (version in 1..2) {
+            assertThrows(IllegalArgumentException::class.java) {
+                verifyManagerPluginCatalogSignature(bundledCatalog(version) + " ".toByteArray(), bundledSignature(version))
+            }
+        }
+    }
+
+    @Test
+    fun trustedCatalogsRejectSwappedSignatures() {
+        for (version in 1..2) {
+            assertThrows(IllegalArgumentException::class.java) {
+                verifyManagerPluginCatalogSignature(bundledCatalog(version), bundledSignature(3 - version))
+            }
+        }
+    }
+
+    @Test
+    fun catalogRejectsInvalidSignatureBytes() {
+        val tampered = Base64.getMimeDecoder().decode(bundledSignature(2)).apply {
+            this[0] = (this[0].toInt() xor 1).toByte()
+        }
+        val invalidSignatures = listOf(
+            byteArrayOf(),
+            "not-a-signature".toByteArray(),
+            Base64.getEncoder().encode(ByteArray(63)),
+            Base64.getEncoder().encode(tampered),
+        )
+        for (signature in invalidSignatures) {
+            assertThrows(IllegalArgumentException::class.java) {
+                verifyManagerPluginCatalogSignature(bundledCatalog(2), signature)
+            }
+        }
     }
 
     @Test(expected = IllegalArgumentException::class)
@@ -297,6 +387,12 @@ class PluginStoreTest {
             unload = { ToolCommandResult(errorCode = "pathmask.module_busy") },
         ))
     }
+
+    private fun bundledCatalog(version: Int): ByteArray =
+        File("src/main/assets/plugin-store/catalog-v$version.json").readBytes()
+
+    private fun bundledSignature(version: Int): ByteArray =
+        File("src/main/assets/plugin-store/catalog-v$version.sig").readBytes()
 
     private fun pluginPackage(version: Int) = ManagerPluginPackage(
         id = ManagerPlugin.RescueProtection.id,
