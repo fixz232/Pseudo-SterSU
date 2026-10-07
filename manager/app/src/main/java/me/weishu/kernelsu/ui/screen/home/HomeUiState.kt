@@ -133,6 +133,12 @@ data class HomeUiState(
 
     val showUAPIMisMatchWarning: Boolean
         get() = isManager && uapiMismatch
+    // Jailbreak mode runs on locked bootloaders, so flashing a boot image would brick the device.
+    val canInstallKernelUpdate: Boolean
+        get() = lkmMode == true && !isLateLoadMode
+
+    val showCustomLkmBadge: Boolean
+        get() = lkmMode == true && !isLkmBundled
 
     val showRootWarning: Boolean
         get() = rootRuntimeState == RootRuntimeState.DaemonError

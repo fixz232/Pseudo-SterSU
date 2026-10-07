@@ -21,6 +21,7 @@ use std::{
     path::{Path, PathBuf},
     process::{Command, Stdio},
     str::FromStr,
+    time::Instant,
 };
 use std::{
     fs::{copy, rename},
@@ -30,7 +31,6 @@ use zip_extensions::inflate::zip_extract::zip_extract_file_to_memory;
 
 use crate::defs::{MODULE_DIR, MODULE_UPDATE_DIR, UPDATE_FILE_NAME};
 use crate::module::ModuleType::{Active, All};
-#[cfg(unix)]
 use std::os::unix::{prelude::PermissionsExt, process::CommandExt};
 
 const INSTALLER_CONTENT: &str = include_str!("./installer.sh");
@@ -177,6 +177,95 @@ pub fn load_sepolicy_rule() -> Result<()> {
         load_sepolicy_rule_from(&metamodule_path);
     }
     Ok(())
+}
+
+#[derive(Clone, Copy)]
+pub enum ScriptWait {
+    NoWait,
+    Forever,
+    Until(Instant),
+}
+
+struct SigchldBlock {
+    set: libc::sigset_t,
+    previous: libc::sigset_t,
+}
+
+impl SigchldBlock {
+    fn block() -> std::io::Result<Self> {
+        // Initialize both sets before passing them to libc.
+        let mut set = unsafe { std::mem::zeroed() };
+        let mut previous = unsafe { std::mem::zeroed() };
+        unsafe {
+            libc::sigemptyset(&raw mut set);
+            libc::sigaddset(&raw mut set, libc::SIGCHLD);
+            if libc::sigprocmask(libc::SIG_BLOCK, &raw const set, &raw mut previous) != 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+        }
+        Ok(Self { set, previous })
+    }
+
+    fn wait_until(&self, pid: libc::pid_t, deadline: Instant) -> std::io::Result<bool> {
+        loop {
+            // Only reap the script being waited for. Other children can also send SIGCHLD.
+            let result = unsafe { libc::waitpid(pid, std::ptr::null_mut(), libc::WNOHANG) };
+            if result == pid {
+                return Ok(true);
+            }
+            if result < 0 {
+                let error = std::io::Error::last_os_error();
+                if error.raw_os_error() == Some(libc::EINTR) {
+                    continue;
+                }
+                return Err(error);
+            }
+
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                return Ok(false);
+            }
+            let timeout = libc::timespec {
+                tv_sec: remaining.as_secs() as libc::time_t,
+                tv_nsec: remaining.subsec_nanos().into(),
+            };
+            // SIGCHLD stays blocked between waitpid and sigtimedwait to avoid lost wakeups.
+            if unsafe {
+                libc::sigtimedwait(
+                    &raw const self.set,
+                    std::ptr::null_mut(),
+                    &raw const timeout,
+                )
+            } < 0
+            {
+                let error = std::io::Error::last_os_error();
+                match error.raw_os_error() {
+                    Some(libc::EAGAIN) => return Ok(false),
+                    Some(libc::EINTR) => {}
+                    _ => return Err(error),
+                }
+            }
+        }
+    }
+}
+
+impl Drop for SigchldBlock {
+    fn drop(&mut self) {
+        // Restore the parent's signal mask on success, timeout, and every error path.
+        if unsafe {
+            libc::sigprocmask(
+                libc::SIG_SETMASK,
+                &raw const self.previous,
+                std::ptr::null_mut(),
+            )
+        } != 0
+        {
+            warn!(
+                "Failed to restore signal mask: {}",
+                std::io::Error::last_os_error()
+            );
+        }
+    }
 }
 
 fn load_sepolicy_rule_from(path: &Path) {
@@ -362,7 +451,7 @@ fn maybe_start_zygisk_next_daemon(path: &Path, module_id: Option<&str>) {
     }
 }
 
-pub fn exec_script<T: AsRef<Path>>(path: T, wait: bool) -> Result<()> {
+pub fn exec_script<T: AsRef<Path>>(path: T, wait: ScriptWait) -> Result<()> {
     let path = path.as_ref();
     info!("exec {}", path.display());
 
@@ -392,7 +481,7 @@ pub fn exec_script<T: AsRef<Path>>(path: T, wait: bool) -> Result<()> {
         );
     }
 
-    if wait {
+    if matches!(wait, ScriptWait::Forever) {
         return run_script_blocking(
             path,
             validated_module_id,
@@ -400,6 +489,40 @@ pub fn exec_script<T: AsRef<Path>>(path: T, wait: bool) -> Result<()> {
             ScriptOutput::Log,
             ScriptFailure::Ignore,
         );
+    }
+
+    if let ScriptWait::Until(deadline) = wait
+        && deadline > Instant::now()
+    {
+        let sigchld = SigchldBlock::block().context("Failed to block SIGCHLD")?;
+        let original_sigmask = sigchld.previous;
+        let mut command = build_script_command(
+            path,
+            validated_module_id,
+            true,
+            ScriptPreExec::Detach,
+            ScriptOutput::Log,
+        );
+        unsafe {
+            command.pre_exec(move || {
+                if libc::sigprocmask(
+                    libc::SIG_SETMASK,
+                    &raw const original_sigmask,
+                    std::ptr::null_mut(),
+                ) != 0
+                {
+                    return Err(std::io::Error::last_os_error());
+                }
+                Ok(())
+            });
+        }
+        let child = command
+            .spawn()
+            .with_context(|| format!("Failed to exec {}", path.display()))?;
+        if !sigchld.wait_until(child.id() as libc::pid_t, deadline)? {
+            warn!("Timed out waiting for script: {}", path.display());
+        }
+        return Ok(());
     }
 
     #[cfg(unix)]
@@ -464,7 +587,7 @@ fn is_kpatch_next_module(path: &Path) -> bool {
         .is_some_and(|id| id == crate::kpatch_next::KPATCH_NEXT_MODULE_ID)
 }
 
-pub fn exec_stage_script(stage: &str, block: bool) -> Result<()> {
+pub fn exec_stage_script(stage: &str, wait: ScriptWait) -> Result<()> {
     let metamodule_dir = metamodule::get_metamodule_path().and_then(|path| canonicalize(path).ok());
 
     foreach_active_module(|module| {
@@ -490,13 +613,13 @@ pub fn exec_stage_script(stage: &str, block: bool) -> Result<()> {
             return Ok(());
         }
 
-        exec_script(&script_path, block)
+        exec_script(&script_path, wait)
     })?;
 
     Ok(())
 }
 
-pub fn exec_common_scripts(dir: &str, wait: bool) -> Result<()> {
+pub fn exec_common_scripts(dir: &str, wait: ScriptWait) -> Result<()> {
     let script_dir = Path::new(defs::ADB_DIR).join(dir);
     if !script_dir.exists() {
         info!("{} not exists, skip", script_dir.display());
@@ -561,7 +684,7 @@ pub fn prune_modules() -> Result<()> {
         // Then execute module's own uninstall.sh
         let uninstaller = module.join("uninstall.sh");
         if uninstaller.exists()
-            && let Err(e) = exec_script(uninstaller, true)
+            && let Err(e) = exec_script(uninstaller, ScriptWait::Forever)
         {
             warn!("Failed to exec uninstaller: {e}");
         }
@@ -869,7 +992,6 @@ fn install_module_to_system(zip: &str) -> Result<()> {
     // Set permission and selinux context for $MOD/system
     let module_system_dir = updated_dir.join("system");
     if module_system_dir.exists() {
-        #[cfg(unix)]
         set_permissions(&module_system_dir, Permissions::from_mode(0o755))?;
         restore_syscon(&module_system_dir)?;
     }

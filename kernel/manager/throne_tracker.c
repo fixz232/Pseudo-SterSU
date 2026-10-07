@@ -230,7 +230,7 @@ static bool search_managers(const char *root, int depth,
 
     while (!list_empty(&paths) && scan->complete) {
         char candidate_path[DATA_PATH_LEN] = { 0 };
-        struct manager_dir_context context;
+        struct manager_dir_context context = { 0 };
         struct file *file;
         int iterate_result;
 

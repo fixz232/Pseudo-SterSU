@@ -919,6 +919,18 @@ pub fn report_post_fs_data() {
     report_event(ksu_uapi::EVENT_POST_FS_DATA);
 }
 
+pub fn report_services() -> Result<bool> {
+    // EVENT_SERVICES was added in UAPI 5. Older GKI/LKM kernels return
+    // zero for unknown events; that must not suppress all service scripts.
+    if get_info().uapi_version < 5 {
+        return Ok(true);
+    }
+    let mut cmd = ksu_uapi::ksu_report_event_cmd {
+        event: ksu_uapi::EVENT_SERVICES,
+    };
+    Ok(ksuctl(ksu_uapi::KSU_IOCTL_REPORT_EVENT, &raw mut cmd)? == 1)
+}
+
 pub fn report_boot_complete() {
     report_event(ksu_uapi::EVENT_BOOT_COMPLETED);
 }

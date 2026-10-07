@@ -116,6 +116,7 @@ fun HomePager(
     )
     val normalActions = HomeActions(
         onInstallClick = {
+            if (displayState.isLateLoadMode) return@HomeActions
             if (showInlineInstallFeedback) {
                 if (!installFeedbackActive) {
                     installFeedbackActive = true
