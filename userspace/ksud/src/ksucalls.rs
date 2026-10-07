@@ -891,13 +891,13 @@ pub fn native_kpm_control(name: &str, args: &str) -> io::Result<i32> {
 }
 
 pub fn is_uapi_version_mismatch() -> bool {
-    get_info().uapi_version != ksu_uapi::KERNEL_SU_UAPI_VERSION
+    !crate::uapi_compat::is_compatible(get_info().uapi_version, ksu_uapi::KERNEL_SU_UAPI_VERSION)
 }
 
 pub fn ensure_uapi_version_matched() -> Result<()> {
     let kernel_uapi = get_info().uapi_version;
     let userspace_uapi = ksu_uapi::KERNEL_SU_UAPI_VERSION;
-    if kernel_uapi != userspace_uapi {
+    if !crate::uapi_compat::is_compatible(kernel_uapi, userspace_uapi) {
         bail!(
             "UAPI version mismatch: kernel={kernel_uapi}, ksud={userspace_uapi}. Please update KernelSU!"
         );
@@ -922,7 +922,7 @@ pub fn report_post_fs_data() {
 pub fn report_services() -> Result<bool> {
     // EVENT_SERVICES was added in UAPI 5. Older GKI/LKM kernels return
     // zero for unknown events; that must not suppress all service scripts.
-    if get_info().uapi_version < 5 {
+    if !crate::uapi_compat::supports_services_report(get_info().uapi_version) {
         return Ok(true);
     }
     let mut cmd = ksu_uapi::ksu_report_event_cmd {

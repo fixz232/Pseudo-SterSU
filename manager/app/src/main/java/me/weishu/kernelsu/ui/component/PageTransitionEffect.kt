@@ -217,10 +217,11 @@ internal fun resolveMainPageTransitionTransform(
     return when (InterfaceStyle.normalizeValue(interfaceStyle)) {
         InterfaceStyle.Material.value,
         InterfaceStyle.Skrootpro.value,
+        InterfaceStyle.SidebarWidget.value,
         -> {
             // HorizontalPager already provides directional motion. Applying a second
-            // transform to Material or SKRoot(Pro) pages can reveal the backing
-            // surface at the page edge.
+            // transform to these opaque pages can reveal the backing surface
+            // at the page edge.
             PageTransitionTransform()
         }
         else -> transform
@@ -250,7 +251,9 @@ fun Modifier.mainPageTransition(
         }
     }
 
-    if (!animationsEnabled || visual == PageTransitionVisual.Off || containsEmbeddedAndroidView) {
+    if (!animationsEnabled || visual == PageTransitionVisual.Off || containsEmbeddedAndroidView ||
+        InterfaceStyle.normalizeValue(interfaceStyle) == InterfaceStyle.SidebarWidget.value
+    ) {
         return this
     }
 

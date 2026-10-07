@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sidebar_material_title">侧栏材质与配色</string>
+    <string name="sidebar_material_saved_hint">修改自动保存；精调滑块在松手后应用。</string>
+    <string name="sidebar_design_home_tab">主页</string>
+    <string name="sidebar_material_liquid">液态玻璃</string>
+    <string name="sidebar_material_neumorphic">拟态玻璃</string>
+    <string name="sidebar_material_flat">直角扁平</string>
+    <string name="sidebar_material_liquid_summary">通透玻璃与细腻亮边。Android 14 及以上支持折射；不支持的设备和视频壁纸使用静态材质。保留直角外形。</string>
+    <string name="sidebar_material_neumorphic_summary">柔和磨砂玻璃、浮起的边缘与内凹的选中效果，默认灰白配色，保留直角外形。</string>
+    <string name="sidebar_material_flat_summary">纯色表面，不使用模糊或折射，渲染开销最低。</string>
+    <string name="sidebar_palette_light">日间配色</string>
+    <string name="sidebar_palette_dark">夜间配色</string>
+    <string name="sidebar_palette_help">每种材质的日夜配色独立保存。修改自动保存；自定义图片图标保留原色。</string>
+    <string name="sidebar_palette_mode">配色模式</string>
+    <string name="sidebar_palette_colors_title">颜色</string>
+    <string name="sidebar_palette_effects_title">玻璃效果</string>
+    <string name="sidebar_palette_background">顶部底色</string>
+    <string name="sidebar_palette_background_end">底部底色</string>
+    <string name="sidebar_palette_selection">选中项</string>
+    <string name="sidebar_palette_content">文字与图标</string>
+    <string name="sidebar_palette_highlight">玻璃高光</string>
+    <string name="sidebar_palette_shade">浮雕暗边</string>
+    <string name="sidebar_palette_tint">玻璃不透明度</string>
+    <string name="sidebar_palette_highlight_strength">高光强度</string>
+    <string name="sidebar_palette_relief_strength">浮雕深度</string>
+    <string name="sidebar_palette_presets">快捷颜色</string>
+    <string name="sidebar_palette_rgb_show">展开 RGB 精调</string>
+    <string name="sidebar_palette_rgb_hide">收起 RGB 精调</string>
+    <string name="sidebar_palette_hex">输入 #RRGGBB、选择快捷色，或展开 RGB 精调。</string>
+    <string name="sidebar_palette_invalid">请输入六位十六进制色值，例如 #E5E5E5。</string>
+    <string name="sidebar_palette_red">红</string>
+    <string name="sidebar_palette_green">绿</string>
+    <string name="sidebar_palette_blue">蓝</string>
+    <string name="sidebar_palette_contrast">这组配色的部分文字可能不易辨认。建议加大文字与背景的反差，并让两端底色亮度接近；壁纸与玻璃高光也会影响实际效果。</string>
+    <string name="sidebar_palette_improve_text">推荐文字颜色</string>
+    <string name="sidebar_palette_save">保存配色</string>
+    <string name="sidebar_palette_reset">重置当前配色</string>
+    <string name="sidebar_palette_discard">取消更改</string>
+</resources>

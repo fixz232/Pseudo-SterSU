@@ -313,6 +313,22 @@ mod tests {
     }
 
     #[test]
+    fn parses_the_maximum_zip_comment_length() {
+        use std::io::{Seek, SeekFrom};
+
+        let certificate = vec![0x5a; MIN_CERT_SIZE as usize];
+        let mut apk = test_apk(&[&certificate], false);
+        apk.seek(SeekFrom::End(-2)).unwrap();
+        apk.write_all(&u16::MAX.to_le_bytes()).unwrap();
+        apk.write_all(&vec![b'x'; usize::from(u16::MAX)]).unwrap();
+        apk.flush().unwrap();
+        assert_eq!(
+            get_apk_signature(apk.path().to_str().unwrap()).unwrap(),
+            (MIN_CERT_SIZE, sha256::digest(&certificate)),
+        );
+    }
+
+    #[test]
     fn rejects_v1_and_v2_mixed_signatures() {
         let certificate = vec![0x5a; MIN_CERT_SIZE as usize];
         let apk = test_apk(&[&certificate], true);

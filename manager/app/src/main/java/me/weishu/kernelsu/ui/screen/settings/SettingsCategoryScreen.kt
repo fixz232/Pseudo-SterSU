@@ -67,6 +67,7 @@ import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -96,7 +97,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
@@ -114,11 +114,9 @@ import me.weishu.kernelsu.ui.navigation3.Route
 import me.weishu.kernelsu.ui.theme.LocalImmersiveBackgroundActive
 import me.weishu.kernelsu.ui.theme.immersiveScrolledTopBarColor
 import me.weishu.kernelsu.ui.theme.immersiveSurfaceColor
-import me.weishu.kernelsu.ui.util.KPATCH_NEXT_MODULE_ID
 import me.weishu.kernelsu.ui.util.INTERFACE_STYLE_RESULT_KEY
 import me.weishu.kernelsu.ui.util.ManagerPlugin
 import me.weishu.kernelsu.ui.viewmodel.SettingsViewModel
-import me.weishu.kernelsu.ui.webui.WebUIActivity
 import me.weishu.kernelsu.ui.webmanager.WebManagerService
 
 @Composable
@@ -156,7 +154,15 @@ fun SettingsCategoryScreen(routeValue: String) {
         onBack = onBack,
     ) {
         when (category) {
-            SettingsCategory.Appearance -> AppearanceSettingsContent(
+            SettingsCategory.Appearance -> {
+                if (!uiState.appearanceResolved) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 96.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    }
+                } else AppearanceSettingsContent(
                 uiState = uiState,
                 onSetUiMode = { selectedIndex ->
                     if (selectedIndex < InterfaceStyle.selectableEntries.size) {
@@ -179,7 +185,6 @@ fun SettingsCategoryScreen(routeValue: String) {
                 onSetRainCardMotion = viewModel::setRainCardMotionEnabled,
                 onSetDayNightMode = viewModel::setDayNightMode,
                 onSetPixelCardMotion = viewModel::setPixelCardMotionEnabled,
-                onApplyInterfaceStylePackage = viewModel::applyInterfaceStylePackage,
                 highlightedInterfaceStyleId = highlightedInterfaceStyleId,
                 onOpen = { route ->
                     if (route == Route.InterfaceStyleStore) {
@@ -188,7 +193,8 @@ fun SettingsCategoryScreen(routeValue: String) {
                         navigator.push(route)
                     }
                 },
-            )
+                )
+            }
             SettingsCategory.HomeAndManager -> HomeManagerSettingsContent(
                 uiState = uiState,
                 onEditHomeTitle = { showHomeTitleDialog = true },
@@ -199,30 +205,19 @@ fun SettingsCategoryScreen(routeValue: String) {
             SettingsCategory.RootAndPermissions -> RootPermissionSettingsContent(
                 uiState = uiState,
                 onSetSuCompatMode = viewModel::setSuCompatMode,
-                onSetKernelUmount = viewModel::setKernelUmountEnabled,
-                onSetWebViewZygoteUmount = viewModel::setWebViewZygoteUmountEnabled,
-                onSetSelinuxHide = viewModel::setSelinuxHideEnabled,
                 onSetSulog = viewModel::setSulogEnabled,
                 onSetAdbRoot = viewModel::setAdbRootEnabled,
-                onSetAvcSpoof = viewModel::setAvcSpoofEnabled,
                 onSetUseSoftReboot = viewModel::setUseSoftReboot,
+                onSetAutoJailbreak = viewModel::setAutoJailbreak,
                 onOpen = navigator::push,
             )
             SettingsCategory.MountAndHide -> MountHideSettingsContent(
                 uiState = uiState,
+                onSetKernelUmount = viewModel::setKernelUmountEnabled,
+                onSetWebViewZygoteUmount = viewModel::setWebViewZygoteUmountEnabled,
                 onSetDefaultUmountModules = viewModel::setDefaultUmountModules,
-                onSetKPatchNext = { enabled ->
-                    if (!uiState.isLateLoadMode) viewModel.setKPatchNextEnabled(enabled)
-                },
-                onOpenKPatchNextWebUi = {
-                    if (uiState.canOpenKPatchNextWebUi) {
-                        context.startActivity(
-                            Intent(context, WebUIActivity::class.java)
-                                .setData("kernelsu://webui/$KPATCH_NEXT_MODULE_ID".toUri())
-                                .putExtra("id", KPATCH_NEXT_MODULE_ID)
-                        )
-                    }
-                },
+                onSetSelinuxHide = viewModel::setSelinuxHideEnabled,
+                onSetAvcSpoof = viewModel::setAvcSpoofEnabled,
                 onOpenPathConfig = {
                     when (uiState.pathConfigBackend) {
                         PathConfigBackend.PathmaskLkm -> navigator.push(Route.HiddenPathConfig)
@@ -233,22 +228,12 @@ fun SettingsCategoryScreen(routeValue: String) {
                     }
                 },
                 onSetEpkesuHide = viewModel::setEpkesuHideEnabled,
-                onOpen = navigator::push,
+                onOpenKpm = { navigator.push(Route.Kpm) },
             )
-            SettingsCategory.Toolbox -> ToolboxSettingsContent(
+            SettingsCategory.Plugins -> PluginSettingsContent(
                 uiState = uiState,
                 onOpen = navigator::push,
                 onSetGraphicsRendererEnabled = viewModel::setGraphicsRendererFeatureEnabled,
-            )
-            SettingsCategory.AppAndMaintenance -> AppMaintenanceSettingsContent(
-                uiState = uiState,
-                onSetCheckModuleUpdate = viewModel::setCheckModuleUpdate,
-                onSetVersionMismatchWarning = viewModel::setShowVersionMismatchWarning,
-                onSetGkiWarning = viewModel::setShowGkiWarning,
-                onSetWebDebugging = viewModel::setEnableWebDebugging,
-                onSetAutoJailbreak = viewModel::setAutoJailbreak,
-                onSendLog = { showSendLogDialog = true },
-                onUninstall = { showUninstallDialog = true },
                 onSetWebManagerAutoStart = viewModel::setWebManagerAutoStart,
                 onOpenWebManager = {
                     WebManagerService.openInBrowser(context).onFailure { error ->
@@ -259,11 +244,19 @@ fun SettingsCategoryScreen(routeValue: String) {
                         ).show()
                     }
                 },
-                onSetStealthMode = { enabled, code -> viewModel.setStealthMode(enabled, code) },
                 onOpenStealthModeDialog = { enableAfterSave ->
                     stealthModeDialogEnablesMode = enableAfterSave
                     showStealthModeDialog = true
                 },
+            )
+            SettingsCategory.AppAndMaintenance -> AppMaintenanceSettingsContent(
+                uiState = uiState,
+                onSetWebDebugging = viewModel::setEnableWebDebugging,
+                onSetCheckModuleUpdate = viewModel::setCheckModuleUpdate,
+                onSetVersionMismatchWarning = viewModel::setShowVersionMismatchWarning,
+                onSetGkiWarning = viewModel::setShowGkiWarning,
+                onSendLog = { showSendLogDialog = true },
+                onUninstall = { showUninstallDialog = true },
                 onOpen = navigator::push,
             )
         }
@@ -343,12 +336,32 @@ private fun AppearanceSettingsContent(
     onSetRainCardMotion: (Boolean) -> Unit,
     onSetDayNightMode: (Boolean) -> Unit,
     onSetPixelCardMotion: (Boolean) -> Unit,
-    onApplyInterfaceStylePackage: (me.weishu.kernelsu.ui.util.InterfaceStylePackage) -> Unit,
     highlightedInterfaceStyleId: String?,
     onOpen: (Route) -> Unit,
 ) {
     val styles = InterfaceStyle.selectableEntries
+    val stylePickerRequester = remember { BringIntoViewRequester() }
+    val highlightStylePicker = uiState.installedInterfaceStyles.any {
+        it.style.id == highlightedInterfaceStyleId
+    }
+    LaunchedEffect(highlightedInterfaceStyleId, highlightStylePicker) {
+        if (highlightStylePicker) stylePickerRequester.bringIntoView()
+    }
     SettingsGroup(stringResource(R.string.settings_group_interface)) {
+        SettingsActionRow(
+            title = stringResource(R.string.store_title),
+            summary = stringResource(R.string.store_summary),
+            icon = Icons.Rounded.Storefront,
+            onClick = { onOpen(Route.ThemeStore) },
+        )
+        SettingsDivider()
+        SettingsActionRow(
+            title = stringResource(R.string.sidebar_widget_settings_title),
+            summary = stringResource(R.string.sidebar_design_entry_summary),
+            icon = Icons.Rounded.Tune,
+            onClick = { onOpen(Route.SidebarWidgetSettings) },
+        )
+        SettingsDivider()
         SettingsChoiceRow(
             title = stringResource(R.string.settings_ui_mode),
             summary = stringResource(R.string.settings_ui_mode_summary),
@@ -356,6 +369,8 @@ private fun AppearanceSettingsContent(
             options = styles.map { stringResource(it.labelRes) } +
                 uiState.installedInterfaceStyles.map { it.style.name },
             selectedIndex = uiState.interfaceStyleSelectedIndex(),
+            modifier = Modifier.bringIntoViewRequester(stylePickerRequester),
+            highlighted = highlightStylePicker,
             onSelected = onSetUiMode,
         )
         if (uiState.uiMode == InterfaceStyle.Miuix.value) {
@@ -368,7 +383,8 @@ private fun AppearanceSettingsContent(
                 onCheckedChange = onSetMiuixClassicHomeLayout,
             )
         }
-        if (uiState.uiMode == InterfaceStyle.Alpha.value || uiState.uiMode == InterfaceStyle.Delta.value) {
+        if (uiState.activeInterfaceStyleId == "alpha-delta" &&
+            (uiState.uiMode == InterfaceStyle.Alpha.value || uiState.uiMode == InterfaceStyle.Delta.value)) {
             SettingsDivider()
             SettingsChoiceRow(
                 title = stringResource(R.string.settings_alpha_delta_mode),
@@ -380,29 +396,6 @@ private fun AppearanceSettingsContent(
                 ),
                 selectedIndex = if (uiState.uiMode == InterfaceStyle.Delta.value) 1 else 0,
                 onSelected = { onSetAlphaDeltaMode(it == 1) },
-            )
-        }
-        uiState.installedInterfaceStyles.forEach { installed ->
-            val bringIntoViewRequester = remember(installed.style.id) { BringIntoViewRequester() }
-            val highlighted = installed.style.id == highlightedInterfaceStyleId
-            LaunchedEffect(highlighted) {
-                if (highlighted) bringIntoViewRequester.bringIntoView()
-            }
-            SettingsDivider()
-            val applied = installed.style.engine == uiState.uiMode && when (installed.style.engine) {
-                InterfaceStyle.Snow.value -> installed.style.variant == uiState.seasonStyle
-                InterfaceStyle.Rain.value -> installed.style.variant == uiState.rainStyle
-                InterfaceStyle.Pixel.value -> installed.style.variant == uiState.pixelStyle
-                else -> true
-            }
-            SettingsActionRow(
-                title = installed.style.name,
-                summary = installed.style.summary.ifBlank { installed.style.engine },
-                icon = Icons.Rounded.Palette,
-                trailingText = if (applied) stringResource(R.string.theme_store_applied) else null,
-                highlighted = highlighted,
-                modifier = Modifier.bringIntoViewRequester(bringIntoViewRequester),
-                onClick = { onApplyInterfaceStylePackage(installed.style) },
             )
         }
         if (uiState.uiMode == InterfaceStyle.Snow.value) {
@@ -444,14 +437,6 @@ private fun AppearanceSettingsContent(
             onCheckedChange = onSetDayNightMode,
         )
     }
-    SettingsGroup(stringResource(R.string.settings_group_theme_resources)) {
-        SettingsActionRow(
-            title = stringResource(R.string.store_title),
-            summary = stringResource(R.string.store_summary),
-            icon = Icons.Rounded.Storefront,
-            onClick = { onOpen(Route.ThemeStore) },
-        )
-    }
 }
 
 @Composable
@@ -488,14 +473,6 @@ private fun HomeManagerSettingsContent(
             onClick = onEditHomeTitle,
         )
     }
-    SettingsGroup(stringResource(R.string.settings_group_home_layout)) {
-        SettingsActionRow(
-            title = stringResource(R.string.home_layout_title),
-            summary = stringResource(R.string.home_layout_settings_summary),
-            icon = Icons.Rounded.Dashboard,
-            onClick = { onOpen(Route.HomeLayout) },
-        )
-    }
     SettingsGroup(stringResource(R.string.settings_group_home_cards)) {
         SettingsSwitchRow(
             title = stringResource(R.string.settings_show_home_support_card),
@@ -519,13 +496,10 @@ private fun HomeManagerSettingsContent(
 private fun RootPermissionSettingsContent(
     uiState: SettingsUiState,
     onSetSuCompatMode: (Int) -> Unit,
-    onSetKernelUmount: (Boolean) -> Unit,
-    onSetWebViewZygoteUmount: (Boolean) -> Unit,
-    onSetSelinuxHide: (Boolean) -> Unit,
     onSetSulog: (Boolean) -> Unit,
     onSetAdbRoot: (Boolean) -> Unit,
-    onSetAvcSpoof: (Boolean) -> Unit,
     onSetUseSoftReboot: (Boolean) -> Unit,
+    onSetAutoJailbreak: (Boolean) -> Unit,
     onOpen: (Route) -> Unit,
 ) {
     SettingsGroup(stringResource(R.string.settings_group_app_profiles)) {
@@ -557,6 +531,67 @@ private fun RootPermissionSettingsContent(
         )
         SettingsDivider()
         SettingsSwitchRow(
+            title = stringResource(R.string.settings_sulog),
+            summary = featureSummary(uiState.sulogStatus, R.string.settings_sulog_summary),
+            icon = Icons.AutoMirrored.Rounded.Article,
+            enabled = uiState.sulogStatus == "supported",
+            checked = uiState.isSulogEnabled,
+            onCheckedChange = onSetSulog,
+        )
+        SettingsDivider()
+        SettingsSwitchRow(
+            title = stringResource(R.string.settings_adb_root),
+            summary = featureSummary(uiState.adbRootStatus, R.string.settings_adb_root_summary),
+            icon = Icons.Rounded.Adb,
+            enabled = uiState.adbRootStatus == "supported",
+            checked = uiState.isAdbRootEnabled,
+            onCheckedChange = onSetAdbRoot,
+        )
+        SettingsDivider()
+        SettingsSwitchRow(
+            title = stringResource(R.string.settings_soft_reboot),
+            summary = stringResource(R.string.settings_soft_reboot_summary),
+            icon = Icons.Rounded.ElectricalServices,
+            enabled = !uiState.isLateLoadMode,
+            checked = uiState.isLateLoadMode || uiState.useSoftReboot,
+            onCheckedChange = onSetUseSoftReboot,
+        )
+        SettingsDivider()
+        SettingsSwitchRow(
+            title = stringResource(R.string.settings_auto_jailbreak),
+            summary = stringResource(R.string.settings_auto_jailbreak_summary),
+            icon = Icons.Rounded.ElectricalServices,
+            enabled = uiState.isLateLoadMode,
+            checked = uiState.autoJailbreak,
+            onCheckedChange = onSetAutoJailbreak,
+        )
+    }
+}
+
+@Composable
+private fun MountHideSettingsContent(
+    uiState: SettingsUiState,
+    onSetKernelUmount: (Boolean) -> Unit,
+    onSetWebViewZygoteUmount: (Boolean) -> Unit,
+    onSetDefaultUmountModules: (Boolean) -> Unit,
+    onSetSelinuxHide: (Boolean) -> Unit,
+    onSetAvcSpoof: (Boolean) -> Unit,
+    onOpenPathConfig: () -> Unit,
+    onSetEpkesuHide: (Boolean) -> Unit,
+    onOpenKpm: () -> Unit,
+) {
+    if (uiState.isKpmSettingsEntryVisible) {
+        SettingsGroup(stringResource(R.string.settings_group_kernel_modules)) {
+            SettingsActionRow(
+                title = stringResource(R.string.kpm_title),
+                summary = stringResource(R.string.kpm_settings_summary),
+                icon = Icons.Rounded.Bolt,
+                onClick = onOpenKpm,
+            )
+        }
+    }
+    SettingsGroup(stringResource(R.string.settings_group_mounting)) {
+        SettingsSwitchRow(
             title = stringResource(R.string.settings_kernel_umount),
             summary = featureSummary(uiState.kernelUmountStatus, R.string.settings_kernel_umount_summary),
             icon = Icons.Rounded.FolderDelete,
@@ -578,30 +613,21 @@ private fun RootPermissionSettingsContent(
         )
         SettingsDivider()
         SettingsSwitchRow(
+            title = stringResource(R.string.settings_umount_modules_default),
+            summary = stringResource(R.string.settings_umount_modules_default_summary),
+            icon = Icons.Rounded.FolderDelete,
+            checked = uiState.isDefaultUmountModules,
+            onCheckedChange = onSetDefaultUmountModules,
+        )
+    }
+    SettingsGroup(stringResource(R.string.settings_group_hiding)) {
+        SettingsSwitchRow(
             title = stringResource(R.string.settings_selinux_hide),
             summary = featureSummary(uiState.selinuxHideStatus, R.string.settings_selinux_hide_summary),
             icon = Icons.Rounded.Shield,
             enabled = uiState.selinuxHideStatus == "supported",
             checked = uiState.isSelinuxHideEnabled,
             onCheckedChange = onSetSelinuxHide,
-        )
-        SettingsDivider()
-        SettingsSwitchRow(
-            title = stringResource(R.string.settings_sulog),
-            summary = featureSummary(uiState.sulogStatus, R.string.settings_sulog_summary),
-            icon = Icons.AutoMirrored.Rounded.Article,
-            enabled = uiState.sulogStatus == "supported",
-            checked = uiState.isSulogEnabled,
-            onCheckedChange = onSetSulog,
-        )
-        SettingsDivider()
-        SettingsSwitchRow(
-            title = stringResource(R.string.settings_adb_root),
-            summary = featureSummary(uiState.adbRootStatus, R.string.settings_adb_root_summary),
-            icon = Icons.Rounded.Adb,
-            enabled = uiState.adbRootStatus == "supported",
-            checked = uiState.isAdbRootEnabled,
-            onCheckedChange = onSetAdbRoot,
         )
         SettingsDivider()
         SettingsSwitchRow(
@@ -613,68 +639,16 @@ private fun RootPermissionSettingsContent(
             onCheckedChange = onSetAvcSpoof,
         )
         SettingsDivider()
-        SettingsSwitchRow(
-            title = stringResource(R.string.settings_soft_reboot),
-            summary = stringResource(R.string.settings_soft_reboot_summary),
-            icon = Icons.Rounded.ElectricalServices,
-            enabled = !uiState.isLateLoadMode,
-            checked = uiState.isLateLoadMode || uiState.useSoftReboot,
-            onCheckedChange = onSetUseSoftReboot,
-        )
-    }
-}
-
-@Composable
-private fun MountHideSettingsContent(
-    uiState: SettingsUiState,
-    onSetDefaultUmountModules: (Boolean) -> Unit,
-    onSetKPatchNext: (Boolean) -> Unit,
-    onOpenKPatchNextWebUi: () -> Unit,
-    onOpenPathConfig: () -> Unit,
-    onSetEpkesuHide: (Boolean) -> Unit,
-    onOpen: (Route) -> Unit,
-) {
-    SettingsGroup(stringResource(R.string.settings_group_mounting)) {
-        SettingsSwitchRow(
-            title = stringResource(R.string.settings_umount_modules_default),
-            summary = stringResource(R.string.settings_umount_modules_default_summary),
-            icon = Icons.Rounded.FolderDelete,
-            checked = uiState.isDefaultUmountModules,
-            onCheckedChange = onSetDefaultUmountModules,
-        )
-        SettingsDivider()
-        SettingsSwitchRow(
-            title = stringResource(R.string.settings_kpatch_next),
-            summary = kPatchNextSummary(uiState),
-            icon = Icons.Rounded.DeveloperMode,
-            enabled = uiState.canToggleKPatchNext,
-            checked = uiState.isKPatchNextSwitchChecked,
-            onCheckedChange = onSetKPatchNext,
-        )
-        SettingsDivider()
-        SettingsActionRow(
-            title = stringResource(R.string.settings_kpatch_next_webui),
-            summary = stringResource(
-                if (uiState.canOpenKPatchNextWebUi) {
-                    R.string.settings_kpatch_next_webui_summary
-                } else {
-                    R.string.settings_kpatch_next_webui_disabled_summary
-                }
-            ),
-            icon = Icons.Rounded.Apps,
-            enabled = uiState.canOpenKPatchNextWebUi,
-            onClick = onOpenKPatchNextWebUi,
-        )
-    }
-    SettingsGroup(stringResource(R.string.settings_group_hiding)) {
-        SettingsActionRow(
-            title = pathConfigTitle(uiState),
-            summary = pathConfigSummary(uiState),
-            icon = Icons.Rounded.Visibility,
-            enabled = uiState.canOpenPathConfig,
-            onClick = onOpenPathConfig,
-        )
-        SettingsDivider()
+        if (uiState.isBuiltinPathConfigEntryVisible) {
+            SettingsActionRow(
+                title = pathConfigTitle(uiState),
+                summary = pathConfigSummary(uiState),
+                icon = Icons.Rounded.Visibility,
+                enabled = uiState.canOpenPathConfig,
+                onClick = onOpenPathConfig,
+            )
+            SettingsDivider()
+        }
         SettingsSwitchRow(
             title = stringResource(R.string.settings_epkesu_hide),
             summary = stringResource(R.string.settings_epkesu_hide_summary),
@@ -686,106 +660,104 @@ private fun MountHideSettingsContent(
 }
 
 @Composable
-private fun ToolboxSettingsContent(
+private fun PluginSettingsContent(
     uiState: SettingsUiState,
     onOpen: (Route) -> Unit,
     onSetGraphicsRendererEnabled: (Boolean) -> Unit,
+    onSetWebManagerAutoStart: (Boolean) -> Unit,
+    onOpenWebManager: () -> Unit,
+    onOpenStealthModeDialog: (Boolean) -> Unit,
 ) {
-    SettingsGroup(stringResource(R.string.store_title)) {
-        SettingsActionRow(
-            title = stringResource(R.string.store_title),
-            summary = stringResource(R.string.store_summary),
-            icon = Icons.Rounded.Storefront,
-            onClick = { onOpen(Route.ThemeStore) },
+    val entries = SettingsCatalog.entriesFor(SettingsCategory.Plugins, uiState)
+        .filter { it.plugin != null }
+    if (entries.isEmpty()) {
+        Text(
+            text = stringResource(R.string.settings_plugins_empty),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
         )
-    }
-    if (uiState.hasPlugin(ManagerPlugin.RescueProtection) || uiState.hasPlugin(ManagerPlugin.ImageTools)) {
-    SettingsGroup(stringResource(R.string.settings_toolbox_group_recovery)) {
-        if (uiState.hasPlugin(ManagerPlugin.RescueProtection)) SettingsActionRow(
-            title = stringResource(R.string.rescue_protection),
-            summary = stringResource(R.string.rescue_protection_summary),
-            icon = Icons.Rounded.Security,
-            onClick = { onOpen(Route.RescueProtection) },
-        )
-        if (uiState.hasPlugin(ManagerPlugin.RescueProtection) && uiState.hasPlugin(ManagerPlugin.ImageTools)) SettingsDivider()
-        if (uiState.hasPlugin(ManagerPlugin.ImageTools)) SettingsActionRow(
-            title = stringResource(R.string.image_tool_title),
-            summary = stringResource(R.string.image_tool_settings_summary),
-            icon = Icons.Rounded.ImageSearch,
-            onClick = { onOpen(Route.ImageTool) },
-        )
-    }
-    }
-    if (uiState.hasPlugin(ManagerPlugin.CpuSpoof) || uiState.hasPlugin(ManagerPlugin.DeviceIdentity) ||
-        uiState.hasPlugin(ManagerPlugin.GraphicsRenderer) || uiState.isKpmSettingsEntryVisible) {
-    SettingsGroup(stringResource(R.string.settings_toolbox_group_system_identity)) {
-        if (uiState.hasPlugin(ManagerPlugin.CpuSpoof)) SettingsActionRow(
-            title = stringResource(R.string.settings_cpu_spoof),
-            summary = stringResource(R.string.settings_cpu_spoof_summary),
-            icon = Icons.Rounded.DeveloperMode,
-            onClick = { onOpen(Route.CpuSpoof) },
-        )
-        if (uiState.hasPlugin(ManagerPlugin.CpuSpoof) && uiState.hasPlugin(ManagerPlugin.DeviceIdentity)) SettingsDivider()
-        if (uiState.hasPlugin(ManagerPlugin.DeviceIdentity)) SettingsActionRow(
-            title = stringResource(R.string.settings_device_identity),
-            summary = stringResource(R.string.settings_device_identity_summary),
-            icon = Icons.Rounded.Badge,
-            onClick = { onOpen(Route.DeviceIdentity) },
-        )
-        if (uiState.hasPlugin(ManagerPlugin.GraphicsRenderer)) SettingsDivider()
-        if (uiState.hasPlugin(ManagerPlugin.GraphicsRenderer)) SettingsSwitchRow(
-            title = stringResource(R.string.settings_graphics_renderer_tool),
-            summary = stringResource(R.string.settings_graphics_renderer_tool_summary),
-            icon = Icons.Rounded.Tune,
-            checked = uiState.graphicsRendererFeatureEnabled,
-            onCheckedChange = onSetGraphicsRendererEnabled,
-        )
-        if (uiState.hasPlugin(ManagerPlugin.GraphicsRenderer) && uiState.graphicsRendererFeatureEnabled) {
-            SettingsDivider()
-            SettingsActionRow(
-                title = stringResource(R.string.settings_graphics_renderer),
-                summary = stringResource(R.string.settings_graphics_renderer_summary),
-                icon = Icons.Rounded.Tune,
-                onClick = { onOpen(Route.GraphicsRenderer) },
-            )
+    } else {
+        SettingsGroup(stringResource(R.string.settings_plugins_installed)) {
+            entries.forEachIndexed { index, entry ->
+                if (index > 0) SettingsDivider()
+                val title = stringResource(entry.titleRes)
+                val summary = entry.summaryRes?.let { stringResource(it) }.orEmpty()
+                when (entry.key) {
+                    "graphics_toggle" -> SettingsSwitchRow(
+                        title = title,
+                        summary = summary,
+                        icon = Icons.Rounded.Tune,
+                        checked = uiState.graphicsRendererFeatureEnabled,
+                        onCheckedChange = onSetGraphicsRendererEnabled,
+                    )
+                    "web_manager_auto_start" -> SettingsSwitchRow(
+                        title = title,
+                        summary = summary,
+                        icon = Icons.Rounded.Language,
+                        checked = uiState.webManagerAutoStart,
+                        onCheckedChange = onSetWebManagerAutoStart,
+                    )
+                    "web_manager_open" -> SettingsActionRow(
+                        title = title,
+                        summary = summary,
+                        icon = Icons.Rounded.Language,
+                        onClick = onOpenWebManager,
+                    )
+                    "stealth_mode" -> SettingsSwitchRow(
+                        title = title,
+                        summary = summary,
+                        icon = Icons.Rounded.Security,
+                        enabled = !uiState.stealthModeBusy && !uiState.stealthModeEnabled,
+                        checked = uiState.stealthModeEnabled,
+                        onCheckedChange = { enabled ->
+                            if (enabled) onOpenStealthModeDialog(true)
+                        },
+                    )
+                    "stealth_mode_code" -> SettingsActionRow(
+                        title = title,
+                        summary = uiState.stealthModeCode,
+                        icon = Icons.Rounded.Visibility,
+                        enabled = !uiState.stealthModeBusy && !uiState.stealthModeEnabled,
+                        onClick = { onOpenStealthModeDialog(false) },
+                    )
+                    else -> {
+                        val destination = when (entry.plugin) {
+                            ManagerPlugin.RescueProtection -> Route.RescueProtection to Icons.Rounded.Security
+                            ManagerPlugin.ImageTools -> Route.ImageTool to Icons.Rounded.ImageSearch
+                            ManagerPlugin.CpuSpoof -> Route.CpuSpoof to Icons.Rounded.DeveloperMode
+                            ManagerPlugin.DeviceIdentity -> Route.DeviceIdentity to Icons.Rounded.Badge
+                            ManagerPlugin.AiChat -> Route.AiChat to Icons.Rounded.AutoFixHigh
+                            ManagerPlugin.GraphicsRenderer -> Route.GraphicsRenderer to Icons.Rounded.Tune
+                            ManagerPlugin.AppIdManager -> Route.AppIdManager to Icons.Rounded.Badge
+                            ManagerPlugin.AppFreeze -> Route.AppFreeze to Icons.Rounded.Apps
+                            ManagerPlugin.PathmaskLkm -> Route.HiddenPathConfig to Icons.Rounded.Visibility
+                            ManagerPlugin.RemoteManagementSuite, null -> null
+                        }
+                        destination?.let { (route, icon) ->
+                            SettingsActionRow(
+                                title = title,
+                                summary = summary,
+                                icon = icon,
+                                onClick = { onOpen(route) },
+                            )
+                        }
+                    }
+                }
+            }
         }
-        if (uiState.isKpmSettingsEntryVisible) {
-            SettingsDivider()
-            SettingsActionRow(
-                title = stringResource(R.string.kpm_title),
-                summary = stringResource(R.string.kpm_settings_summary),
-                icon = Icons.Rounded.Bolt,
-                onClick = { onOpen(Route.Kpm) },
-            )
-        }
-    }
-    }
-    if (uiState.hasPlugin(ManagerPlugin.AiChat)) {
-    SettingsGroup(stringResource(R.string.settings_toolbox_group_creative)) {
-        SettingsActionRow(
-            title = stringResource(R.string.settings_ai_chat),
-            summary = stringResource(R.string.settings_ai_chat_summary),
-            icon = Icons.Rounded.AutoFixHigh,
-            onClick = { onOpen(Route.AiChat) },
-        )
-    }
     }
 }
 
 @Composable
 private fun AppMaintenanceSettingsContent(
     uiState: SettingsUiState,
+    onSetWebDebugging: (Boolean) -> Unit,
     onSetCheckModuleUpdate: (Boolean) -> Unit,
     onSetVersionMismatchWarning: (Boolean) -> Unit,
     onSetGkiWarning: (Boolean) -> Unit,
-    onSetWebDebugging: (Boolean) -> Unit,
-    onSetAutoJailbreak: (Boolean) -> Unit,
     onSendLog: () -> Unit,
     onUninstall: () -> Unit,
-    onSetWebManagerAutoStart: (Boolean) -> Unit,
-    onOpenWebManager: () -> Unit,
-    onSetStealthMode: (Boolean, String) -> Unit,
-    onOpenStealthModeDialog: (Boolean) -> Unit,
     onOpen: (Route) -> Unit,
 ) {
     SettingsGroup(stringResource(R.string.settings_group_general)) {
@@ -822,13 +794,6 @@ private fun AppMaintenanceSettingsContent(
         )
     }
     SettingsGroup(stringResource(R.string.settings_group_diagnostics)) {
-        SettingsActionRow(
-            title = stringResource(R.string.send_log),
-            summary = stringResource(R.string.settings_log_export_summary),
-            icon = Icons.Rounded.BugReport,
-            onClick = onSendLog,
-        )
-        SettingsDivider()
         SettingsSwitchRow(
             title = stringResource(R.string.enable_web_debugging),
             summary = stringResource(R.string.enable_web_debugging_summary),
@@ -837,66 +802,31 @@ private fun AppMaintenanceSettingsContent(
             onCheckedChange = onSetWebDebugging,
         )
         SettingsDivider()
-        SettingsSwitchRow(
-            title = stringResource(R.string.settings_auto_jailbreak),
-            summary = stringResource(R.string.settings_auto_jailbreak_summary),
-            icon = Icons.Rounded.ElectricalServices,
-            enabled = uiState.isLateLoadMode,
-            checked = uiState.autoJailbreak,
-            onCheckedChange = onSetAutoJailbreak,
-        )
-    }
-    if (uiState.hasPlugin(ManagerPlugin.RemoteManagementSuite)) SettingsGroup(stringResource(R.string.settings_group_web_manager)) {
-        SettingsSwitchRow(
-            title = stringResource(R.string.web_manager_auto_start),
-            summary = stringResource(R.string.web_manager_auto_start_summary),
-            icon = Icons.Rounded.Language,
-            checked = uiState.webManagerAutoStart,
-            onCheckedChange = onSetWebManagerAutoStart,
-        )
-        SettingsDivider()
         SettingsActionRow(
-            title = stringResource(R.string.web_manager_open),
-            summary = stringResource(R.string.web_manager_open_summary),
-            icon = Icons.Rounded.Language,
-            onClick = onOpenWebManager,
-        )
-        SettingsDivider()
-        SettingsSwitchRow(
-            title = stringResource(R.string.stealth_mode_title),
-            summary = stringResource(R.string.stealth_mode_summary),
-            icon = Icons.Rounded.Security,
-            enabled = !uiState.stealthModeBusy,
-            checked = uiState.stealthModeEnabled,
-            onCheckedChange = { enabled ->
-                if (enabled) onOpenStealthModeDialog(true)
-            },
-        )
-        SettingsDivider()
-        SettingsActionRow(
-            title = stringResource(R.string.stealth_mode_code_title),
-            summary = uiState.stealthModeCode,
-            icon = Icons.Rounded.Visibility,
-            enabled = !uiState.stealthModeBusy && !uiState.stealthModeEnabled,
-            onClick = { onOpenStealthModeDialog(false) },
+            title = stringResource(R.string.send_log),
+            summary = stringResource(R.string.settings_log_export_summary),
+            icon = Icons.Rounded.BugReport,
+            onClick = onSendLog,
         )
     }
     SettingsGroup(stringResource(R.string.settings_group_maintenance_about)) {
-        SettingsActionRow(
-            title = stringResource(R.string.settings_uninstall),
-            summary = stringResource(
-                if (uiState.isLkmMode && !uiState.isLateLoadMode) {
-                    R.string.settings_uninstall_summary
-                } else {
-                    R.string.feature_status_unsupported_summary
-                }
-            ),
-            icon = Icons.Rounded.Delete,
-            enabled = uiState.isLkmMode && !uiState.isLateLoadMode,
-            destructive = true,
-            onClick = onUninstall,
-        )
-        SettingsDivider()
+        if (uiState.isLkmMode) {
+            SettingsActionRow(
+                title = stringResource(R.string.settings_uninstall),
+                summary = stringResource(
+                    if (!uiState.isLateLoadMode) {
+                        R.string.settings_uninstall_summary
+                    } else {
+                        R.string.feature_status_unsupported_summary
+                    }
+                ),
+                icon = Icons.Rounded.Delete,
+                enabled = !uiState.isLateLoadMode,
+                destructive = true,
+                onClick = onUninstall,
+            )
+            SettingsDivider()
+        }
         SettingsActionRow(
             title = stringResource(R.string.about),
             summary = stringResource(R.string.settings_about_summary),
@@ -1052,6 +982,8 @@ private fun SettingsChoiceRow(
     options: List<String>,
     selectedIndex: Int,
     enabled: Boolean = true,
+    modifier: Modifier = Modifier,
+    highlighted: Boolean = false,
     onSelected: (Int) -> Unit,
 ) {
     var showDialog by rememberSaveable(title) { mutableStateOf(false) }
@@ -1062,6 +994,8 @@ private fun SettingsChoiceRow(
         icon = icon,
         enabled = enabled && options.isNotEmpty(),
         trailingText = options.getOrNull(safeIndex),
+        modifier = modifier,
+        highlighted = highlighted,
         onClick = { showDialog = true },
     )
     if (showDialog) {

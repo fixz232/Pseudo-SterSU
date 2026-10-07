@@ -4,8 +4,6 @@ import android.text.format.Formatter
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,34 +11,24 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.add
-import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FileDownload
-import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Palette
-import androidx.compose.material3.AlertDialog
+import me.weishu.kernelsu.ui.component.store.StoreAlertDialog as AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
@@ -52,15 +40,14 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
@@ -75,10 +62,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.weishu.kernelsu.R
-import me.weishu.kernelsu.ui.InterfaceStyle
-import me.weishu.kernelsu.ui.LocalInterfaceStyle
-import me.weishu.kernelsu.ui.component.skrootpro.SkrootproColors
-import me.weishu.kernelsu.ui.component.skrootpro.SkrootproScreen
+import me.weishu.kernelsu.ui.component.store.StoreSearchField
+import me.weishu.kernelsu.ui.component.store.StoreEmptyState
+import me.weishu.kernelsu.ui.component.store.StoreScaffold
+import me.weishu.kernelsu.ui.component.store.StoreSectionHeading
 import me.weishu.kernelsu.ui.navigation3.LocalNavigator
 import me.weishu.kernelsu.ui.util.THEME_STORE_FILE_EXTENSION
 import me.weishu.kernelsu.ui.util.THEME_STORE_FILE_MIME_TYPE
@@ -92,12 +79,6 @@ import me.weishu.kernelsu.ui.util.previewThemeStorePackage
 import me.weishu.kernelsu.ui.util.readThemeLibrary
 import me.weishu.kernelsu.ui.util.renameThemeLibraryEntry
 import me.weishu.kernelsu.ui.util.saveCurrentThemeToLibrary
-import top.yukonga.miuix.kmp.basic.Card
-import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
-import top.yukonga.miuix.kmp.basic.IconButton as MiuixIconButton
-import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
-import top.yukonga.miuix.kmp.basic.TopAppBar as MiuixTopAppBar
-import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
 import java.text.DateFormat
 import java.util.Date
 
@@ -245,44 +226,9 @@ fun ThemeStoreLibraryScreen(
     }
     val onBack = dropUnlessResumed { navigator.pop() }
 
-    if (embedded) {
-        content(PaddingValues())
-    } else if (LocalInterfaceStyle.current == InterfaceStyle.Skrootpro.value) {
-        SkrootproScreen(
-            title = stringResource(R.string.theme_store_my_library_title),
-            bottomInnerPadding = 0.dp,
-        ) { paddingValues ->
-            Box {
-                content(paddingValues)
-                ThemeStoreMyBackButton(onClick = onBack)
-            }
-        }
-    } else {
-        MiuixScaffold(
-            containerColor = Color.Transparent,
-            popupHost = { },
-            contentWindowInsets = WindowInsets.systemBars
-                .add(WindowInsets.displayCutout)
-                .only(WindowInsetsSides.Horizontal),
-            topBar = {
-                MiuixTopAppBar(
-                    title = stringResource(R.string.theme_store_my_library_title),
-                    color = Color.Transparent,
-                    titleColor = colorScheme.onSurface,
-                    navigationIcon = {
-                        MiuixIconButton(onClick = onBack) {
-                            MiuixIcon(
-                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                                contentDescription = stringResource(R.string.back),
-                                tint = colorScheme.onBackground,
-                            )
-                        }
-                    },
-                )
-            },
-            content = content,
-        )
-    }
+    if (embedded) content(PaddingValues()) else StoreScaffold(
+        title = stringResource(R.string.theme_store_my_library_title), onBack = onBack,
+        maxContentWidth = 840.dp, content = content)
 
     if (showSaveDialog) {
         ThemeStoreNameDialog(
@@ -418,9 +364,11 @@ private fun ThemeStoreMyContent(
     onExport: (ThemeLibraryEntry) -> Unit,
     onDelete: (ThemeLibraryEntry) -> Unit,
 ) {
+    var query by rememberSaveable { mutableStateOf("") }
+    val visibleThemes = remember(themes, query) { themes.filter { query.isBlank() || it.name.contains(query.trim(), ignoreCase = true) } }
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         headerContent?.let { header ->
@@ -439,10 +387,15 @@ private fun ThemeStoreMyContent(
                 onImport = onImport,
             )
         }
+        item { StoreSearchField(query, { query = it }, stringResource(R.string.cloud_theme_search_hint)) }
+        if (themes.isNotEmpty() && visibleThemes.isEmpty()) {
+            item { StoreEmptyState(Icons.Rounded.Search, stringResource(R.string.store_redesign_no_results),
+                stringResource(R.string.store_redesign_no_results_summary), stringResource(R.string.store_redesign_clear_filters), { query = "" }) }
+        }
         if (themes.isEmpty()) {
             item { ThemeLibraryEmptyState() }
         } else {
-            items(themes, key = ThemeLibraryEntry::id) { entry ->
+            items(visibleThemes, key = ThemeLibraryEntry::id) { entry ->
                 ThemeLibraryItem(
                     entry = entry,
                     enabled = !busy,
@@ -464,73 +417,15 @@ private fun ThemeLibraryActionPanel(
     onSaveCurrent: () -> Unit,
     onImport: () -> Unit,
 ) {
-    ThemeLibrarySurface {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.13f), CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (busy) {
-                        CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
-                    } else {
-                        Icon(
-                            imageVector = Icons.Rounded.Palette,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.theme_store_my_library_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = themeLibraryTextColor(),
-                    )
-                    Text(
-                        text = stringResource(R.string.theme_store_my_count, themeCount),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = themeLibraryMutedColor(),
-                    )
-                }
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        StoreSectionHeading(stringResource(R.string.theme_store_my_library_title),
+            stringResource(R.string.theme_store_my_count, themeCount))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Button(onClick = onSaveCurrent, enabled = !busy, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
+                Text(stringResource(R.string.theme_store_my_save_action))
             }
-            Text(
-                text = stringResource(R.string.theme_store_my_summary),
-                style = MaterialTheme.typography.bodyMedium,
-                color = themeLibraryMutedColor(),
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Button(
-                    modifier = Modifier.weight(1f),
-                    enabled = !busy,
-                    onClick = onSaveCurrent,
-                ) {
-                    Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.size(6.dp))
-                    Text(stringResource(R.string.theme_store_my_save_action), maxLines = 1)
-                }
-                OutlinedButton(
-                    modifier = Modifier.weight(1f),
-                    enabled = !busy,
-                    onClick = onImport,
-                ) {
-                    Icon(Icons.Rounded.FolderOpen, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.size(6.dp))
-                    Text(stringResource(R.string.theme_store_my_import_action), maxLines = 1)
-                }
+            OutlinedButton(onClick = onImport, enabled = !busy, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
+                Text(stringResource(R.string.theme_store_my_import_action))
             }
         }
     }
@@ -721,57 +616,23 @@ private fun ThemeStoreNameDialog(
     )
 }
 
-@Composable
-private fun ThemeStoreMyBackButton(onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .padding(start = 16.dp, top = 14.dp)
-            .size(36.dp)
-            .clip(CircleShape)
-            .background(Color.Black.copy(alpha = 0.12f))
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-            contentDescription = stringResource(R.string.back),
-            tint = Color.White,
-        )
-    }
-}
 
 @Composable
 private fun ThemeLibrarySurface(content: @Composable () -> Unit) {
-    if (LocalInterfaceStyle.current == InterfaceStyle.Skrootpro.value) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(8.dp))
-                .background(SkrootproColors.BarSurface),
-        ) {
-            content()
-        }
-    } else {
-        Card(modifier = Modifier.fillMaxWidth(), content = { content() })
-    }
+    androidx.compose.material3.Surface(
+        modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surface, content = content,
+    )
 }
 
 @Composable
 private fun themeLibraryTextColor(): Color {
-    return if (LocalInterfaceStyle.current == InterfaceStyle.Skrootpro.value) {
-        SkrootproColors.Text
-    } else {
-        MaterialTheme.colorScheme.onSurface
-    }
+    return MaterialTheme.colorScheme.onSurface
 }
 
 @Composable
 private fun themeLibraryMutedColor(): Color {
-    return if (LocalInterfaceStyle.current == InterfaceStyle.Skrootpro.value) {
-        SkrootproColors.Muted
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
+    return MaterialTheme.colorScheme.onSurfaceVariant
 }
 
 private fun formatThemeLibraryDate(timestamp: Long): String {

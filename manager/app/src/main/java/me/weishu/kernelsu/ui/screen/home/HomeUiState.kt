@@ -137,9 +137,6 @@ data class HomeUiState(
     val canInstallKernelUpdate: Boolean
         get() = lkmMode == true && !isLateLoadMode
 
-    val showCustomLkmBadge: Boolean
-        get() = lkmMode == true && !isLkmBundled
-
     val showRootWarning: Boolean
         get() = rootRuntimeState == RootRuntimeState.DaemonError
 

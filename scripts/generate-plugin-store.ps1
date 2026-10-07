@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $assetRoot = Join-Path $repoRoot 'manager/app/src/main/assets/plugin-store'
 $packageRoot = Join-Path $repoRoot 'plugin-store/packages'
-$pluginStoreBaseUrl = 'https://raw.githubusercontent.com/fixz232/Pseudo-SterSU/main/plugin-store'
+$pluginStoreBaseUrl = 'https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/plugin-store'
 $utf8NoBom = [Text.UTF8Encoding]::new($false)
 New-Item -ItemType Directory -Force -Path $assetRoot, $packageRoot | Out-Null
 

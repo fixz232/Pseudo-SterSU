@@ -71,6 +71,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.round
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.launch
+import me.weishu.kernelsu.ui.InterfaceStyle
+import me.weishu.kernelsu.ui.LocalInterfaceStyle
 import me.weishu.kernelsu.ui.component.liquid.isLiquidGlassTheme
 import kotlin.math.roundToInt
 
@@ -84,7 +86,9 @@ private const val SegmentedSpringDamping = 0.9f
 annotation class SegmentedColumnDsl
 
 @Composable
-private fun segmentedContainerColor() = if (isLiquidGlassTheme()) {
+private fun segmentedContainerColor() = if (LocalInterfaceStyle.current == InterfaceStyle.SidebarWidget.value) {
+    colorScheme.surfaceContainer
+} else if (isLiquidGlassTheme()) {
     colorScheme.surfaceColorAtElevation(1.dp).copy(alpha = 0.56f)
 } else {
     colorScheme.surfaceBright

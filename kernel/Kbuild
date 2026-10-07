@@ -103,7 +103,7 @@ ifneq ($(CONFIG_ARM64),y)
 $(error CONFIG_KPM requires CONFIG_ARM64=y)
 endif
 # Native KPM is a built-in GKI ABI bridge. It must never be linked into the
-# LKM variant, whose KPM backend is provided by KPatch-Next.
+# LKM variant, whose KPM backend requires an independently installed KPatch-Next.
 kernelsu-objs += kpm/kpm.o
 kernelsu-objs += kpm/compact.o
 kernelsu-objs += kpm/super_access.o

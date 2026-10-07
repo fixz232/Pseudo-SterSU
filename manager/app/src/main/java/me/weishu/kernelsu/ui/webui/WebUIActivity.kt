@@ -31,6 +31,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
+import me.weishu.kernelsu.data.repository.ACTIVE_INTERFACE_STYLE_ID_KEY
+import me.weishu.kernelsu.data.repository.SettingsRepositoryImpl
 import me.weishu.kernelsu.ui.InterfaceStyle
 import me.weishu.kernelsu.ui.LocalInterfaceStyle
 import me.weishu.kernelsu.ui.LocalUiMode
@@ -123,8 +125,10 @@ class WebUIActivity : ComponentActivity() {
         setContent {
             val context = LocalContext.current
             val prefs = context.getSharedPreferences("settings", MODE_PRIVATE)
+            val settingsRepository = remember { SettingsRepositoryImpl() }
             var appSettings by remember { mutableStateOf(ThemeController.getAppSettings(context)) }
-            var uiModeValue by remember { mutableStateOf(prefs.getString("ui_mode", UiMode.DEFAULT_VALUE) ?: UiMode.DEFAULT_VALUE) }
+            var uiModeValue by remember { mutableStateOf(settingsRepository.uiMode) }
+            var activeStyleId by remember { mutableStateOf(settingsRepository.activeInterfaceStyleId) }
             var wallpaperState by remember { mutableStateOf(readWebUiWallpaperState(prefs)) }
             var visualEffectsState by remember { mutableStateOf(readWebUiVisualEffectsState(prefs)) }
             val uiMode = remember(uiModeValue) {
@@ -133,13 +137,18 @@ class WebUIActivity : ComponentActivity() {
             val localColorMode = appSettings.colorMode.value
             val rainStyle = RainStyle.fromValue(visualEffectsState.rainStyle)
             val pixelStyle = PixelStyle.fromValue(visualEffectsState.pixelStyle)
-            val externalTheme = remember(uiModeValue, visualEffectsState.rainStyle, visualEffectsState.pixelStyle) {
+            val externalTheme = remember(uiModeValue, activeStyleId, visualEffectsState.rainStyle, visualEffectsState.pixelStyle) {
                 val variant = when (uiModeValue) {
                     InterfaceStyle.Rain.value -> visualEffectsState.rainStyle
                     InterfaceStyle.Pixel.value -> visualEffectsState.pixelStyle
                     else -> null
                 }
-                interfaceStyleTheme(context, uiModeValue, variant)
+                interfaceStyleTheme(
+                    context,
+                    if (uiModeValue == InterfaceStyle.Delta.value) InterfaceStyle.Alpha.value else uiModeValue,
+                    variant,
+                    activeStyleId,
+                )
             }
             val darkMode = resolveEffectiveDarkMode(
                 colorMode = appSettings.colorMode,
@@ -156,8 +165,9 @@ class WebUIActivity : ComponentActivity() {
                     if (key in themePreferenceKeys) {
                         appSettings = ThemeController.getAppSettings(context)
                     }
-                    if (key == "ui_mode") {
-                        uiModeValue = prefs.getString("ui_mode", UiMode.DEFAULT_VALUE) ?: UiMode.DEFAULT_VALUE
+                    if (key == "ui_mode" || key == ACTIVE_INTERFACE_STYLE_ID_KEY) {
+                        uiModeValue = settingsRepository.uiMode
+                        activeStyleId = settingsRepository.activeInterfaceStyleId
                     }
                     if (key in wallpaperPreferenceKeys) {
                         wallpaperState = readWebUiWallpaperState(prefs)

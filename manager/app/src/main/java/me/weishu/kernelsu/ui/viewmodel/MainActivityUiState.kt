@@ -61,6 +61,7 @@ data class MainActivityUiState(
     val pageTransitionEffect: String = PageTransitionEffect.DEFAULT_VALUE,
     val uiMode: UiMode,
     val interfaceStyle: String,
+    val activeInterfaceStyleId: String? = null,
     val customWallpaperUri: String?,
     val customWallpaperOpacity: Float,
     val customWallpaperVisualSettings: MediaVisualSettings,

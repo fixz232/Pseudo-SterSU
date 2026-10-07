@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_sidebar_intro">你的裝置，你的使用方式</string>
+    <string name="settings_sidebar_version">側欄元件 · 管理器 %1$s</string>
+    <string name="settings_sidebar_appearance">外觀與主題</string>
+    <string name="settings_sidebar_appearance_summary">介面風格、配色與側欄設計</string>
+    <string name="settings_sidebar_more">更多設定</string>
+    <string name="settings_sidebar_more_summary">全部分類、權限與實用工具</string>
+    <string name="settings_device_unknown">裝置未提供</string>
+    <string name="settings_device_android">Android %1$s</string>
+    <string name="settings_device_model">機型</string>
+    <string name="settings_device_processor">處理器</string>
+    <string name="settings_device_memory">記憶體 (RAM)</string>
+    <string name="settings_device_manager">管理器版本</string>
+    <string name="settings_device_text_edit">編輯裝置文字</string>
+    <string name="settings_device_text_hint">留空會使用系統偵測結果；修改僅影響這張卡片的顯示。</string>
+    <string name="settings_device_text_save">儲存</string>
+    <string name="settings_device_photo">裝置圖片</string>
+    <string name="settings_device_photo_empty">暫無可信機型圖片，可自行新增</string>
+    <string name="settings_device_photo_choose">選擇圖片</string>
+    <string name="settings_device_photo_edit">編輯圖片</string>
+    <string name="settings_device_photo_crop">裁切裝置圖片</string>
+    <string name="settings_device_photo_reset">恢復預設佔位</string>
+    <string name="settings_device_photo_failed">圖片儲存失敗，請選擇可讀取且小於 20 MB 的圖片。原有圖片保持不變。</string>
+    <string name="settings_shortcut_biometrics">生物辨識</string>
+    <string name="settings_shortcut_color_mode">明暗模式</string>
+    <string name="settings_shortcut_share">分享</string>
+    <string name="settings_shortcut_releases">版本更新</string>
+    <string name="settings_shortcut_logs">日誌</string>
+    <string name="settings_shortcut_unavailable">目前裝置沒有可開啟此操作的應用程式。</string>
+    <string name="settings_shortcut_uninstall_unavailable">僅確認處於 LKM 模式後可解除安裝 Root。GKI 模式請在安裝頁面恢復原始啟動映像。</string>
+</resources>

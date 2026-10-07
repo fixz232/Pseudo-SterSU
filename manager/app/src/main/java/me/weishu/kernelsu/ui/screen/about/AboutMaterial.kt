@@ -101,6 +101,9 @@ fun AboutScreenMaterial(
                                 actions.onOpenLink(linkInfo.url)
                             },
                             headlineContent = { Text(linkInfo.fullText) },
+                            supportingContent = linkInfo.summary?.let { summary ->
+                                { Text(summary) }
+                            },
                         )
                         if (index < state.links.lastIndex) {
                             HorizontalDivider()

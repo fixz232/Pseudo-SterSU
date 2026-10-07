@@ -243,3 +243,25 @@ SUSFS source patches are enabled only for built-in AArch64 GKI builds with
 `CONFIG_KSU_SUSFS=y`. LKM builds continue to use ApkeSU's existing dynamic-hook
 implementation. Android 17 / Linux 6.18 is intentionally excluded because the
 upstream repository does not publish a matching GKI source patch.
+
+8. Aster UI design reference
+----------------------------
+
+SterSU's sidebar and page-layout work references the UI design of
+[Aster](https://github.com/LyraVoid/Aster), by LyraVoid and contributors,
+at commit `86488f8b204853caadce370b5646f9b35e31d0ce` (2026-09-25).
+The reviewed references include its README, `GlobalLayout.kt`, and
+`AsterAppShell.kt`. This attribution covers design inspiration for separating
+navigation from content and maintaining consistent page and settings structure.
+
+This sidebar update does not import Aster source files, assets, dependencies,
+or its root backend. SterSU adapts these design ideas to its existing Manager
+implementation. It is an independent project, not an official Aster release;
+no affiliation or endorsement is implied. Existing FolkPatch code attribution
+and all other third-party notices remain unchanged.
+
+Aster publishes a GPL version 3 license text. See its
+[pinned upstream license](https://github.com/LyraVoid/Aster/blob/86488f8b204853caadce370b5646f9b35e31d0ce/LICENSE)
+and the detailed [UI design attribution](./docs/ASTER_UI_DESIGN_NOTICE.md).
+This notice does not replace or relicense any source file or override the
+project's existing licenses and copyright notices.

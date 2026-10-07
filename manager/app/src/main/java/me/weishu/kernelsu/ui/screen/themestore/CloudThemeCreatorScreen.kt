@@ -15,24 +15,16 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.add
-import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.InsertDriveFile
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
@@ -52,32 +44,28 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.VerifiedUser
 import androidx.compose.material.icons.rounded.WarningAmber
-import androidx.compose.material3.AlertDialog
+import me.weishu.kernelsu.ui.component.store.StoreAlertDialog as AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.PrimaryTabRow
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -96,10 +84,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.weishu.kernelsu.R
-import me.weishu.kernelsu.ui.InterfaceStyle
-import me.weishu.kernelsu.ui.LocalInterfaceStyle
-import me.weishu.kernelsu.ui.component.skrootpro.SkrootproColors
-import me.weishu.kernelsu.ui.component.skrootpro.SkrootproScreen
+import me.weishu.kernelsu.ui.component.store.StoreScaffold
+import me.weishu.kernelsu.ui.component.store.StoreFilters
+import me.weishu.kernelsu.ui.component.store.StoreExpandableSection
+import androidx.compose.material3.Surface
 import me.weishu.kernelsu.ui.navigation3.LocalNavigator
 import me.weishu.kernelsu.ui.navigation3.Route
 import me.weishu.kernelsu.ui.util.CLOUD_THEME_CREATOR_PICKER_MIME_TYPE
@@ -123,12 +111,8 @@ import me.weishu.kernelsu.ui.util.exportCloudThemeStorePackage
 import me.weishu.kernelsu.ui.util.isValidCloudThemeGithubLogin
 import me.weishu.kernelsu.ui.util.readThemeAuthorProfile
 import me.weishu.kernelsu.ui.util.safeCloudThemeMessage
-import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
 import top.yukonga.miuix.kmp.basic.IconButton as MiuixIconButton
-import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
-import top.yukonga.miuix.kmp.basic.TopAppBar as MiuixTopAppBar
-import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
 
 private enum class CreatorCenterPage(@StringRes val titleRes: Int, val icon: ImageVector) {
     Qualification(R.string.cloud_theme_creator_tab_qualification, Icons.Rounded.VerifiedUser),
@@ -458,28 +442,13 @@ fun CloudThemeCreatorScreen(initialPageIndex: Int = 0) {
                 .fillMaxSize()
                 .padding(paddingValues),
         ) {
-            PrimaryTabRow(selectedTabIndex = currentPage.ordinal) {
-                CreatorCenterPage.entries.forEachIndexed { index, page ->
-                    Tab(
-                        selected = currentPage.ordinal == index,
-                        onClick = { selectedPageIndex = index },
-                        text = {
-                            Text(
-                                text = stringResource(page.titleRes),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        },
-                        icon = {
-                            Icon(
-                                imageVector = page.icon,
-                                contentDescription = null,
-                                modifier = Modifier.size(19.dp),
-                            )
-                        },
-                    )
-                }
-            }
+
+            StoreFilters(
+                labels = CreatorCenterPage.entries.map { stringResource(it.titleRes) },
+                selectedIndex = currentPage.ordinal,
+                onSelect = { selectedPageIndex = it },
+                modifier = Modifier.padding(horizontal = 20.dp),
+            )
             when (currentPage) {
                 CreatorCenterPage.Qualification -> CreatorQualificationPage(
                     draft = draft,
@@ -557,42 +526,8 @@ fun CloudThemeCreatorScreen(initialPageIndex: Int = 0) {
         }
     }
 
-    if (LocalInterfaceStyle.current == InterfaceStyle.Skrootpro.value) {
-        SkrootproScreen(
-            title = stringResource(R.string.cloud_theme_creator_title),
-            bottomInnerPadding = 0.dp,
-        ) { paddingValues ->
-            Box {
-                content(paddingValues)
-                CreatorBackButton(onClick = onBack)
-            }
-        }
-    } else {
-        MiuixScaffold(
-            containerColor = Color.Transparent,
-            popupHost = { },
-            contentWindowInsets = WindowInsets.systemBars
-                .add(WindowInsets.displayCutout)
-                .only(WindowInsetsSides.Horizontal),
-            topBar = {
-                MiuixTopAppBar(
-                    title = stringResource(R.string.cloud_theme_creator_title),
-                    color = Color.Transparent,
-                    titleColor = colorScheme.onSurface,
-                    navigationIcon = {
-                        MiuixIconButton(onClick = onBack) {
-                            MiuixIcon(
-                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                                contentDescription = stringResource(R.string.back),
-                                tint = colorScheme.onBackground,
-                            )
-                        }
-                    },
-                )
-            },
-            content = content,
-        )
-    }
+    StoreScaffold(title = stringResource(R.string.cloud_theme_creator_title),
+        onBack = onBack, maxContentWidth = 840.dp, content = content)
 
     if (clearDraftDialog) {
         AlertDialog(
@@ -656,8 +591,8 @@ private fun CreatorQualificationPage(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {
             CreatorStatusCard(
@@ -808,76 +743,58 @@ private fun CreatorSubmissionPage(
     }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {
-            CreatorSurface {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        CreatorIcon(Icons.Rounded.VerifiedUser)
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = approvedName.orEmpty().ifBlank { draft.githubLogin },
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = creatorTextColor(),
-                            )
-                            Text(
-                                text = stringResource(R.string.cloud_theme_creator_approved_identity),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                    }
-                    HorizontalDivider(color = creatorMutedColor().copy(alpha = 0.18f))
-                    OutlinedButton(
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = onOpenGuide,
-                    ) {
-                        Icon(Icons.AutoMirrored.Rounded.HelpOutline, contentDescription = null)
-                        Spacer(modifier = Modifier.size(7.dp))
-                        Text(stringResource(R.string.cloud_theme_creator_open_guide))
-                    }
-                    OutlinedTextField(
-                        value = draft.authorName,
-                        onValueChange = { onDraftChange(draft.copy(authorName = it.take(64))) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        label = { Text(stringResource(R.string.cloud_theme_creator_public_name)) },
-                    )
-                    OutlinedTextField(
-                        value = draft.authorBio,
-                        onValueChange = { onDraftChange(draft.copy(authorBio = it.take(512))) },
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 2,
-                        maxLines = 4,
-                        label = { Text(stringResource(R.string.cloud_theme_creator_author_bio)) },
-                    )
-                    OutlinedTextField(
-                        value = draft.authorProfileUrl,
-                        onValueChange = { onDraftChange(draft.copy(authorProfileUrl = it.take(768))) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        label = { Text(stringResource(R.string.cloud_theme_creator_profile_url)) },
-                        supportingText = {
-                            Text(stringResource(R.string.cloud_theme_creator_profile_url_hint))
-                        },
-                    )
-                    OutlinedTextField(
-                        value = draft.authorAvatarUrl,
-                        onValueChange = { onDraftChange(draft.copy(authorAvatarUrl = it.take(768))) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        label = { Text(stringResource(R.string.cloud_theme_creator_avatar_url)) },
-                    )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                CreatorIcon(Icons.Rounded.VerifiedUser)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(approvedName.orEmpty().ifBlank { draft.githubLogin },
+                        style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.cloud_theme_creator_approved_identity),
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+                TextButton(onClick = onOpenGuide) {
+                    Text(stringResource(R.string.cloud_theme_creator_open_guide))
+                }
+            }
+        }
+        item {
+            StoreExpandableSection(title = stringResource(R.string.cloud_theme_creator_public_name),
+                summary = draft.authorName.ifBlank { approvedName.orEmpty() }) {
+                OutlinedTextField(
+                    value = draft.authorName,
+                    onValueChange = { onDraftChange(draft.copy(authorName = it.take(64))) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.cloud_theme_creator_public_name)) },
+                )
+                OutlinedTextField(
+                    value = draft.authorBio,
+                    onValueChange = { onDraftChange(draft.copy(authorBio = it.take(512))) },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2,
+                    maxLines = 4,
+                    label = { Text(stringResource(R.string.cloud_theme_creator_author_bio)) },
+                )
+                OutlinedTextField(
+                    value = draft.authorProfileUrl,
+                    onValueChange = { onDraftChange(draft.copy(authorProfileUrl = it.take(768))) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.cloud_theme_creator_profile_url)) },
+                    supportingText = {
+                        Text(stringResource(R.string.cloud_theme_creator_profile_url_hint))
+                    },
+                )
+                OutlinedTextField(
+                    value = draft.authorAvatarUrl,
+                    onValueChange = { onDraftChange(draft.copy(authorAvatarUrl = it.take(768))) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.cloud_theme_creator_avatar_url)) },
+                )
             }
         }
         item {
@@ -965,9 +882,9 @@ private fun CreatorSubmissionPage(
                             }
                         }
                     }
-                    Row(
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         OutlinedTextField(
                             value = draft.categoryId,
@@ -995,14 +912,14 @@ private fun CreatorSubmissionPage(
                                     )
                                 )
                             },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             label = { Text(stringResource(R.string.cloud_theme_creator_category_id)) },
                         )
                         OutlinedTextField(
                             value = draft.categoryName,
                             onValueChange = { onDraftChange(draft.copy(categoryName = it.take(48))) },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.fillMaxWidth(),
                             enabled = selectedExistingCategory == null,
                             singleLine = true,
                             label = { Text(stringResource(R.string.cloud_theme_creator_category_name)) },
@@ -1413,7 +1330,7 @@ private fun CreatorRecordsPage(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item {
@@ -1775,54 +1692,22 @@ private fun CreatorIcon(icon: ImageVector, size: Int = 42) {
 
 @Composable
 private fun CreatorSurface(content: @Composable () -> Unit) {
-    if (LocalInterfaceStyle.current == InterfaceStyle.Skrootpro.value) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(8.dp))
-                .background(SkrootproColors.BarSurface),
-        ) {
-            content()
-        }
-    } else {
-        Card(modifier = Modifier.fillMaxWidth(), content = { content() })
-    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+        shape = MaterialTheme.shapes.large,
+        content = content,
+    )
+
 }
 
 @Composable
-private fun creatorTextColor(): Color =
-    if (LocalInterfaceStyle.current == InterfaceStyle.Skrootpro.value) {
-        SkrootproColors.Text
-    } else {
-        MaterialTheme.colorScheme.onSurface
-    }
+private fun creatorTextColor(): Color = MaterialTheme.colorScheme.onSurface
 
 @Composable
-private fun creatorMutedColor(): Color =
-    if (LocalInterfaceStyle.current == InterfaceStyle.Skrootpro.value) {
-        SkrootproColors.Muted
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
+private fun creatorMutedColor(): Color = MaterialTheme.colorScheme.onSurfaceVariant
 
-@Composable
-private fun CreatorBackButton(onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .padding(start = 16.dp, top = 14.dp)
-            .size(36.dp)
-            .clip(CircleShape)
-            .background(Color.Black.copy(alpha = 0.12f))
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-            contentDescription = stringResource(R.string.back),
-            tint = Color.White,
-        )
-    }
-}
 
 private fun formatCreatorBytes(bytes: Long): String {
     if (bytes < 1024L) return "$bytes B"

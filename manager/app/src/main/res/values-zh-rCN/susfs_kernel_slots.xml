@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="susfs_slots_title">从启动槽读取内核信息</string>
+    <string name="susfs_slots_refresh">刷新启动槽内核信息</string>
+    <string name="susfs_slots_summary">只读取 boot 镜像。点“填入”会填写下方的内核版本和完整构建版本，仍需点击“保存并应用”才生效，不会刷写镜像或切换槽位。镜像可能已更换内核，不一定是出厂内核。</string>
+    <string name="susfs_slots_loading">正在读取启动镜像…</string>
+    <string name="susfs_slots_current">当前启动槽：%1$s</string>
+    <string name="susfs_slots_current_unknown">未识别到当前启动槽，A、B 槽信息仍会独立读取。</string>
+    <string name="susfs_slots_single_device">未检测到 A/B 槽，读取单个 boot 分区。</string>
+    <string name="susfs_slots_single">Boot 分区</string>
+    <string name="susfs_slots_slot">%1$s 槽</string>
+    <string name="susfs_slots_release">内核版本：%1$s</string>
+    <string name="susfs_slots_time">构建时间：%1$s</string>
+    <string name="susfs_slots_time_unknown">未识别到标准日期，请查看下方完整构建版本。</string>
+    <string name="susfs_slots_version">完整构建版本：%1$s</string>
+    <string name="susfs_slots_fill">填入%1$s信息</string>
+    <string name="susfs_slots_filled">已填入两项信息，点击“保存并应用”后生效。</string>
+    <string name="susfs_slots_fill_unavailable">填入需要开启 SUSFS 且内核支持 uname 伪装；保存或导入期间请稍候。</string>
+    <string name="susfs_slots_not_loaded">SUSFS 可用后，点击刷新读取槽位信息。</string>
+    <string name="susfs_slots_error_root">需要 Root 权限才能读取 boot 分区。</string>
+    <string name="susfs_slots_error_missing">此 boot 分区不可用，不会使用其他槽位的信息代替。</string>
+    <string name="susfs_slots_error_alias">A、B 槽指向同一分区，为避免误填已禁止使用这些信息。</string>
+    <string name="susfs_slots_error_header">此分区没有受支持的 boot 镜像头，或不包含内核。</string>
+    <string name="susfs_slots_error_size">内核超出安全读取或解压大小限制。</string>
+    <string name="susfs_slots_error_compression">暂不支持此内核的压缩格式。</string>
+    <string name="susfs_slots_error_ambiguous">发现多个不同的内核版本，已禁止自动填入。</string>
+    <string name="susfs_slots_error_banner">未找到完整的内核版本信息，无法从此镜像自动填入。</string>
+    <string name="susfs_slots_error_timeout">读取超时，请重试。</string>
+    <string name="susfs_slots_error_space">缓存可用空间不足，无法读取此内核。</string>
+    <string name="susfs_slots_error_truncated">内核数据不完整或已损坏。</string>
+    <string name="susfs_slots_error_read">无法读取此内核，请查看具体原因后重试。</string>
+</resources>

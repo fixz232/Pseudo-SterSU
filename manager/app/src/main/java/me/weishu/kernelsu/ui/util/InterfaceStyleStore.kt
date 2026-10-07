@@ -92,22 +92,22 @@ private const val MAX_BUNDLE_ENTRY_BYTES = 6L * 1024L * 1024L
 private const val MAX_BUNDLE_UNCOMPRESSED_BYTES = 12L * 1024L * 1024L
 private const val MAX_IMAGE_DIMENSION = 4096
 private const val MAX_IMAGE_PIXELS = 16_777_216L
-private const val CATALOG_ASSET = "interface-style/catalog-v1.json"
-private const val CATALOG_SIGNATURE_ASSET = "interface-style/catalog-v1.sig"
-private const val CATALOG_CACHE_NAME = "catalog-v1.json"
-private const val CATALOG_SIGNATURE_CACHE_NAME = "catalog-v1.sig"
+private const val CATALOG_ASSET = "interface-style/catalog-v2.json"
+private const val CATALOG_SIGNATURE_ASSET = "interface-style/catalog-v2.sig"
+private const val CATALOG_CACHE_NAME = "catalog-v2.json"
+private const val CATALOG_SIGNATURE_CACHE_NAME = "catalog-v2.sig"
 private const val STATE_NAME = "installed-v2.json"
 private const val BUNDLES_DIRECTORY_NAME = "packages"
 private const val PREFS_NAME = "interface-style-download"
 private const val MODE_KEY = "proxy_mode"
 private const val CUSTOM_PROXY_KEY = "custom_proxy"
 private const val DEFAULT_CATALOG_URL =
-    "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/catalog-v1.json"
+    "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/catalog-v2.json"
 private const val DEFAULT_CATALOG_SIGNATURE_URL =
-    "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/catalog-v1.sig"
+    "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/catalog-v2.sig"
 private const val SIDEBAR_WIDGET_PACKAGE_ASSET = "interface-style/packages/sidebar-widget.ksstyle"
 private const val CATALOG_PUBLIC_KEY_B64 =
-    "MCowBQYDK2VwAyEAwGidBgSY/SZ25RAsBN3O2SpnFX0RuoMpE6wZqy/LaR0="
+    "MCowBQYDK2VwAyEAcB5tOkIPio9w5pCIsiAaEE0SEGdkXQD2eKwpnZoRBnM="
 private const val BUNDLE_MANIFEST_PATH = "manifest.json"
 private const val THEME_RESOURCE_PATH = "theme.json"
 private const val WALLPAPER_RESOURCE_PATH = "wallpaper.jpg"
@@ -139,17 +139,56 @@ private val ALLOWED_PROXY_HOSTS = setOf("ghproxy.net")
 private val ALLOWED_BUNDLE_PATHS = setOf(BUNDLE_MANIFEST_PATH, THEME_RESOURCE_PATH, WALLPAPER_RESOURCE_PATH)
 private val APK_TRUSTED_INTERFACE_STYLES = listOf(
     InterfaceStylePackage(
+        id = "windows-fluent",
+        name = "Windows 流畅设计 / Windows Fluent",
+        summary = "Windows 11 Fluent 风格的清爽系统界面，使用 Mica 中性色、紧凑 8dp 圆角，并完整适配浅色与深色模式。",
+        engine = "alpha",
+        variant = null,
+        version = 3,
+        downloadUrl =
+            "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/windows-fluent.ksstyle",
+        sha256 = "9b476797051de3ce4ada7ba16746f074ab26fb4260e95127e3e3ba167a9753e6",
+        sizeBytes = 1098L,
+        accent = 4278221012L,
+    ),
+    InterfaceStylePackage(
         id = "sidebar-widget",
-        name = "Sidebar widgets",
-        summary = "Blue-gray widget sidebar with Material content, custom icons, ordering, and tablet layout.",
+        name = "侧栏组件",
+        summary = "黑白液态玻璃侧栏，支持左右切换、日夜主题、自定义天气 API、时钟、闹钟、图片和导航排序，适配平板；完整功能需支持新版侧栏的管理器。",
         engine = "sidebar_widget",
         variant = null,
         version = 3,
         downloadUrl =
-            "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/sidebar-widget.ksstyle",
-        sha256 = "0d2af579c41e6fb08106dbb2f4d0f6b4d3a0bfb04b5f6f1cfacd4673ff717dc8",
-        sizeBytes = 1028L,
-        accent = 4284323039L,
+            "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/sidebar-widget-glass-20261003.ksstyle",
+        sha256 = "a27aaa28ceee4271861c68a339aed1db1684dc45e9521c2be760dfc15483a65f",
+        sizeBytes = 983L,
+        accent = 4279637526L,
+    ),
+    InterfaceStylePackage(
+        id = "skrootpro",
+        name = "SKRoot 风格",
+        summary = "紫色强调的 SKRoot 风格界面，支持浅色与深色模式。",
+        engine = "skrootpro",
+        variant = null,
+        version = 3,
+        downloadUrl =
+            "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/skrootpro.ksstyle",
+        sha256 = "7ab4ecc7a6e191e5b67f98d412d2eeacb28472fec3f1948e2309800365c612a8",
+        sizeBytes = 1025L,
+        accent = 4285137140L,
+    ),
+    InterfaceStylePackage(
+        id = "alpha-delta",
+        name = "Alpha / Delta 融合",
+        summary = "下载后可在界面风格设置中切换 Alpha 与 Delta 两种布局。",
+        engine = "alpha",
+        variant = null,
+        version = 3,
+        downloadUrl =
+            "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/alpha-delta.ksstyle",
+        sha256 = "57dfbd427a5b8d331cdc6011552ef2cab28c86aeaa8729200a8b4e51c9300446",
+        sizeBytes = 1123L,
+        accent = 4278246821L,
     )
 )
 
@@ -278,9 +317,10 @@ class InterfaceStyleRegistry(context: Context) {
     }
 
     @Synchronized
-    fun theme(engine: String, variant: String?): InterfaceStyleTheme? {
+    fun theme(engine: String, variant: String?, preferredId: String? = null): InterfaceStyleTheme? {
         val installed = readState().firstOrNull {
-            it.style.engine == engine && it.style.variant == variant
+            it.style.engine == engine && it.style.variant == variant &&
+                (preferredId == null || it.style.id == preferredId)
         } ?: return null
         val themeFile = resourceFile(installed.style.id, THEME_RESOURCE_PATH) ?: return null
         return runCatching {
@@ -376,7 +416,7 @@ class InterfaceStyleRegistry(context: Context) {
             require(manifest.optInt("version") == style.version)
             require(manifest.optString("id") == style.id)
             require(manifest.optString("engine") == style.engine)
-            require(manifest.optString("variant").takeIf(String::isNotBlank) == style.variant)
+            require(manifest.optNullableString("variant") == style.variant)
 
             val resource = parseBundleResources(manifest.optJSONArray("resources") ?: JSONArray()).single()
             require(resource.path == requiredPath)
@@ -415,7 +455,8 @@ fun interfaceStyleTheme(
     context: Context,
     engine: String,
     variant: String? = null,
-): InterfaceStyleTheme? = InterfaceStyleRegistry(context).theme(engine, variant)
+    preferredId: String? = null,
+): InterfaceStyleTheme? = InterfaceStyleRegistry(context).theme(engine, variant, preferredId)
 
 class InterfaceStyleCatalogRepository(
     context: Context,
@@ -542,8 +583,16 @@ class InterfaceStyleInstaller(
     ): VerifiedInterfaceStylePackage {
         validatePackage(style)
         require(style.sizeBytes in 1..MAX_PACKAGE_BYTES) { "Interface style package size is invalid" }
+        val directUrl = validateStyleUrl(style.downloadUrl)
+        val urls = runCatching {
+            resolveInterfaceStyleUrls(directUrl, preferences)
+        }.getOrElse {
+            // A stale or incomplete custom proxy setting must not prevent a
+            // verified package from using GitHub directly.
+            listOf(directUrl)
+        }
         var lastError: Throwable? = null
-        for (url in resolveInterfaceStyleUrls(style.downloadUrl, preferences)) {
+        for (url in urls) {
             try {
                 return downloadAndVerify(url, style, onProgress)
             } catch (cancelled: CancellationException) {
@@ -561,8 +610,11 @@ class InterfaceStyleInstaller(
     }
 
     private fun readBundledVerifiedPackage(style: InterfaceStylePackage): VerifiedInterfaceStylePackage {
-        require(style.id == "sidebar-widget") { "No bundled fallback exists for this interface style" }
-        val bytes = appContext.assets.open(SIDEBAR_WIDGET_PACKAGE_ASSET).use {
+        val asset = when (style.id) {
+            "sidebar-widget" -> SIDEBAR_WIDGET_PACKAGE_ASSET
+            else -> error("No bundled fallback exists for this interface style")
+        }
+        val bytes = appContext.assets.open(asset).use {
             it.readLimited(MAX_PACKAGE_BYTES, total = style.sizeBytes)
         }
         require(bytes.size.toLong() == style.sizeBytes) { "Bundled interface style package is incomplete" }
@@ -610,9 +662,12 @@ class InterfaceStyleInstaller(
     }
 }
 
-private fun InterfaceStyleCatalog.withApkTrustedStyles(): InterfaceStyleCatalog {
-    val existingIds = styles.mapTo(mutableSetOf()) { it.id }
-    return copy(styles = styles + APK_TRUSTED_INTERFACE_STYLES.filterNot { it.id in existingIds })
+internal fun InterfaceStyleCatalog.withApkTrustedStyles(): InterfaceStyleCatalog {
+    val visible = styles.filterNot { it.id == "sidebar-widget" }
+    val existingIds = visible.mapTo(mutableSetOf()) { it.id }
+    return copy(styles = visible + APK_TRUSTED_INTERFACE_STYLES.filterNot {
+        it.id == "sidebar-widget" || it.id in existingIds
+    })
 }
 
 private fun validateWallpaperFile(file: File) {
@@ -666,10 +721,13 @@ internal fun parseInterfaceStyleBundle(
         "Unsupported interface style package"
     }
     require(manifest.optInt("version") == expected.version) { "Interface style package version does not match catalog" }
-    require(manifest.optString("id") == expected.id &&
-        manifest.optString("engine") == expected.engine &&
-        manifest.optString("variant").takeIf(String::isNotBlank) == expected.variant) {
-        "Interface style package metadata does not match catalog"
+    val packageId = manifest.optString("id")
+    val packageEngine = manifest.optString("engine")
+    val packageVariant = manifest.optNullableString("variant")
+    require(packageId == expected.id && packageEngine == expected.engine && packageVariant == expected.variant) {
+        "Interface style package metadata does not match catalog " +
+            "(package=$packageId/$packageEngine/$packageVariant, " +
+            "expected=${expected.id}/${expected.engine}/${expected.variant})"
     }
 
     val declaredResources = parseBundleResources(manifest.optJSONArray("resources") ?: JSONArray())
@@ -777,7 +835,7 @@ private fun parseStyle(item: JSONObject, requireUrl: Boolean): InterfaceStylePac
     require(ID_PATTERN.matches(id)) { "Interface style id is invalid" }
     val engine = item.optString("engine")
     require(engine in ALLOWED_ENGINES) { "Interface style engine is invalid" }
-    val variant = item.optString("variant").takeIf { it.isNotBlank() }
+    val variant = item.optNullableString("variant")
     val allowedVariants = ALLOWED_VARIANTS[engine]
     require(if (allowedVariants == null) variant == null else variant in allowedVariants) {
         "Interface style variant is invalid"
@@ -814,6 +872,17 @@ private fun styleJson(style: InterfaceStylePackage): JSONObject = JSONObject()
     .put("sha256", style.sha256)
     .put("sizeBytes", style.sizeBytes)
     .put("accent", style.accent)
+
+/**
+ * Android's JSONObject may expose a JSON null value as the literal string
+ * "null" through optString(). Treat both representations as Kotlin null so
+ * packages without a variant validate consistently on all Android releases.
+ */
+private fun JSONObject.optNullableString(name: String): String? =
+    opt(name)
+        ?.takeUnless { it == JSONObject.NULL }
+        ?.toString()
+        ?.takeUnless { it.isBlank() || it == "null" }
 
 private fun validatePackage(style: InterfaceStylePackage) {
     require(ID_PATTERN.matches(style.id))
@@ -856,7 +925,7 @@ internal fun resolveInterfaceStyleUrls(
         }
         InterfaceStyleProxyMode.Custom -> {
             val proxy = preferences.customProxy.trim().removeSuffix("/")
-            require(proxy.isNotBlank()) { "Custom proxy URL is empty" }
+            if (proxy.isBlank()) return listOf(original)
             val proxyUri = URI(proxy)
             require(proxyUri.scheme.equals("https", ignoreCase = true) && proxyUri.userInfo == null) {
                 "Custom proxy must use HTTPS"

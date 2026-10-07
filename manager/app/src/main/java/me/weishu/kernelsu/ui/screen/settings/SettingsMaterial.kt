@@ -52,9 +52,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
-import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -74,6 +72,7 @@ import me.weishu.kernelsu.R
 import me.weishu.kernelsu.ui.InterfaceStyle
 import me.weishu.kernelsu.ui.component.KsuIsValid
 import me.weishu.kernelsu.ui.component.material.ExpressiveScaffold
+import me.weishu.kernelsu.ui.component.material.rememberExpressivePageScrollBehavior
 import me.weishu.kernelsu.ui.component.material.SegmentedColumn
 import me.weishu.kernelsu.ui.component.material.SegmentedDropdownItem
 import me.weishu.kernelsu.ui.component.material.SegmentedListItem
@@ -95,7 +94,7 @@ fun SettingPagerMaterial(
     actions: SettingsScreenActions,
     bottomInnerPadding: Dp,
 ) {
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
+    val scrollBehavior = rememberExpressivePageScrollBehavior()
     val snackBarHost = remember { SnackbarHostState() }
     val showUninstallDialog = rememberSaveable { mutableStateOf(false) }
     var showBottomSheet by remember { mutableStateOf(false) }
@@ -128,6 +127,14 @@ fun SettingPagerMaterial(
                 } + uiState.installedInterfaceStyles.map { it.style.name }
                 SegmentedColumn(
                     content = listOf(
+                        {
+                            MaterialSettingsLink(
+                                title = stringResource(R.string.sidebar_widget_settings_title),
+                                summary = stringResource(R.string.sidebar_design_entry_summary),
+                                icon = Icons.Rounded.Dashboard,
+                                onClick = actions.onOpenSidebarDesign,
+                            )
+                        },
                         {
                             SegmentedDropdownItem(
                                 icon = Icons.Rounded.Dashboard,
@@ -216,14 +223,6 @@ fun SettingPagerMaterial(
                                 },
                                 icon = Icons.Rounded.EditNote,
                                 onClick = actions.onEditHomeTitle,
-                            )
-                        },
-                        {
-                            MaterialSettingsLink(
-                                title = stringResource(R.string.home_layout_title),
-                                summary = stringResource(R.string.home_layout_settings_summary),
-                                icon = Icons.Rounded.Dashboard,
-                                onClick = actions.onOpenHomeLayout,
                             )
                         },
                         {
@@ -401,34 +400,7 @@ fun SettingPagerMaterial(
                                     onCheckedChange = actions.onSetDefaultUmountModules,
                                 )
                             }
-                            add {
-                                SegmentedSwitchItem(
-                                    icon = Icons.Filled.DeveloperMode,
-                                    title = stringResource(R.string.settings_kpatch_next),
-                                    summary = kPatchNextSummary(uiState),
-                                    enabled = uiState.canToggleKPatchNext,
-                                    checked = uiState.isKPatchNextSwitchChecked,
-                                    onCheckedChange = actions.onSetKPatchNextEnabled,
-                                )
-                            }
-                            if (uiState.isKPatchNextEnabled || uiState.canOpenKPatchNextWebUi) {
-                                add {
-                                    MaterialSettingsLink(
-                                        title = stringResource(R.string.settings_kpatch_next_webui),
-                                        summary = stringResource(
-                                            if (uiState.canOpenKPatchNextWebUi) {
-                                                R.string.settings_kpatch_next_webui_summary
-                                            } else {
-                                                R.string.settings_kpatch_next_webui_disabled_summary
-                                            },
-                                        ),
-                                        icon = Icons.Rounded.Apps,
-                                        enabled = uiState.canOpenKPatchNextWebUi,
-                                        onClick = actions.onOpenKPatchNextWebUi,
-                                    )
-                                }
-                            }
-                            add {
+                            if (uiState.isPathConfigEntryVisible) add {
                                 MaterialSettingsLink(
                                     title = pathConfigTitle(uiState),
                                     summary = pathConfigSummary(uiState),
@@ -451,7 +423,7 @@ fun SettingPagerMaterial(
                 }
             }
 
-            MaterialSettingsSection(SettingsCategory.Toolbox) {
+            MaterialSettingsSection(SettingsCategory.Plugins) {
                 SegmentedColumn(
                     content = buildList {
                         add {

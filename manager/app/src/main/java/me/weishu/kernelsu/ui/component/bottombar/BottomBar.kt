@@ -512,6 +512,11 @@ fun SideRail(
     if (!mainState.fullFeatured || mainState.stealthModeEnabled) return
     val destinations = mainDestinations(mainState.kpmActive, mainState.stealthModeEnabled)
 
+    if (LocalInterfaceStyle.current == InterfaceStyle.SidebarWidget.value) {
+        SidebarWidgetRail(navigationBadge, destinations, modifier)
+        return
+    }
+
     if (LocalUiMode.current == UiMode.Material) {
         NavigationRailMaterial(navigationBadge, destinations, modifier)
         return

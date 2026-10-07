@@ -10,8 +10,8 @@ class BootPatchModeTest {
     }
 
     @Test
-    fun hiddenPathPatchAddsOnlyPathmaskArgument() {
-        assertEquals(" --pathmask-lkm", BootPatchMode.HiddenPath.cliArguments())
+    fun legacyHiddenPathModeDoesNotRequestPathmaskEmbedding() {
+        assertEquals("", BootPatchMode.HiddenPath.cliArguments())
     }
 
     @Test(expected = IllegalStateException::class)

@@ -46,10 +46,8 @@ import me.weishu.kernelsu.ui.util.InstalledInterfaceStyle
 import me.weishu.kernelsu.ui.util.InterfaceStylePackage
 import me.weishu.kernelsu.ui.util.setNativeWebManagerEnabled
 import me.weishu.kernelsu.ui.util.LauncherIconOption
-import me.weishu.kernelsu.ui.util.KernelStatusEvents
 import me.weishu.kernelsu.stealth.StealthModeStore
 import me.weishu.kernelsu.ui.webmanager.ManagerAppSettingsStore
-import java.util.concurrent.atomic.AtomicLong
 import me.weishu.kernelsu.ui.util.ManagerPluginRegistry
 import me.weishu.kernelsu.ui.util.ManagerPlugin
 import me.weishu.kernelsu.ui.util.getInstalledKsudStatus
@@ -64,6 +62,20 @@ class SettingsViewModel(
         val incompatibleIds: Set<String>,
     )
 
+    private data class AppearanceSnapshot(
+        val uiMode: String,
+        val activeInterfaceStyleId: String?,
+        val installedInterfaceStyles: List<InstalledInterfaceStyle>,
+        val miuixClassicHomeLayoutEnabled: Boolean,
+        val themeMode: Int,
+        val seasonStyle: String,
+        val seasonCardMotionEnabled: Boolean,
+        val rainStyle: String,
+        val rainCardMotionEnabled: Boolean,
+        val pixelStyle: String,
+        val pixelCardMotionEnabled: Boolean,
+    )
+
     private val interfaceStyleRegistry = InterfaceStyleRegistry(ksuApp)
     private val pluginRegistry = ManagerPluginRegistry(ksuApp)
 
@@ -75,17 +87,12 @@ class SettingsViewModel(
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
     private var refreshJob: Job? = null
     private var uiDecorationSaveJob: Job? = null
-    // A status query can outlive the action that triggered it. Keep its
-    // generation separate so an older refresh cannot restore stale KPatch UI.
-    private val kPatchNextStateGeneration = AtomicLong(0L)
-
     init {
         refresh()
     }
 
     fun refresh() {
         refreshJob?.cancel()
-        val kPatchNextRefreshGeneration = kPatchNextStateGeneration.get()
         _uiState.update {
             it.copy(
                 installedPluginIds = emptySet(),
@@ -99,14 +106,45 @@ class SettingsViewModel(
             val showGkiWarning = repo.showGkiWarning
             val showHomeSupportCard = repo.showHomeSupportCard
             val showHomeLearnCard = repo.showHomeLearnCard
-            val miuixClassicHomeLayoutEnabled = repo.miuixClassicHomeLayoutEnabled
             val graphicsRendererFeatureEnabled = repo.graphicsRendererFeatureEnabled
-            val themeMode = repo.themeMode
             val miuixMonet = repo.miuixMonet
             val keyColor = repo.keyColor
             val enablePredictiveBack = repo.enablePredictiveBack
-            val uiMode = repo.uiMode
-            val installedInterfaceStyles = interfaceStyleRegistry.list()
+            val appearance = withContext(Dispatchers.IO) {
+                AppearanceSnapshot(
+                    uiMode = repo.uiMode,
+                    activeInterfaceStyleId = repo.activeInterfaceStyleId,
+                    installedInterfaceStyles = interfaceStyleRegistry.list().filterNot {
+                        it.style.engine == InterfaceStyle.SidebarWidget.value
+                    },
+                    miuixClassicHomeLayoutEnabled = repo.miuixClassicHomeLayoutEnabled,
+                    themeMode = repo.themeMode,
+                    seasonStyle = repo.seasonStyle,
+                    seasonCardMotionEnabled = repo.seasonCardMotionEnabled,
+                    rainStyle = repo.rainStyle,
+                    rainCardMotionEnabled = repo.rainCardMotionEnabled,
+                    pixelStyle = repo.pixelStyle,
+                    pixelCardMotionEnabled = repo.pixelCardMotionEnabled,
+                )
+            }
+            _uiState.update {
+                it.copy(
+                    uiMode = appearance.uiMode,
+                    activeInterfaceStyleId = appearance.activeInterfaceStyleId,
+                    appearanceResolved = true,
+                    installedInterfaceStyles = appearance.installedInterfaceStyles,
+                    miuixClassicHomeLayoutEnabled = appearance.miuixClassicHomeLayoutEnabled,
+                    themeMode = appearance.themeMode,
+                    seasonStyle = appearance.seasonStyle,
+                    seasonCardMotionEnabled = appearance.seasonCardMotionEnabled,
+                    rainStyle = appearance.rainStyle,
+                    rainCardMotionEnabled = appearance.rainCardMotionEnabled,
+                    pixelStyle = appearance.pixelStyle,
+                    pixelCardMotionEnabled = appearance.pixelCardMotionEnabled,
+                )
+            }
+            val uiMode = appearance.uiMode
+            val themeMode = appearance.themeMode
             // Registry state is file-backed and ksud version probing opens a
             // root shell. Keep both operations off the Compose/main thread,
             // then publish only plugins that can actually run in this build.
@@ -137,12 +175,6 @@ class SettingsViewModel(
             val fontScale = repo.fontScale
             val blurIntensity = repo.blurIntensity
             val switchStyle = repo.switchStyle
-            val seasonStyle = repo.seasonStyle
-            val seasonCardMotionEnabled = repo.seasonCardMotionEnabled
-            val rainStyle = repo.rainStyle
-            val rainCardMotionEnabled = repo.rainCardMotionEnabled
-            val pixelStyle = repo.pixelStyle
-            val pixelCardMotionEnabled = repo.pixelCardMotionEnabled
             val uiDecorationConfig = repo.uiDecorationConfig
             val customUiDecorationPresets = repo.getCustomUiDecorationPresets()
             val recentUiDecorationComponents = repo.getRecentUiDecorationComponents()
@@ -227,7 +259,6 @@ class SettingsViewModel(
             val avcSpoofStatus = repo.getAvcSpoofStatus()
             val isAvcSpoofEnabled = repo.isAvcSpoofEnabled()
             val isDefaultUmountModules = repo.isDefaultUmountModules()
-            val kPatchNextStatus = repo.getKPatchNextStatus()
             val kpmCaps = repo.getKpmCaps()
             val isEpkesuHideEnabled = repo.getEpkesuHideStatus()
             val autoJailbreak = repo.autoJailbreak
@@ -236,8 +267,6 @@ class SettingsViewModel(
 
             _uiState.update {
                 it.copy(
-                    uiMode = uiMode,
-                    installedInterfaceStyles = installedInterfaceStyles,
                     installedPluginIds = installedPluginIds,
                     incompatiblePluginIds = pluginCompatibility.incompatibleIds,
                     pluginCompatibilityResolved = true,
@@ -246,12 +275,10 @@ class SettingsViewModel(
                     showGkiWarning = showGkiWarning,
                     showHomeSupportCard = showHomeSupportCard,
                     showHomeLearnCard = showHomeLearnCard,
-                    miuixClassicHomeLayoutEnabled = miuixClassicHomeLayoutEnabled,
                     graphicsRendererFeatureEnabled = graphicsRendererFeatureEnabled,
-                    themeMode = themeMode,
                     miuixMonet = miuixMonet,
                     keyColor = keyColor,
-                    themePreset = themePreset.value,
+                    themePreset = if (it.themeMode == themeMode) themePreset.value else it.themePreset,
                     enablePredictiveBack = enablePredictiveBack,
                     enableBlur = enableBlur,
                     enableFloatingBottomBar = enableFloatingBottomBar,
@@ -263,12 +290,6 @@ class SettingsViewModel(
                     fontScale = fontScale,
                     blurIntensity = blurIntensity,
                     switchStyle = switchStyle,
-                    seasonStyle = seasonStyle,
-                    seasonCardMotionEnabled = seasonCardMotionEnabled,
-                    rainStyle = rainStyle,
-                    rainCardMotionEnabled = rainCardMotionEnabled,
-                    pixelStyle = pixelStyle,
-                    pixelCardMotionEnabled = pixelCardMotionEnabled,
                     uiDecorationConfig = uiDecorationConfig,
                     customUiDecorationPresets = customUiDecorationPresets,
                     recentUiDecorationComponents = recentUiDecorationComponents,
@@ -330,70 +351,6 @@ class SettingsViewModel(
                     avcSpoofStatus = avcSpoofStatus,
                     isAvcSpoofEnabled = isAvcSpoofEnabled,
                     isDefaultUmountModules = isDefaultUmountModules,
-                    isKPatchNextInstalled = if (
-                        kPatchNextRefreshGeneration == kPatchNextStateGeneration.get() &&
-                        kPatchNextStatus.error.isBlank()
-                    ) {
-                        kPatchNextStatus.installed
-                    } else {
-                        it.isKPatchNextInstalled
-                    },
-                    isKPatchNextEnabled = if (
-                        kPatchNextRefreshGeneration == kPatchNextStateGeneration.get() &&
-                        kPatchNextStatus.error.isBlank()
-                    ) {
-                        kPatchNextStatus.enabled
-                    } else {
-                        it.isKPatchNextEnabled
-                    },
-                    isKPatchNextPendingUpdate = if (
-                        kPatchNextRefreshGeneration == kPatchNextStateGeneration.get() &&
-                        kPatchNextStatus.error.isBlank()
-                    ) {
-                        kPatchNextStatus.pendingUpdate
-                    } else {
-                        it.isKPatchNextPendingUpdate
-                    },
-                    isKPatchNextPendingRemove = if (
-                        kPatchNextRefreshGeneration == kPatchNextStateGeneration.get() &&
-                        kPatchNextStatus.error.isBlank()
-                    ) {
-                        kPatchNextStatus.pendingRemove
-                    } else {
-                        it.isKPatchNextPendingRemove
-                    },
-                    isKPatchNextWebUiAvailable = if (
-                        kPatchNextRefreshGeneration == kPatchNextStateGeneration.get() &&
-                        kPatchNextStatus.error.isBlank()
-                    ) {
-                        kPatchNextStatus.webUi
-                    } else {
-                        it.isKPatchNextWebUiAvailable
-                    },
-                    isKPatchNextUnresolved = if (
-                        kPatchNextRefreshGeneration == kPatchNextStateGeneration.get() &&
-                        kPatchNextStatus.error.isBlank()
-                    ) {
-                        kPatchNextStatus.unresolved
-                    } else {
-                        it.isKPatchNextUnresolved
-                    },
-                    kPatchNextVersion = if (
-                        kPatchNextRefreshGeneration == kPatchNextStateGeneration.get() &&
-                        kPatchNextStatus.error.isBlank()
-                    ) {
-                        kPatchNextStatus.version
-                    } else {
-                        it.kPatchNextVersion
-                    },
-                    kPatchNextConflict = if (
-                        kPatchNextRefreshGeneration == kPatchNextStateGeneration.get() &&
-                        kPatchNextStatus.error.isBlank()
-                    ) {
-                        kPatchNextStatus.conflict
-                    } else {
-                        it.kPatchNextConflict
-                    },
                     kpmBackend = if (kpmCaps.error.isBlank()) {
                         kpmCaps.backend
                     } else {
@@ -466,6 +423,7 @@ class SettingsViewModel(
 
     private fun refreshAppearanceState() {
         val uiMode = repo.uiMode
+        val activeInterfaceStyleId = repo.activeInterfaceStyleId
         val themeMode = repo.themeMode
         val miuixMonet = repo.miuixMonet
         val keyColor = repo.keyColor
@@ -500,6 +458,7 @@ class SettingsViewModel(
         _uiState.update {
             it.copy(
                 uiMode = uiMode,
+                activeInterfaceStyleId = activeInterfaceStyleId,
                 themeMode = themeMode,
                 miuixMonet = miuixMonet,
                 keyColor = keyColor,
@@ -1357,69 +1316,6 @@ class SettingsViewModel(
         }
     }
 
-    fun setKPatchNextEnabled(enabled: Boolean) {
-        if (!Natives.isLkmMode || Natives.isLateLoadMode) {
-            _uiState.update {
-                it.copy(
-                    isLkmMode = Natives.isLkmMode,
-                    isLateLoadMode = Natives.isLateLoadMode,
-                    runtimeModeResolved = Natives.version > 0,
-                )
-            }
-            return
-        }
-        if (_uiState.value.isKPatchNextOperationRunning) return
-
-        val operationGeneration = kPatchNextStateGeneration.incrementAndGet()
-        refreshJob?.cancel()
-        _uiState.update { it.copy(isKPatchNextOperationRunning = true) }
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val success = runCatching { repo.setKPatchNextEnabled(enabled) }
-                    .onFailure { Log.e(TAG, "KPatch Next operation failed", it) }
-                    .getOrDefault(false)
-                if (success) {
-                    // Reflect the committed intent immediately. The following
-                    // status query replaces this projection with filesystem
-                    // state when the daemon is available.
-                    _uiState.update {
-                        if (operationGeneration != kPatchNextStateGeneration.get()) {
-                            it
-                        } else {
-                            it.copy(
-                                isKPatchNextEnabled = enabled,
-                                isKPatchNextPendingUpdate = false,
-                                isKPatchNextPendingRemove = false,
-                            )
-                        }
-                    }
-                    if (enabled) {
-                        KernelStatusEvents.requestKpmEnable()
-                    } else {
-                        KernelStatusEvents.requestKpmDisable()
-                    }
-                }
-                runCatching { refreshKPatchNextStatus(operationGeneration) }
-                    .onFailure { Log.e(TAG, "Failed to refresh KPatch Next status", it) }
-                runCatching { refreshKpmCaps() }
-                    .onFailure { Log.e(TAG, "Failed to refresh KPM capabilities", it) }
-                if (!success) {
-                    KernelStatusEvents.requestRefresh()
-                }
-                withContext(Dispatchers.Main) {
-                    val message = when {
-                        !success -> R.string.settings_kpatch_next_failed
-                        enabled -> R.string.settings_kpatch_next_install_scheduled
-                        else -> R.string.settings_kpatch_next_uninstall_scheduled
-                    }
-                    Toast.makeText(ksuApp, message, Toast.LENGTH_LONG).show()
-                }
-            } finally {
-                _uiState.update { it.copy(isKPatchNextOperationRunning = false) }
-            }
-        }
-    }
-
     fun setEpkesuHideEnabled(enabled: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
             if (repo.setEpkesuHideEnabled(enabled)) {
@@ -1430,45 +1326,6 @@ class SettingsViewModel(
                     Toast.makeText(ksuApp, R.string.settings_epkesu_hide_failed, Toast.LENGTH_LONG).show()
                 }
             }
-        }
-    }
-
-    private suspend fun refreshKPatchNextStatus(generation: Long? = null) {
-        val status = repo.getKPatchNextStatus()
-        if (status.error.isNotBlank()) {
-            Log.w(TAG, "KPatch Next status is unavailable: ${status.error}")
-            return
-        }
-        _uiState.update {
-            if (generation != null && generation != kPatchNextStateGeneration.get()) {
-                it
-            } else {
-                it.copy(
-                    isKPatchNextInstalled = status.installed,
-                    isKPatchNextEnabled = status.enabled,
-                    isKPatchNextPendingUpdate = status.pendingUpdate,
-                    isKPatchNextPendingRemove = status.pendingRemove,
-                    isKPatchNextWebUiAvailable = status.webUi,
-                    isKPatchNextUnresolved = status.unresolved,
-                    kPatchNextVersion = status.version,
-                    kPatchNextConflict = status.conflict,
-                )
-            }
-        }
-    }
-
-    private suspend fun refreshKpmCaps() {
-        val caps = repo.getKpmCaps()
-        if (caps.error.isNotBlank()) {
-            Log.w(TAG, "KPM capabilities are unavailable: ${caps.error}")
-            return
-        }
-        _uiState.update {
-            it.copy(
-                kpmBackend = caps.backend,
-                isKpmManagementAvailable = caps.managementAvailable,
-                isKpmCapabilityResolved = true,
-            )
         }
     }
 

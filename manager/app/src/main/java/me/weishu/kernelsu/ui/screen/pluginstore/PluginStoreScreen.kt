@@ -13,55 +13,43 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
-import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Extension
-import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Security
-import androidx.compose.material.icons.rounded.Update
-import androidx.compose.material3.AlertDialog
+import me.weishu.kernelsu.ui.component.store.StoreAlertDialog as AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
@@ -70,13 +58,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
-import androidx.lifecycle.compose.dropUnlessResumed
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.weishu.kernelsu.BuildConfig
 import me.weishu.kernelsu.R
+import me.weishu.kernelsu.ui.component.store.StoreScaffold
+import me.weishu.kernelsu.ui.component.store.StoreSectionHeading
+import me.weishu.kernelsu.ui.component.store.StoreSearchField
+import me.weishu.kernelsu.ui.component.store.StoreFilters
+import me.weishu.kernelsu.ui.component.store.StoreExpandableSection
+import me.weishu.kernelsu.ui.component.store.StorePanel
+import me.weishu.kernelsu.ui.component.store.StoreTag
+import me.weishu.kernelsu.ui.component.store.StoreEmptyState
+import androidx.compose.material.icons.rounded.Search
 import me.weishu.kernelsu.stealth.StealthModeStore
 import me.weishu.kernelsu.ui.navigation3.LocalNavigator
 import me.weishu.kernelsu.ui.navigation3.Route
@@ -100,6 +96,10 @@ import me.weishu.kernelsu.ui.util.disableNativeWebManagerAndVerify
 import me.weishu.kernelsu.ui.util.getInstalledKsudStatus
 import me.weishu.kernelsu.ui.util.hasPluginUpdate
 import me.weishu.kernelsu.ui.util.removeManagerPlugin
+import me.weishu.kernelsu.ui.util.readHiddenPathConfig
+import me.weishu.kernelsu.ui.util.setHiddenPathAutoLoad
+import me.weishu.kernelsu.ui.util.stopPathmaskPluginForRemoval
+import me.weishu.kernelsu.ui.util.unloadHiddenPathKernelPaths
 import me.weishu.kernelsu.ui.webmanager.WebManagerPreferences
 import me.weishu.kernelsu.ui.webmanager.WebManagerServer
 import java.text.DateFormat
@@ -123,6 +123,8 @@ fun PluginStoreScreen() {
     var refreshing by remember { mutableStateOf(false) }
     var ksudStatus by remember { mutableStateOf<InstalledKsudStatus?>(null) }
     var pluginCompatibilityResolved by remember { mutableStateOf(false) }
+    var query by rememberSaveable { mutableStateOf("") }
+    var selectedFilter by rememberSaveable { mutableStateOf(0) }
 
     suspend fun readInstalledState(): Pair<List<InstalledManagerPlugin>, InstalledKsudStatus> =
         withContext(Dispatchers.IO) {
@@ -232,6 +234,13 @@ fun PluginStoreScreen() {
                             WebManagerServer.stop()
                             true
                         },
+                        stopPathmask = {
+                            stopPathmaskPluginForRemoval(
+                                readStatus = ::readHiddenPathConfig,
+                                disableAutoLoad = { setHiddenPathAutoLoad(false) },
+                                unload = ::unloadHiddenPathKernelPaths,
+                            )
+                        },
                         removeRecord = { registry.remove(plugin.id) },
                     )
                 }
@@ -253,6 +262,8 @@ fun PluginStoreScreen() {
                         Toast.makeText(context, R.string.plugin_store_disable_stealth_first, Toast.LENGTH_LONG).show()
                     PluginRemovalResult.RemoteManagementStopFailed ->
                         Toast.makeText(context, R.string.plugin_store_stop_failed, Toast.LENGTH_LONG).show()
+                    PluginRemovalResult.PathmaskStopFailed ->
+                        Toast.makeText(context, R.string.plugin_store_pathmask_stop_failed, Toast.LENGTH_LONG).show()
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -271,6 +282,7 @@ fun PluginStoreScreen() {
 
     val onSelectedPage: (ThemeStorePage) -> Unit = { destination ->
         when (destination) {
+            ThemeStorePage.Styles -> navigator.replace(Route.StoreInterfaceStyles)
             ThemeStorePage.Overview -> navigator.replace(Route.ThemeStore)
             ThemeStorePage.Customize -> navigator.replace(Route.ThemeStoreCustomize)
             ThemeStorePage.Plugins -> Unit
@@ -285,238 +297,130 @@ fun PluginStoreScreen() {
         ?.firstOrNull { it.id == detailsId }
     BackHandler(enabled = detailsId != null) { detailsId = null }
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+    val visiblePlugins = remember(catalog, installed, query, selectedFilter) {
+        val normalized = query.trim().lowercase()
+        (catalog as? ManagerPluginCatalogSnapshotState.Ready)?.snapshot?.catalog?.plugins.orEmpty()
+            .filter { plugin ->
+                val local = installed.firstOrNull { it.plugin.id == plugin.id }
+                (normalized.isBlank() || listOf(plugin.name, plugin.summary, plugin.description)
+                    .any { normalized in it.lowercase() }) && when (selectedFilter) {
+                    1 -> local != null
+                    2 -> hasPluginUpdate(local, plugin)
+                    else -> true
+                }
+            }
+    }
+    BoxWithConstraints(Modifier.fillMaxSize()) {
         val useNavigationRail = maxWidth >= 720.dp
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            containerColor = MaterialTheme.colorScheme.background,
-            contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
-            topBar = {
-                TopAppBar(
-                    title = {
-                        Text(details?.name ?: stringResource(R.string.store_title))
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = {
-                            if (detailsId != null) detailsId = null else navigator.pop()
-                        }) {
-                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.back))
-                        }
-                    },
-                    actions = {
-                        if (detailsId == null) {
-                            IconButton(
-                                onClick = dropUnlessResumed { refresh(force = true) },
-                                enabled = busyId == null && !refreshing,
-                            ) {
-                                Icon(Icons.Rounded.Refresh, stringResource(R.string.plugin_store_refresh))
-                            }
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
-                )
+        StoreScaffold(
+            title = details?.name ?: stringResource(R.string.store_title),
+            onBack = { if (detailsId != null) detailsId = null else navigator.pop() },
+            actions = {
+                if (detailsId == null) IconButton(
+                    onClick = { refresh(true) }, enabled = busyId == null && !refreshing,
+                ) { Icon(Icons.Rounded.Refresh, stringResource(R.string.plugin_store_refresh)) }
             },
             bottomBar = {
-                if (!useNavigationRail && detailsId == null) {
-                    ThemeStoreNavigationBar(
-                        selectedPage = ThemeStorePage.Plugins,
-                        onSelected = onSelectedPage,
-                        modifier = Modifier.navigationBarsPadding(),
-                    )
-                }
+                if (!useNavigationRail && detailsId == null) ThemeStoreNavigationBar(
+                    ThemeStorePage.Plugins, onSelectedPage, Modifier.navigationBarsPadding())
             },
         ) { padding ->
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-            ) {
-                if (useNavigationRail && detailsId == null) {
-                    ThemeStoreNavigationRail(
-                        selectedPage = ThemeStorePage.Plugins,
-                        onSelected = onSelectedPage,
-                        modifier = Modifier.navigationBarsPadding(),
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .then(
-                            if (useNavigationRail || detailsId != null) {
-                                Modifier.navigationBarsPadding()
-                            } else {
-                                Modifier
-                            }
-                        ),
-                ) {
+            Row(Modifier.fillMaxSize().padding(padding)) {
+                if (useNavigationRail && detailsId == null) ThemeStoreNavigationRail(
+                    ThemeStorePage.Plugins, onSelectedPage, Modifier.navigationBarsPadding())
+                Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
                     val selectedDetails = details
                     if (selectedDetails != null) {
-                        val installedPlugin = installed.firstOrNull { it.plugin.id == selectedDetails.id }
-                        val compatibility = if (pluginCompatibilityResolved) {
-                            checkManagerPluginCompatibility(
-                                plugin = selectedDetails,
-                                managerVersionCode = BuildConfig.VERSION_CODE,
-                                ksudStatus = ksudStatus ?: InstalledKsudStatus(),
-                            )
-                        } else {
-                            null
-                        }
+                        val local = installed.firstOrNull { it.plugin.id == selectedDetails.id }
                         PluginDetailContent(
-                            plugin = selectedDetails,
-                            installed = installedPlugin,
-                            updateAvailable = hasPluginUpdate(installedPlugin, selectedDetails),
-                            compatibility = compatibility,
+                            plugin = selectedDetails, installed = local,
+                            updateAvailable = hasPluginUpdate(local, selectedDetails),
+                            compatibility = if (pluginCompatibilityResolved) checkManagerPluginCompatibility(
+                                selectedDetails, BuildConfig.VERSION_CODE, ksudStatus ?: InstalledKsudStatus()) else null,
                             compatibilityResolved = pluginCompatibilityResolved,
-                            busy = busyId == selectedDetails.id,
+                            busy = busyId != null,
                             progress = if (busyId == selectedDetails.id) progress else null,
-                            modifier = Modifier
-                                .align(Alignment.TopCenter)
-                                .fillMaxSize()
-                                .widthIn(max = 840.dp),
+                            modifier = Modifier.widthIn(max = 840.dp).fillMaxSize(),
                             onInstall = { install(selectedDetails) },
                             onRemove = { confirmRemoval = selectedDetails },
                         )
+                    } else if (detailsId != null) {
+                        if (catalog is ManagerPluginCatalogSnapshotState.Loading) {
+                            me.weishu.kernelsu.ui.component.store.StoreLoadingItems()
+                        } else {
+                            StoreEmptyState(Icons.Rounded.Extension,
+                                stringResource(R.string.store_redesign_unavailable),
+                                stringResource(R.string.store_redesign_unavailable_summary),
+                                stringResource(R.string.back), { detailsId = null })
+                        }
                     } else {
-                        Column(
-                            modifier = Modifier
-                                .align(Alignment.TopCenter)
-                                .fillMaxSize()
-                                .widthIn(max = 960.dp)
-                                .padding(horizontal = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        LazyColumn(
+                            modifier = Modifier.widthIn(max = 840.dp).fillMaxSize(),
+                            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.surfaceContainerLow,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .width(46.dp)
-                                        .height(46.dp)
-                                        .background(
-                                            MaterialTheme.colorScheme.primaryContainer,
-                                            RoundedCornerShape(10.dp),
-                                        ),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Icon(
-                                        Icons.Rounded.Extension,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    )
-                                }
-                                Column(
-                                    modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(3.dp),
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.store_tab_plugins),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.SemiBold,
-                                    )
-                                    Text(
-                                        text = stringResource(R.string.plugin_store_security_notice),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
+                            item(key = "heading") {
+                                StoreSectionHeading(stringResource(R.string.store_tab_plugins),
+                                    stringResource(R.string.store_redesign_plugin_intro))
                             }
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            FilterChip(
-                                selected = route == PluginDownloadRoute.Accelerator,
-                                onClick = { route = PluginDownloadRoute.Accelerator },
-                                label = { Text(stringResource(R.string.plugin_store_accelerated)) },
-                                modifier = Modifier.heightIn(min = 48.dp),
-                            )
-                            FilterChip(
-                                selected = route == PluginDownloadRoute.Direct,
-                                onClick = { route = PluginDownloadRoute.Direct },
-                                label = { Text(stringResource(R.string.plugin_store_direct)) },
-                                modifier = Modifier.heightIn(min = 48.dp),
-                            )
-                        }
-                        when (val state = catalog) {
-                            ManagerPluginCatalogSnapshotState.Loading -> PluginStoreLoadingState()
-                            is ManagerPluginCatalogSnapshotState.Error -> PluginStoreErrorState(
-                                message = state.message,
-                                onRetry = { refresh(force = true) },
-                            )
-                            is ManagerPluginCatalogSnapshotState.Ready -> {
-                                state.snapshot.errorMessage?.let {
-                                    PluginStoreStatusBand(message = it, isError = true)
-                                }
-                                Text(
-                                    text = when (state.snapshot.source) {
-                                        PluginCatalogSource.Network -> stringResource(R.string.plugin_store_source_network)
-                                        PluginCatalogSource.Cache -> stringResource(R.string.plugin_store_source_cache)
-                                        PluginCatalogSource.Bundled -> stringResource(R.string.plugin_store_source_bundled)
-                                    },
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                if (refreshing) {
-                                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                                }
-                                Text(
-                                    text = stringResource(
-                                        if (state.snapshot.stale) R.string.plugin_store_catalog_stale else R.string.plugin_store_catalog_generated,
-                                        DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
-                                            .format(Date(state.snapshot.catalog.generatedAt)),
-                                    ),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = if (state.snapshot.stale) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                if (state.snapshot.catalog.plugins.isEmpty()) {
-                                    PluginStoreEmptyState()
-                                } else {
-                                    LazyColumn(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .weight(1f),
-                                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                                    ) {
-                                        items(state.snapshot.catalog.plugins, key = { it.id }) { plugin ->
-                                            val compatibility = if (pluginCompatibilityResolved) {
-                                                checkManagerPluginCompatibility(
-                                                    plugin = plugin,
-                                                    managerVersionCode = BuildConfig.VERSION_CODE,
-                                                    ksudStatus = ksudStatus ?: InstalledKsudStatus(),
-                                                )
-                                            } else {
-                                                null
-                                            }
-                                            PluginCard(
-                                                plugin = plugin,
-                                                installed = installed.firstOrNull { it.plugin.id == plugin.id },
-                                                updateAvailable = hasPluginUpdate(
-                                                    installed.firstOrNull { it.plugin.id == plugin.id },
-                                                    plugin,
-                                                ),
-                                                busy = busyId == plugin.id,
-                                                progress = if (busyId == plugin.id) progress else null,
-                                                compatibility = compatibility,
-                                                compatibilityResolved = pluginCompatibilityResolved,
-                                                onDetails = { detailsId = plugin.id },
-                                                onInstall = { install(plugin) },
-                                                onRemove = { confirmRemoval = plugin },
-                                            )
-                                        }
-                                        item { Spacer(Modifier.height(24.dp)) }
+                            item(key = "search") {
+                                StoreSearchField(query, { query = it }, stringResource(R.string.store_redesign_plugin_search))
+                            }
+                            item(key = "filters") {
+                                StoreFilters(listOf(stringResource(R.string.cloud_theme_category_all),
+                                    stringResource(R.string.store_redesign_installed), stringResource(R.string.store_redesign_updates)),
+                                    selectedFilter, { selectedFilter = it })
+                            }
+                            item(key = "network") {
+                                StoreExpandableSection(stringResource(R.string.store_redesign_network),
+                                    stringResource(if (route == PluginDownloadRoute.Accelerator)
+                                        R.string.plugin_store_accelerated else R.string.plugin_store_direct)) {
+                                    StoreFilters(listOf(stringResource(R.string.plugin_store_accelerated), stringResource(R.string.plugin_store_direct)),
+                                        if (route == PluginDownloadRoute.Accelerator) 0 else 1,
+                                        { route = if (it == 0) PluginDownloadRoute.Accelerator else PluginDownloadRoute.Direct })
+                                    Text(stringResource(R.string.plugin_store_security_notice),
+                                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    (catalog as? ManagerPluginCatalogSnapshotState.Ready)?.snapshot?.let { snapshot ->
+                                        Text(stringResource(when (snapshot.source) {
+                                            PluginCatalogSource.Network -> R.string.plugin_store_source_network
+                                            PluginCatalogSource.Cache -> R.string.plugin_store_source_cache
+                                            PluginCatalogSource.Bundled -> R.string.plugin_store_source_bundled
+                                        }), style = MaterialTheme.typography.labelMedium)
+                                        Text(stringResource(if (snapshot.stale) R.string.plugin_store_catalog_stale else R.string.plugin_store_catalog_generated,
+                                            DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(snapshot.catalog.generatedAt))),
+                                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                 }
                             }
-                        }
+                            if (refreshing) item { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
+                            when (val state = catalog) {
+                                ManagerPluginCatalogSnapshotState.Loading -> item { PluginStoreLoadingState() }
+                                is ManagerPluginCatalogSnapshotState.Error -> item {
+                                    PluginStoreErrorState(state.message) { refresh(true) }
+                                }
+                                is ManagerPluginCatalogSnapshotState.Ready -> {
+                                    state.snapshot.errorMessage?.let { message -> item {
+                                        PluginStoreStatusBand(message, isError = true)
+                                    } }
+                                    item { StoreSectionHeading(stringResource(R.string.store_redesign_results, visiblePlugins.size)) }
+                                    if (state.snapshot.catalog.plugins.isEmpty()) item { PluginStoreEmptyState() }
+                                    else if (visiblePlugins.isEmpty()) item {
+                                        StoreEmptyState(Icons.Rounded.Search, stringResource(R.string.store_redesign_no_results),
+                                            stringResource(R.string.store_redesign_no_results_summary),
+                                            stringResource(R.string.store_redesign_clear_filters), { query = ""; selectedFilter = 0 })
+                                    }
+                                    items(visiblePlugins, key = { it.id }) { plugin ->
+                                        val local = installed.firstOrNull { it.plugin.id == plugin.id }
+                                        PluginCard(plugin, local, hasPluginUpdate(local, plugin), busyId != null,
+                                            if (busyId == plugin.id) progress else null,
+                                            if (pluginCompatibilityResolved) checkManagerPluginCompatibility(
+                                                plugin, BuildConfig.VERSION_CODE, ksudStatus ?: InstalledKsudStatus()) else null,
+                                            pluginCompatibilityResolved,
+                                            onDetails = { detailsId = plugin.id }, onInstall = { install(plugin) })
+                                    }
+                                }
+                            }
+                            item { Spacer(Modifier.height(8.dp)) }
                         }
                     }
                 }
@@ -577,232 +481,66 @@ private fun PluginDetailContent(
     onRemove: () -> Unit,
 ) {
     val incompatible = compatibilityResolved && compatibility?.isCompatible == false
-    LazyColumn(
-        modifier = modifier.padding(horizontal = 16.dp),
-        contentPadding = PaddingValues(vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
+    LazyColumn(modifier = modifier, contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)) {
         item {
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Column(
-                    modifier = Modifier.padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .width(52.dp)
-                                .height(52.dp)
-                                .background(
-                                    MaterialTheme.colorScheme.primaryContainer,
-                                    RoundedCornerShape(12.dp),
-                                ),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                Icons.Rounded.Extension,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            )
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = plugin.name,
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            Text(
-                                text = plugin.summary,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        if (installed != null) {
-                            Icon(
-                                Icons.Rounded.CheckCircle,
-                                contentDescription = stringResource(R.string.plugin_store_installed),
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                    }
-                    Text(
-                        text = plugin.description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = stringResource(R.string.plugin_store_version, plugin.version),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    if (installed != null) {
-                        Text(
-                            text = stringResource(
-                                if (updateAvailable) R.string.plugin_store_version_update
-                                else R.string.plugin_store_version_installed,
-                                installed.plugin.version,
-                                plugin.version,
-                            ),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = if (updateAvailable) MaterialTheme.colorScheme.tertiary
-                            else MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                    if (incompatible) {
-                        Text(
-                            text = stringResource(R.string.plugin_store_incompatible),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.error,
-                        )
+            StorePanel {
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.Extension, null, Modifier.width(44.dp).height(44.dp), tint = MaterialTheme.colorScheme.primary)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(plugin.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                        Text(plugin.summary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-            }
-        }
-        item {
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(Icons.Rounded.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Text(
-                            text = stringResource(R.string.plugin_store_capabilities),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                    Text(
-                        text = stringResource(R.string.plugin_store_builtin_notice),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = stringResource(
-                            R.string.plugin_store_compatibility,
-                            plugin.minManagerVersionCode,
-                            plugin.minKsudVersionCode,
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    if (plugin.slots.isNotEmpty()) {
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            plugin.slots.sortedBy { it.id }.forEach { slot ->
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = MaterialTheme.colorScheme.secondaryContainer,
-                                ) {
-                                    Text(
-                                        text = pluginSlotLabel(slot),
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        item {
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(Icons.Rounded.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Text(
-                            text = stringResource(R.string.plugin_store_instructions),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                    plugin.instructions.forEachIndexed { index, instruction ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
-                            Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                            ) {
-                                Text(
-                                    text = (index + 1).toString(),
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                )
-                            }
-                            Text(
-                                text = instruction,
-                                modifier = Modifier.weight(1f),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
-            }
-        }
-        if (progress != null) {
-            item {
-                LinearProgressIndicator(
-                    progress = { progress.fraction ?: 0f },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        }
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.plugin_store_version, plugin.version),
+                    style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (installed != null) StoreTag(stringResource(if (updateAvailable) R.string.store_redesign_updates else R.string.plugin_store_installed), true)
+                if (incompatible) Text(stringResource(R.string.plugin_store_incompatible), color = MaterialTheme.colorScheme.error)
                 if (installed == null || updateAvailable) {
-                    Button(
-                        onClick = onInstall,
-                        enabled = !busy && compatibilityResolved && !incompatible,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-                    ) {
-                        Icon(
-                            if (updateAvailable) Icons.Rounded.Update else Icons.Rounded.Download,
-                            contentDescription = null,
-                        )
-                        Spacer(Modifier.width(8.dp))
+                    Button(onClick = onInstall, enabled = !busy && compatibilityResolved && !incompatible,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
                         Text(stringResource(if (updateAvailable) R.string.plugin_store_update else R.string.plugin_store_enable))
                     }
                 }
-                if (installed != null) {
-                    OutlinedButton(
-                        onClick = onRemove,
-                        enabled = !busy,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                    ) {
-                        Icon(Icons.Rounded.Delete, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.plugin_store_remove))
-                    }
+                progress?.let {
+                    if (it.fraction == null) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    else LinearProgressIndicator(progress = { it.fraction ?: 0f }, modifier = Modifier.fillMaxWidth())
+                }
+            }
+        }
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                StoreSectionHeading(stringResource(R.string.store_redesign_about))
+                Text(plugin.description, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+        item {
+            StoreSectionHeading(stringResource(R.string.plugin_store_instructions))
+        }
+        items(plugin.instructions.size) { index ->
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+                Text((index + 1).toString().padStart(2, '0'), style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(28.dp))
+                Text(plugin.instructions[index], style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+            }
+        }
+        item {
+            StoreExpandableSection(stringResource(R.string.plugin_store_capabilities)) {
+                Text(stringResource(R.string.plugin_store_builtin_notice), style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.plugin_store_compatibility, plugin.minManagerVersionCode, plugin.minKsudVersionCode),
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    plugin.slots.sortedBy { it.id }.forEach { StoreTag(pluginSlotLabel(it)) }
+                }
+            }
+        }
+        if (installed != null) item {
+            StoreExpandableSection(stringResource(R.string.store_redesign_manage),
+                stringResource(R.string.plugin_store_version, installed.plugin.version)) {
+                OutlinedButton(onClick = onRemove, enabled = !busy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    Icon(Icons.Rounded.Delete, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.plugin_store_remove))
                 }
             }
         }
@@ -822,6 +560,7 @@ private fun pluginSlotLabel(slot: PluginSlot): String = stringResource(
         PluginSlot.MaintenanceStealthMode -> R.string.stealth_mode_title
         PluginSlot.SuperuserAppIdManager -> R.string.app_id_manager_title
         PluginSlot.SuperuserAppFreeze -> R.string.app_freeze_title
+        PluginSlot.MountHidePathmaskLkm -> R.string.hidden_path_config
     },
 )
 
@@ -934,154 +673,46 @@ private fun PluginCard(
     compatibilityResolved: Boolean,
     onDetails: () -> Unit,
     onInstall: () -> Unit,
-    onRemove: () -> Unit,
 ) {
     val incompatible = compatibilityResolved && compatibility?.isCompatible == false
-    val shape = RoundedCornerShape(12.dp)
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = shape,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(shape)
-            .clickable(enabled = !busy, onClick = onDetails),
-    ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .width(44.dp)
-                        .height(44.dp)
-                        .background(
-                            MaterialTheme.colorScheme.primaryContainer,
-                            RoundedCornerShape(10.dp),
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        Icons.Rounded.Extension,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    )
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        plugin.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        plugin.summary,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    if (installed != null) {
-                        Icon(
-                            Icons.Rounded.CheckCircle,
-                            contentDescription = stringResource(R.string.plugin_store_installed),
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                    Icon(
-                        Icons.AutoMirrored.Rounded.ArrowForward,
-                        contentDescription = stringResource(R.string.plugin_store_details),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            if (installed != null) {
-                Text(
-                    text = stringResource(
-                        if (updateAvailable) R.string.plugin_store_version_update else R.string.plugin_store_version_installed,
-                        installed.plugin.version,
-                        plugin.version,
-                    ),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            } else {
-                Text(
-                    text = stringResource(R.string.plugin_store_version, plugin.version),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            if (incompatible) {
-                Text(
-                    text = stringResource(R.string.plugin_store_incompatible),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-            if (plugin.slots.isNotEmpty()) {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    plugin.slots.sortedBy { it.id }.take(3).forEach { slot ->
-                        Surface(
-                            shape = RoundedCornerShape(7.dp),
-                            color = MaterialTheme.colorScheme.secondaryContainer,
-                        ) {
-                            Text(
-                                text = pluginSlotLabel(slot),
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            )
-                        }
-                    }
-                    if (plugin.slots.size > 3) {
-                        Text(
-                            text = "+${plugin.slots.size - 3}",
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+    Surface(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).clickable(onClick = onDetails),
+        shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                    Box(Modifier.width(48.dp).height(48.dp), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Rounded.Extension, null)
                     }
                 }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(plugin.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
+                        maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(plugin.summary, style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
+                Icon(Icons.AutoMirrored.Rounded.ArrowForward, stringResource(R.string.plugin_store_details))
             }
-            if (progress != null) LinearProgressIndicator(progress = { progress.fraction ?: 0f }, modifier = Modifier.fillMaxWidth())
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(stringResource(R.string.plugin_store_version, plugin.version), style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (incompatible) Text(stringResource(R.string.plugin_store_incompatible),
+                        style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
+                    else if (installed != null) StoreTag(stringResource(if (updateAvailable) R.string.store_redesign_updates
+                        else R.string.plugin_store_installed), emphasized = updateAvailable)
+                }
                 if (installed == null || updateAvailable) {
-                    Button(
-                        onClick = onInstall,
-                        enabled = !busy && compatibilityResolved && !incompatible,
-                        modifier = Modifier.heightIn(min = 48.dp),
-                    ) {
-                        Icon(
-                            if (updateAvailable) Icons.Rounded.Update else Icons.Rounded.Download,
-                            contentDescription = null,
-                        )
-                        Spacer(Modifier.width(8.dp))
+                    Button(onClick = onInstall, enabled = !busy && compatibilityResolved && !incompatible,
+                        modifier = Modifier.heightIn(min = 48.dp)) {
                         Text(stringResource(if (updateAvailable) R.string.plugin_store_update else R.string.plugin_store_enable))
                     }
+                } else TextButton(onClick = onDetails, modifier = Modifier.heightIn(min = 48.dp)) {
+                    Text(stringResource(R.string.store_redesign_manage))
                 }
-                if (installed != null) {
-                    OutlinedButton(
-                        onClick = onRemove,
-                        enabled = !busy,
-                        modifier = Modifier.heightIn(min = 48.dp),
-                    ) {
-                        Icon(Icons.Rounded.Delete, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.plugin_store_remove))
-                    }
-                }
+            }
+            progress?.let {
+                if (it.fraction == null) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                else LinearProgressIndicator(progress = { it.fraction ?: 0f }, modifier = Modifier.fillMaxWidth())
             }
         }
     }

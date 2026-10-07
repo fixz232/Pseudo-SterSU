@@ -61,6 +61,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import me.weishu.kernelsu.R
+import me.weishu.kernelsu.ui.InterfaceStyle
+import me.weishu.kernelsu.ui.LocalInterfaceStyle
+import me.weishu.kernelsu.ui.theme.SidebarUiTokens
 import me.weishu.kernelsu.ui.theme.immersiveScrolledTopBarColor
 
 object ApkeUiTokens {
@@ -134,7 +137,10 @@ fun ApkeSecondaryScaffold(
     containerColor: Color = Color.Transparent,
     content: @Composable (PaddingValues, ApkeWindowSizeClass) -> Unit,
 ) {
-    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
+    val sidebar = LocalInterfaceStyle.current == InterfaceStyle.SidebarWidget.value
+    val scrollBehavior = if (sidebar) TopAppBarDefaults.pinnedScrollBehavior()
+        else TopAppBarDefaults.enterAlwaysScrollBehavior()
+    val pageColor = if (sidebar && containerColor == Color.Transparent) MaterialTheme.colorScheme.surface else containerColor
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val windowSizeClass = apkeWindowSizeClass(maxWidth)
         androidx.compose.runtime.CompositionLocalProvider(
@@ -144,7 +150,7 @@ fun ApkeSecondaryScaffold(
                 modifier = Modifier
                     .fillMaxSize()
                     .nestedScroll(scrollBehavior.nestedScrollConnection),
-                containerColor = containerColor,
+                containerColor = pageColor,
                 contentWindowInsets = WindowInsets.safeDrawing.only(
                     WindowInsetsSides.Top + WindowInsetsSides.Horizontal,
                 ),
@@ -172,8 +178,8 @@ fun ApkeSecondaryScaffold(
                             },
                             actions = actions,
                             colors = TopAppBarDefaults.topAppBarColors(
-                                containerColor = Color.Transparent,
-                                scrolledContainerColor = immersiveScrolledTopBarColor(
+                                containerColor = if (sidebar) pageColor else Color.Transparent,
+                                scrolledContainerColor = if (sidebar) pageColor else immersiveScrolledTopBarColor(
                                     MaterialTheme.colorScheme.surface,
                                 ),
                             ),
@@ -202,9 +208,11 @@ fun ApkeSecondaryScaffold(
                     contentAlignment = Alignment.TopCenter,
                 ) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .widthIn(max = maxContentWidth),
+                        modifier = if (sidebar) {
+                            Modifier.widthIn(max = minOf(maxContentWidth, SidebarUiTokens.DetailMaxWidth)).fillMaxSize()
+                        } else {
+                            Modifier.fillMaxSize().widthIn(max = maxContentWidth)
+                        },
                     ) {
                         content(innerPadding, windowSizeClass)
                     }

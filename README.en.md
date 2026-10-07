@@ -81,6 +81,7 @@ This tool is intended only for local technical research on Android devices, lear
 - [simonpunk/susfs4ksu](https://gitlab.com/simonpunk/susfs4ksu), source of the pinned GKI SUSFS patches (see [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md))
 - [ReSukiSU](https://github.com/ReSukiSU/ReSukiSU), reference for the Dynamic Manager design, IOCTL command allocation, and loading approach
 - [FolkPatch](https://github.com/LyraVoid/FolkPatch), referenced UI framework code
+- [Aster](https://github.com/LyraVoid/Aster), design inspiration for sidebar navigation, page layout, and a consistent app shell. Thanks to LyraVoid and contributors. SterSU is independently adapted, not an official Aster release; see the [UI design attribution](./docs/ASTER_UI_DESIGN_NOTICE.md).
 - [kowsu](https://github.com/KOWX712/KernelSU.git), technical support
 - [Kernel-Assisted Superuser](https://git.zx2c4.com/kernel-assisted-superuser/about/), inspiration for KernelSU's design
 - [Magisk](https://github.com/topjohnwu/Magisk), a well-known open-source root solution

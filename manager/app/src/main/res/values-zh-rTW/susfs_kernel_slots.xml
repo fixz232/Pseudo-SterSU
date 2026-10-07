@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="susfs_slots_title">從啟動槽讀取核心資訊</string>
+    <string name="susfs_slots_refresh">重新讀取啟動槽核心資訊</string>
+    <string name="susfs_slots_summary">僅讀取 boot 映像。點選「填入」會填寫下方的核心版本和完整建置版本，仍需點選「儲存並套用」才生效，不會刷寫映像或切換槽位。映像可能已更換核心，不一定是原廠核心。</string>
+    <string name="susfs_slots_loading">正在讀取啟動映像…</string>
+    <string name="susfs_slots_current">目前啟動槽：%1$s</string>
+    <string name="susfs_slots_current_unknown">無法識別目前啟動槽，A、B 槽資訊仍會獨立讀取。</string>
+    <string name="susfs_slots_single_device">未偵測到 A/B 槽，讀取單一 boot 分割區。</string>
+    <string name="susfs_slots_single">Boot 分割區</string>
+    <string name="susfs_slots_slot">%1$s 槽</string>
+    <string name="susfs_slots_release">核心版本：%1$s</string>
+    <string name="susfs_slots_time">建置時間：%1$s</string>
+    <string name="susfs_slots_time_unknown">未識別到標準日期，請查看下方完整建置版本。</string>
+    <string name="susfs_slots_version">完整建置版本：%1$s</string>
+    <string name="susfs_slots_fill">填入%1$s資訊</string>
+    <string name="susfs_slots_filled">已填入兩項資訊，點選「儲存並套用」後生效。</string>
+    <string name="susfs_slots_fill_unavailable">填入需要啟用 SUSFS 且核心支援 uname 偽裝；儲存或匯入期間請稍候。</string>
+    <string name="susfs_slots_not_loaded">SUSFS 可用後，點選重新讀取以取得槽位資訊。</string>
+    <string name="susfs_slots_error_root">需要 Root 權限才能讀取 boot 分割區。</string>
+    <string name="susfs_slots_error_missing">此 boot 分割區無法使用，不會以其他槽位的資訊代替。</string>
+    <string name="susfs_slots_error_alias">A、B 槽指向同一分割區，為避免誤填已停用這些資訊。</string>
+    <string name="susfs_slots_error_header">此分割區沒有受支援的 boot 映像標頭，或不包含核心。</string>
+    <string name="susfs_slots_error_size">核心超過安全讀取或解壓縮大小限制。</string>
+    <string name="susfs_slots_error_compression">暫不支援此核心的壓縮格式。</string>
+    <string name="susfs_slots_error_ambiguous">發現多個不同的核心版本，已停用自動填入。</string>
+    <string name="susfs_slots_error_banner">找不到完整的核心版本資訊，無法從此映像自動填入。</string>
+    <string name="susfs_slots_error_timeout">讀取逾時，請重試。</string>
+    <string name="susfs_slots_error_space">快取可用空間不足，無法讀取此核心。</string>
+    <string name="susfs_slots_error_truncated">核心資料不完整或已損壞。</string>
+    <string name="susfs_slots_error_read">無法讀取此核心，請查看詳細原因後重試。</string>
+</resources>

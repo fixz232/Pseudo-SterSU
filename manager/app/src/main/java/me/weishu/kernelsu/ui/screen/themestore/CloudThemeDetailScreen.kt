@@ -10,28 +10,21 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.add
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Cancel
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.CloudDownload
@@ -44,7 +37,7 @@ import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Update
-import androidx.compose.material3.AlertDialog
+import me.weishu.kernelsu.ui.component.store.StoreAlertDialog as AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -56,17 +49,16 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -80,26 +72,19 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.weishu.kernelsu.R
-import me.weishu.kernelsu.ui.InterfaceStyle
-import me.weishu.kernelsu.ui.LocalInterfaceStyle
-import me.weishu.kernelsu.ui.component.skrootpro.SkrootproScreen
+import me.weishu.kernelsu.ui.component.store.StoreScaffold
+import me.weishu.kernelsu.ui.component.store.StoreExpandableSection
 import me.weishu.kernelsu.ui.navigation3.LocalNavigator
 import me.weishu.kernelsu.ui.util.CloudTheme
 import me.weishu.kernelsu.ui.util.CloudThemeCatalogSnapshot
 import me.weishu.kernelsu.ui.util.CloudThemeInstaller
 import me.weishu.kernelsu.ui.util.CloudThemeLocalRecord
-import me.weishu.kernelsu.ui.util.CloudThemeLocalState
 import me.weishu.kernelsu.ui.util.CloudThemeOperationProgress
 import me.weishu.kernelsu.ui.util.CloudThemeOperationResult
 import me.weishu.kernelsu.ui.util.CloudThemeOperationStage
 import me.weishu.kernelsu.ui.util.CloudThemePublicationStatus
 import me.weishu.kernelsu.ui.util.CloudThemeRepository
 import me.weishu.kernelsu.ui.util.safeCloudThemeMessage
-import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
-import top.yukonga.miuix.kmp.basic.IconButton as MiuixIconButton
-import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
-import top.yukonga.miuix.kmp.basic.TopAppBar as MiuixTopAppBar
-import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
 
 private enum class CloudThemePendingConfirmation {
     Apply,
@@ -199,9 +184,6 @@ fun CloudThemeDetailScreen(themeId: String) {
                         }
                     }
                 },
-                onSave = {
-                    startOperation { report -> installer.saveToLibrary(currentTheme, report) }
-                },
                 onRollback = { pendingConfirmation = CloudThemePendingConfirmation.Rollback },
             )
         }
@@ -234,46 +216,8 @@ fun CloudThemeDetailScreen(themeId: String) {
         }
     }
 
-    if (LocalInterfaceStyle.current == InterfaceStyle.Skrootpro.value) {
-        SkrootproScreen(
-            title = currentTheme?.name ?: stringResource(R.string.cloud_theme_detail_title),
-            bottomInnerPadding = 0.dp,
-        ) { paddingValues ->
-            Column(modifier = Modifier.fillMaxSize()) {
-                Box(modifier = Modifier.weight(1f)) {
-                    content(paddingValues)
-                    CloudThemeDetailBackButton(onBack)
-                }
-                actionBar()
-            }
-        }
-    } else {
-        MiuixScaffold(
-            containerColor = Color.Transparent,
-            popupHost = { },
-            contentWindowInsets = WindowInsets.systemBars
-                .add(WindowInsets.displayCutout)
-                .only(WindowInsetsSides.Horizontal),
-            topBar = {
-                MiuixTopAppBar(
-                    title = currentTheme?.name ?: stringResource(R.string.cloud_theme_detail_title),
-                    color = Color.Transparent,
-                    titleColor = colorScheme.onSurface,
-                    navigationIcon = {
-                        MiuixIconButton(onClick = onBack) {
-                            MiuixIcon(
-                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                                contentDescription = stringResource(R.string.back),
-                                tint = colorScheme.onBackground,
-                            )
-                        }
-                    },
-                )
-            },
-            bottomBar = actionBar,
-            content = content,
-        )
-    }
+    StoreScaffold(title = currentTheme?.name ?: stringResource(R.string.cloud_theme_detail_title),
+        onBack = onBack, maxContentWidth = 840.dp, bottomBar = actionBar, content = content)
 
     pendingConfirmation?.let { confirmation ->
         val isRollback = confirmation == CloudThemePendingConfirmation.Rollback
@@ -340,13 +284,12 @@ private fun CloudThemeDetailContent(
     result: CloudThemeOperationResult?,
     modifier: Modifier,
     onOpenAuthor: (() -> Unit)?,
-    onSave: () -> Unit,
     onRollback: () -> Unit,
 ) {
     val context = LocalContext.current
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 18.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {
@@ -355,13 +298,15 @@ private fun CloudThemeDetailContent(
                 contentDescription = theme.name,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(16f / 9f),
+                    .heightIn(max = 320.dp)
+                    .aspectRatio(16f / 9f)
+                    .clip(MaterialTheme.shapes.large),
                 maxSide = 1800,
             )
         }
         item {
             Column(
-                modifier = Modifier.padding(horizontal = 16.dp),
+                modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Row(
@@ -409,6 +354,7 @@ private fun CloudThemeDetailContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .then(if (onOpenAuthor != null) Modifier.clickable(onClick = onOpenAuthor) else Modifier)
+                        .heightIn(min = 48.dp)
                         .padding(vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -438,7 +384,7 @@ private fun CloudThemeDetailContent(
                 CloudThemeSectionTitle(stringResource(R.string.cloud_theme_screenshots))
                 Spacer(modifier = Modifier.height(8.dp))
                 LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    contentPadding = PaddingValues(0.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     items(theme.screenshotUrls, key = { it }) { screenshot ->
@@ -457,7 +403,7 @@ private fun CloudThemeDetailContent(
         }
         item {
             Column(
-                modifier = Modifier.padding(horizontal = 16.dp),
+                modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 CloudThemeCompatibilityPanel(theme)
@@ -474,11 +420,7 @@ private fun CloudThemeDetailContent(
             }
         }
         item {
-            Column(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                CloudThemeSectionTitle(stringResource(R.string.cloud_theme_package_details))
+            StoreExpandableSection(title = stringResource(R.string.cloud_theme_package_details)) {
                 CloudThemeMetadataRow(
                     stringResource(R.string.cloud_theme_category),
                     categoryName,
@@ -501,32 +443,11 @@ private fun CloudThemeDetailContent(
                         theme.sha256,
                     )
                 }
-                OutlinedButton(
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !busy && theme.status == CloudThemePublicationStatus.Published,
-                    onClick = onSave,
-                ) {
-                    Icon(Icons.Rounded.CloudDownload, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.size(7.dp))
-                    Text(
-                        stringResource(
-                            if (record?.let {
-                                    it.versionCode < theme.versionCode ||
-                                        (it.versionCode == theme.versionCode && it.sha256 != theme.sha256)
-                                } == true
-                            ) {
-                                R.string.cloud_theme_save_update
-                            } else {
-                                R.string.cloud_theme_save_to_library
-                            }
-                        )
-                    )
-                }
             }
         }
         item {
             Column(
-                modifier = Modifier.padding(horizontal = 16.dp),
+                modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 CloudThemeSectionTitle(stringResource(R.string.cloud_theme_changelog))
@@ -789,7 +710,7 @@ private fun CloudThemeDetailActionBar(
                     }
                 } else {
                     Button(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                         enabled = compatible && !busy && !activeCurrentVersion,
                         onClick = onApply,
                     ) {
@@ -817,7 +738,8 @@ private fun CloudThemeDetailActionBar(
                                     else -> R.string.cloud_theme_download_and_apply
                                 }
                             ),
-                            maxLines = 1,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
@@ -852,7 +774,7 @@ private fun CloudThemeMetadataRow(label: String, value: String) {
 private fun CloudThemeSectionTitle(text: String) {
     Text(
         text = text,
-        modifier = Modifier.padding(horizontal = 16.dp),
+        modifier = Modifier.fillMaxWidth(),
         style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.SemiBold,
         color = cloudThemeTextColor(),
@@ -863,9 +785,8 @@ private fun CloudThemeSectionTitle(text: String) {
 private fun CloudThemeDetailPanel(content: @Composable () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
+        shape = MaterialTheme.shapes.large,
         color = cloudThemeSurfaceColor(),
-        tonalElevation = if (LocalInterfaceStyle.current == InterfaceStyle.Skrootpro.value) 0.dp else 1.dp,
         content = content,
     )
 }
@@ -915,24 +836,6 @@ private fun CloudThemeDetailMissing(
     }
 }
 
-@Composable
-private fun CloudThemeDetailBackButton(onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .padding(start = 16.dp, top = 14.dp)
-            .size(36.dp)
-            .clip(CircleShape)
-            .background(Color.Black.copy(alpha = 0.34f))
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            Icons.AutoMirrored.Rounded.ArrowBack,
-            contentDescription = stringResource(R.string.back),
-            tint = Color.White,
-        )
-    }
-}
 
 @Composable
 private fun cloudThemeStageLabel(stage: CloudThemeOperationStage): String {

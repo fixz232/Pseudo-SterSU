@@ -10,6 +10,14 @@ import org.junit.Test
 
 class HomeUiStateTest {
     @Test
+    fun jailbreakModeNeverOffersKernelUpdates() {
+        val state = homeState(requiresNewKernel = false, uapiMismatch = false)
+        assertTrue(state.copy(lkmMode = true, isLateLoadMode = false).canInstallKernelUpdate)
+        assertFalse(state.copy(lkmMode = true, isLateLoadMode = true).canInstallKernelUpdate)
+        assertFalse(state.copy(lkmMode = false, isLateLoadMode = false).canInstallKernelUpdate)
+    }
+
+    @Test
     fun rootRuntimeStateKeepsEachFailureDistinct() {
         assertEquals(
             RootRuntimeState.DriverDisconnected,

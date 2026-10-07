@@ -65,6 +65,15 @@ object Natives {
 
     external fun uidShouldUmount(uid: Int): Boolean
 
+    /** Throws on driver/API errors instead of treating them as an unmount policy. */
+    external fun uidShouldUmountStrict(uid: Int): Boolean
+
+    /** Null means ENOENT only. All other driver/API failures throw IOException. */
+    external fun getAppProfileStrict(key: String, uid: Int): Profile?
+
+    /** Preserves the native SET_APP_PROFILE errno for operation reports. */
+    external fun setAppProfileStrict(profile: Profile): Boolean
+
     /**
      * Get the profile of the given package.
      * @param key usually the package name
@@ -189,7 +198,8 @@ object Natives {
         external get
 
     fun checkUAPIMismatch(): Boolean {
-        return kernelUAPIVersion > 0 && kernelUAPIVersion != managerUAPIVersion
+        val kernelVersion = kernelUAPIVersion
+        return kernelVersion > 0 && !isCompatibleUapiVersion(kernelVersion, managerUAPIVersion)
     }
 
     fun requireNewKernel(): Boolean {

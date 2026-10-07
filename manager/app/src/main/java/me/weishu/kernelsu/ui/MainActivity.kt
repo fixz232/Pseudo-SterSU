@@ -56,6 +56,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -70,6 +71,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -77,7 +79,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.core.net.toUri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -101,6 +102,8 @@ import kotlinx.coroutines.launch
 import me.weishu.kernelsu.Natives
 import me.weishu.kernelsu.R
 import me.weishu.kernelsu.BuildConfig
+import me.weishu.kernelsu.ui.util.SidebarSide
+import me.weishu.kernelsu.ui.util.rememberSidebarWidgetConfig
 import me.weishu.kernelsu.ui.component.AutoHidingNavigationBar
 import me.weishu.kernelsu.ui.component.LocalBackgroundScrollFollowState
 import me.weishu.kernelsu.ui.component.backgroundScrollFollowController
@@ -129,6 +132,12 @@ import me.weishu.kernelsu.ui.component.bottombar.MainPagerState
 import me.weishu.kernelsu.ui.component.bottombar.mainDestinations
 import me.weishu.kernelsu.ui.component.bottombar.NavigationBadgeState
 import me.weishu.kernelsu.ui.component.bottombar.SideRail
+import me.weishu.kernelsu.ui.component.bottombar.SidebarPaneShape
+import me.weishu.kernelsu.ui.component.bottombar.LocalSidebarGlassBackdrop
+import me.weishu.kernelsu.ui.component.bottombar.canCaptureSidebarWallpaper
+import me.weishu.kernelsu.ui.component.bottombar.rememberSidebarGlassBackdrop
+import me.weishu.kernelsu.ui.component.bottombar.sidebarGlassUnderlay
+import me.weishu.kernelsu.ui.util.SidebarMaterial
 import me.weishu.kernelsu.ui.component.bottombar.rememberMainPagerState
 import me.weishu.kernelsu.ui.component.bottombar.useNavigationRail
 import me.weishu.kernelsu.ui.component.dialog.rememberConfirmDialog
@@ -211,7 +220,6 @@ import me.weishu.kernelsu.ui.screen.settings.SusfsApplicationsScreen
 import me.weishu.kernelsu.ui.screen.settings.SusfsGuideScreen
 import me.weishu.kernelsu.ui.screen.settings.RescueProtectionScreen
 import me.weishu.kernelsu.ui.screen.settings.HomeCardWallpaperScreen
-import me.weishu.kernelsu.ui.screen.settings.HomeLayoutScreen
 import me.weishu.kernelsu.ui.screen.settings.InstallCardWallpaperScreen
 import me.weishu.kernelsu.ui.screen.settings.LanguageSettingsScreen
 import me.weishu.kernelsu.ui.screen.settings.PreInstallStyleSettingsScreen
@@ -405,6 +413,7 @@ class MainActivity : ComponentActivity() {
             val selectedPixelStyle = PixelStyle.fromValue(uiState.pixelStyle)
             val selectedExternalTheme = remember(
                 uiState.interfaceStyle,
+                uiState.activeInterfaceStyleId,
                 uiState.rainStyle,
                 uiState.pixelStyle,
                 interfaceStyleGeneration,
@@ -414,7 +423,13 @@ class MainActivity : ComponentActivity() {
                     InterfaceStyle.Pixel.value -> uiState.pixelStyle
                     else -> null
                 }
-                interfaceStyleTheme(applicationContext, uiState.interfaceStyle, variant)
+                interfaceStyleTheme(
+                    applicationContext,
+                    if (uiState.interfaceStyle == InterfaceStyle.Delta.value) InterfaceStyle.Alpha.value
+                    else uiState.interfaceStyle,
+                    variant,
+                    uiState.activeInterfaceStyleId,
+                )
             }
             val rainInterfaceActive = uiState.interfaceStyle == InterfaceStyle.Rain.value
             val seasonInterfaceActive = uiState.interfaceStyle == InterfaceStyle.Snow.value
@@ -641,7 +656,6 @@ class MainActivity : ComponentActivity() {
                                 entry<Route.SoundEffects> { SoundEffectsScreen() }
                                 entry<Route.StartupAnimation> { StartupAnimationScreen() }
                                 entry<Route.HomeCardWallpapers> { HomeCardWallpaperScreen() }
-                                entry<Route.HomeLayout> { HomeLayoutScreen() }
                                 entry<Route.InstallCardWallpapers> { InstallCardWallpaperScreen() }
                                 entry<Route.LanguageSettings> { LanguageSettingsScreen() }
                                 entry<Route.PreInstallStyleSettings> { PreInstallStyleSettingsScreen() }
@@ -653,7 +667,7 @@ class MainActivity : ComponentActivity() {
                                     if (!Natives.isLkmMode && !Natives.isLateLoadMode) {
                                         SusfsPathConfigScreen()
                                     } else {
-                                        HiddenPathConfigScreen()
+                                        PluginRouteGate(ManagerPlugin.PathmaskLkm) { HiddenPathConfigScreen() }
                                     }
                                 }
                                 entry<Route.SusfsPathConfig> { SusfsPathConfigScreen() }
@@ -736,12 +750,18 @@ class MainActivity : ComponentActivity() {
                                 entry<Route.Module> { mainScreenEntry() }
                                 entry<Route.Settings> { mainScreenEntry() }
                             },
-                            transitionSpec = if (shouldUseLayeredNavigationTransitions(mainPagerState.kpmActive)) {
+                            transitionSpec = if (shouldUseLayeredNavigationTransitions(
+                                    mainPagerState.kpmActive,
+                                    uiState.interfaceStyle == InterfaceStyle.SidebarWidget.value,
+                                )) {
                                 stableNavForwardTransition()
                             } else {
                                 instantNavTransition()
                             },
-                            popTransitionSpec = if (shouldUseLayeredNavigationTransitions(mainPagerState.kpmActive)) {
+                            popTransitionSpec = if (shouldUseLayeredNavigationTransitions(
+                                    mainPagerState.kpmActive,
+                                    uiState.interfaceStyle == InterfaceStyle.SidebarWidget.value,
+                                )) {
                                 stableNavPopTransition()
                             } else {
                                 instantNavTransition()
@@ -802,6 +822,19 @@ class MainActivity : ComponentActivity() {
                     val seasonalStyleActive = seasonInterfaceActive
                     val rainStyleActive = rainInterfaceActive
                     val pixelStyleActive = uiState.interfaceStyle == InterfaceStyle.Pixel.value
+                    val sidebarStyleActive = uiState.interfaceStyle == InterfaceStyle.SidebarWidget.value
+                    val sidebarConfig = if (sidebarStyleActive) rememberSidebarWidgetConfig() else null
+                    val sidebarMaterial = sidebarConfig?.material ?: SidebarMaterial.Flat
+                    val sidebarGlassBackdrop = rememberSidebarGlassBackdrop(
+                        enabled = canCaptureSidebarWallpaper(
+                            sidebarStyleActive, sidebarMaterial,
+                            effectiveBackground.videoUriString, pagerBackgrounds.any { it.hasVideo },
+                            homeCardsNeedGlass = sidebarConfig?.homeCards?.needsBackdrop(darkMode) == true,
+                        ),
+                    )
+                    val sidebarWallpaperModifier = if (sidebarGlassBackdrop != null) {
+                        Modifier.layerBackdrop(sidebarGlassBackdrop).sidebarGlassUnderlay(darkMode)
+                    } else Modifier
                     val hasCustomBackground =
                         !effectiveBackground.wallpaperUriString.isNullOrBlank() ||
                             !effectiveBackground.videoUriString.isNullOrBlank()
@@ -849,10 +882,12 @@ class MainActivity : ComponentActivity() {
                                         mainPagerState.pagerState.currentPageOffsetFraction,
                                 )
                             },
+                            backgroundLayerModifier = sidebarWallpaperModifier,
                         ) {
                             CompositionLocalProvider(
                                 LocalImmersiveBackgroundActive provides immersiveBackgroundActive,
                                 LocalBackgroundScrollFollowState provides backgroundScrollFollowState,
+                                LocalSidebarGlassBackdrop provides sidebarGlassBackdrop,
                             ) {
                                 Box(modifier = Modifier.fillMaxSize()) {
                                     if (seasonalStyleActive && !hasCustomBackground) {
@@ -1399,6 +1434,12 @@ fun MainScreen(
     MainScreenBackHandler(mainPagerState, navController)
 
     val useNavigationRail = useNavigationRail(enableFloatingBottomBar)
+    val sidebarConfig = if (interfaceStyle == InterfaceStyle.SidebarWidget.value) {
+        rememberSidebarWidgetConfig()
+    } else {
+        null
+    }
+    val layoutDirection = LocalLayoutDirection.current
     val navigationBarVisibilityState = rememberNavigationBarVisibilityState(
         enabled = !useNavigationRail && (autoHideNavigationBar || scrollHideNavigationBar),
         autoHideAfterInactivity = autoHideNavigationBar,
@@ -1517,37 +1558,51 @@ fun MainScreen(
                 .navigationBarVisibilityController(navigationBarVisibilityState),
         ) {
         if (useNavigationRail) {
-            val startInsets = WindowInsets.systemBars.union(WindowInsets.displayCutout)
-                .only(WindowInsetsSides.Start)
+            val railAtStart = sidebarConfig?.let {
+                it.side.isAtStart(layoutDirection)
+            } ?: true
+            val railInsets = WindowInsets.systemBars.union(WindowInsets.displayCutout).only(
+                when (sidebarConfig?.side) {
+                    SidebarSide.Left -> WindowInsetsSides.Left
+                    SidebarSide.Right -> WindowInsetsSides.Right
+                    null -> WindowInsetsSides.Start
+                }
+            )
             val navBarBottomPadding = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
 
             Scaffold(
                 containerColor = Color.Transparent,
                 contentWindowInsets = WindowInsets(0, 0, 0, 0),
             ) { _ ->
-                Row {
-                    SideRail(
-                        blurBackdrop = blurBackdrop,
-                        navigationBadge = navigationBadge,
-                    )
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .consumeWindowInsets(startInsets)
-                            .then(
-                                if (interfaceStyle == InterfaceStyle.SidebarWidget.value) {
-                                    Modifier.clip(
-                                        RoundedCornerShape(
-                                            topStart = 28.dp,
-                                            bottomStart = 28.dp,
+                Row(modifier = Modifier.fillMaxSize()) {
+                    // Keep pager state and page effects when the rail changes sides.
+                    val panes = if (railAtStart) listOf(true, false) else listOf(false, true)
+                    panes.forEach { isRail ->
+                        key(isRail) {
+                            if (isRail) {
+                                SideRail(
+                                    blurBackdrop = blurBackdrop,
+                                    navigationBadge = navigationBadge,
+                                )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .consumeWindowInsets(railInsets)
+                                        .then(
+                                            if (sidebarConfig != null) {
+                                                Modifier.clip(
+                                                    SidebarPaneShape
+                                                )
+                                            } else {
+                                                Modifier
+                                            }
                                         )
-                                    )
-                                } else {
-                                    Modifier
+                                ) {
+                                    pagerContent(navBarBottomPadding)
                                 }
-                            )
-                    ) {
-                        pagerContent(navBarBottomPadding)
+                            }
+                        }
                     }
                 }
             }
@@ -1636,11 +1691,16 @@ internal fun shouldShowKpmPage(status: KPatchNextStatus?): Boolean {
     } == true
 }
 
-internal fun shouldUseLayeredNavigationTransitions(kpmPageActive: Boolean): Boolean {
+internal fun shouldUseLayeredNavigationTransitions(
+    kpmPageActive: Boolean,
+    sidebarStyleActive: Boolean = false,
+): Boolean {
     // NavDisplay animates its outgoing scene through a render layer. If the main
     // pager retains KPM's WebView, HWUI can crash in GLFunctorDrawable while that
     // layer is rendered, even when KPM is not the currently selected main page.
-    return !kpmPageActive
+    // Sidebar's opaque secondary pages also expose both scenes during fades,
+    // producing a white flash and overlapping cards on return.
+    return !kpmPageActive && !sidebarStyleActive
 }
 
 internal fun shouldReturnMainPagerBackToHome(

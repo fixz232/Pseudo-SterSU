@@ -294,10 +294,6 @@ private fun SkrootproModuleCard(
     wallpaperPaused: Boolean,
 ) {
     val pending = module.update || module.remove
-    val primaryAction = resolveModulePrimaryAction(
-        module = module,
-        hasUpdate = !updateInfo?.downloadUrl.isNullOrEmpty(),
-    )
     var menuExpanded by remember(module.id) { mutableStateOf(false) }
     var showWallpaperCrop by remember(module.id) { mutableStateOf(false) }
     var showWallpaperPreview by remember(module.id) { mutableStateOf(false) }
@@ -365,32 +361,13 @@ private fun SkrootproModuleCard(
                     },
                     valueColor = if (module.enabled) SkrootproColors.Success else SkrootproColors.Muted,
                 )
-                when (primaryAction) {
-                    ModulePrimaryAction.UndoUninstall -> SkrootproButton(
-                        text = stringResource(R.string.undo),
-                        onClick = onUndoUninstallClick,
-                        modifier = Modifier.padding(top = 5.dp).width(100.dp).height(48.dp),
-                    )
-
-                    ModulePrimaryAction.Update -> SkrootproButton(
-                        text = stringResource(R.string.module_update),
-                        onClick = { onUpdateClick(checkNotNull(updateInfo)) },
-                        modifier = Modifier.padding(top = 5.dp).width(100.dp).height(48.dp),
-                    )
-
-                    ModulePrimaryAction.WebUi -> SkrootproButton(
+                if (module.hasWebUi) {
+                    SkrootproButton(
                         text = stringResource(R.string.skrootpro_web_manage),
                         onClick = onWebManageClick,
-                        modifier = Modifier.padding(top = 5.dp).width(100.dp).height(48.dp),
+                        enabled = !pending,
+                        modifier = Modifier.padding(top = 5.dp).width(82.dp),
                     )
-
-                    ModulePrimaryAction.Action -> SkrootproButton(
-                        text = stringResource(R.string.skrootpro_module_action_execute),
-                        onClick = onExecuteClick,
-                        modifier = Modifier.padding(top = 5.dp).width(100.dp).height(48.dp),
-                    )
-
-                    ModulePrimaryAction.None -> Unit
                 }
             }
 
@@ -402,33 +379,29 @@ private fun SkrootproModuleCard(
                 SkrootproButton(
                     text = stringResource(R.string.skrootpro_more),
                     onClick = { menuExpanded = true },
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    modifier = Modifier.fillMaxWidth(),
                 )
                 DropdownMenu(
                     expanded = menuExpanded,
                     onDismissRequest = { menuExpanded = false },
                 ) {
-                    if (module.hasWebUi && module.enabled && !pending && primaryAction != ModulePrimaryAction.WebUi) {
+                    if (updateInfo != null && !module.remove) {
                         DropdownMenuItem(
-                            text = { SkrootproMenuText(stringResource(R.string.skrootpro_web_manage)) },
+                            text = { SkrootproMenuText(stringResource(R.string.module_update)) },
                             onClick = {
                                 menuExpanded = false
-                                onWebManageClick()
+                                onUpdateClick(updateInfo)
                             },
                         )
                     }
-                    if (
-                        module.hasActionScript && module.enabled && !pending &&
-                        primaryAction != ModulePrimaryAction.Action
-                    ) {
-                        DropdownMenuItem(
-                            text = { SkrootproMenuText(stringResource(R.string.skrootpro_module_action_execute)) },
-                            onClick = {
-                                menuExpanded = false
-                                onExecuteClick()
-                            },
-                        )
-                    }
+                    DropdownMenuItem(
+                        text = { SkrootproMenuText(stringResource(R.string.skrootpro_module_action_execute)) },
+                        enabled = module.hasActionScript && !pending,
+                        onClick = {
+                            menuExpanded = false
+                            onExecuteClick()
+                        },
+                    )
                     DropdownMenuItem(
                         text = {
                             SkrootproMenuText(
@@ -506,20 +479,20 @@ private fun SkrootproModuleCard(
                             },
                         )
                     }
-                    if (!module.remove) {
-                        DropdownMenuItem(
-                            text = {
-                                SkrootproMenuText(
-                                    text = stringResource(R.string.skrootpro_module_action_delete),
-                                    color = Color(0xFFD32F2F),
-                                )
-                            },
-                            onClick = {
-                                menuExpanded = false
-                                onDeleteClick()
-                            },
-                        )
-                    }
+                    DropdownMenuItem(
+                        text = {
+                            SkrootproMenuText(
+                                text = stringResource(
+                                    if (module.remove) R.string.undo else R.string.skrootpro_module_action_delete
+                                ),
+                                color = if (module.remove) SkrootproColors.Text else Color(0xFFD32F2F),
+                            )
+                        },
+                        onClick = {
+                            menuExpanded = false
+                            if (module.remove) onUndoUninstallClick() else onDeleteClick()
+                        },
+                    )
                 }
             }
         }

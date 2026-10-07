@@ -15,7 +15,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.FactCheck
 import androidx.compose.material.icons.automirrored.rounded.HelpOutline
 import androidx.compose.material.icons.rounded.CheckCircle
@@ -24,12 +23,9 @@ import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Inventory2
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.dropUnlessResumed
 import me.weishu.kernelsu.BuildConfig
 import me.weishu.kernelsu.R
+import me.weishu.kernelsu.ui.component.store.StoreScaffold
 import me.weishu.kernelsu.ui.navigation3.LocalNavigator
 
 @Composable
@@ -48,34 +45,23 @@ fun CloudThemeCreatorGuideScreen() {
     val navigator = LocalNavigator.current
     val onBack = dropUnlessResumed { navigator.pop() }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.cloud_theme_creator_guide_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = stringResource(R.string.back),
-                        )
-                    }
-                },
-            )
-        },
+    StoreScaffold(
+        title = stringResource(R.string.cloud_theme_creator_guide_title),
+        onBack = onBack,
+        maxContentWidth = 720.dp,
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {
                 Surface(
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                    shape = MaterialTheme.shapes.large,
                 ) {
                     Row(
                         modifier = Modifier.padding(16.dp),
@@ -126,7 +112,7 @@ fun CloudThemeCreatorGuideScreen() {
                         .fillMaxWidth()
                         .padding(top = 10.dp),
                     color = MaterialTheme.colorScheme.surfaceContainer,
-                    shape = RoundedCornerShape(8.dp),
+                    shape = MaterialTheme.shapes.large,
                 ) {
                     Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)) {
                         GuideField(
@@ -184,7 +170,7 @@ fun CloudThemeCreatorGuideScreen() {
                 Surface(
                     color = MaterialTheme.colorScheme.tertiaryContainer,
                     contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                    shape = RoundedCornerShape(8.dp),
+                    shape = MaterialTheme.shapes.large,
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp),

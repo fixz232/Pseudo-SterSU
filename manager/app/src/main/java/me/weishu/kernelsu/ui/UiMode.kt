@@ -34,8 +34,8 @@ enum class InterfaceStyle(val value: String, @StringRes val labelRes: Int) {
     SidebarWidget("sidebar_widget", R.string.interface_style_sidebar_widget);
 
     companion object {
-        /** The four styles that remain bundled in every APK. */
-        val builtInEntries: List<InterfaceStyle> = listOf(Miuix, Material, Skrootpro, Alpha)
+        /** Styles available without a store download. */
+        val builtInEntries: List<InterfaceStyle> = listOf(Miuix, Material, SidebarWidget)
 
         // Only these styles are guaranteed to be present in the APK. Extended
         // Snow/Rain/Pixel variants are exposed by the downloaded style registry.
@@ -45,11 +45,7 @@ enum class InterfaceStyle(val value: String, @StringRes val labelRes: Int) {
 
         fun selectedIndex(value: String): Int {
             val normalizedValue = normalizeValue(value)
-            val selected = if (normalizedValue == Delta.value) {
-                Alpha
-            } else {
-                entries.firstOrNull { it.value == normalizedValue }
-            }
+            val selected = entries.firstOrNull { it.value == normalizedValue }
             return selectableEntries.indexOf(selected).takeIf { it >= 0 }
                 ?: selectableEntries.indexOf(Miuix)
         }

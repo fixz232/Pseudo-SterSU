@@ -17,8 +17,8 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use crate::{
-    defs, dynamic_manager, feature, init_event, kpatch_next, kpm, ksucalls, module, pathmask,
-    utils, web_manager_susfs,
+    defs, dynamic_manager, feature, init_event, kpm, ksucalls, module, pathmask, utils,
+    web_manager_susfs,
 };
 
 const DEFAULT_PORT: u16 = 10_240;
@@ -898,7 +898,6 @@ fn route_authenticated(request: &Request, path: &str, context: &ServerContext) -
         ("POST", "/api/kpm/policy") => kpm_policy_response(&request.body),
         ("POST", "/api/kpm/import") => kpm_import_response(request),
         ("POST", "/api/pathmask") => pathmask_action_response(&request.body),
-        ("POST", "/api/kpatch-next") => kpatch_next_action_response(&request.body),
         ("POST", "/api/susfs") => susfs_action_response(&request.body),
         ("POST", "/api/admin/stop") => stop_server_response(),
         _ if request.method == "GET" && path.starts_with("/api/assets/") => {
@@ -2184,38 +2183,6 @@ fn kpatch_next_response() -> Response {
     match ksud_json_result(&["kpatch-next", "status"]) {
         Ok(status) => Response::json(200, json!({ "ok": true, "status": status })),
         Err(error) => Response::error(409, "kpatch_next_status_failed", format!("{error:#}")),
-    }
-}
-
-fn kpatch_next_action_response(body: &[u8]) -> Response {
-    if let Err(error) = ensure_lkm_management("KPatch-Next") {
-        return Response::error(409, "kpatch_next_unavailable", error.to_string());
-    }
-    let payload = match parse_json_body(body) {
-        Ok(value) => value,
-        Err(error) => return Response::error(400, "invalid_json", error.to_string()),
-    };
-    let action = payload
-        .get("action")
-        .and_then(Value::as_str)
-        .unwrap_or_default();
-    let _guard = WRITE_LOCK
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let result = match action {
-        "enable" => kpatch_next::enable(),
-        "disable" => kpatch_next::disable(),
-        _ => {
-            return Response::error(
-                400,
-                "unknown_kpatch_next_action",
-                "不支持这个 KPatch-Next 操作",
-            );
-        }
-    };
-    match result {
-        Ok(()) => Response::json(200, json!({ "ok": true, "action": action })),
-        Err(error) => Response::error(409, "kpatch_next_action_failed", format!("{error:#}")),
     }
 }
 

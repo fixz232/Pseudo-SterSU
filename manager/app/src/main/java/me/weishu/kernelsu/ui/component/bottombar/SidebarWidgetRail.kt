@@ -2,21 +2,36 @@ package me.weishu.kernelsu.ui.component.bottombar
 
 import android.app.AlarmManager
 import android.content.Context
-import android.content.SharedPreferences
+import android.os.BatteryManager
+import android.os.Build
 import android.text.format.DateFormat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
@@ -25,38 +40,46 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Alarm
-import androidx.compose.material.icons.rounded.Cloud
-import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.PowerSettingsNew
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -66,10 +89,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import me.weishu.kernelsu.R
 import me.weishu.kernelsu.ui.LocalMainPagerState
-import me.weishu.kernelsu.ui.component.rebootlistpopup.RebootListPopupMaterial
+import me.weishu.kernelsu.ui.theme.isInDarkTheme
+import me.weishu.kernelsu.ui.component.rememberSystemAnimationsEnabled
 import me.weishu.kernelsu.ui.component.rememberCustomImageBitmap
+import me.weishu.kernelsu.ui.component.rebootlistpopup.SidebarRebootPopup
+import me.weishu.kernelsu.ui.navigation3.LocalNavigator
+import me.weishu.kernelsu.ui.navigation3.Route
+import me.weishu.kernelsu.ui.screen.flash.FlashIt
+import me.weishu.kernelsu.ui.screen.module.rememberModuleZipPicker
+import me.weishu.kernelsu.ui.viewmodel.ModuleViewModel
 import me.weishu.kernelsu.ui.util.LocalCustomNavigationIcons
 import me.weishu.kernelsu.ui.util.SIDEBAR_NAV_HOME
 import me.weishu.kernelsu.ui.util.SIDEBAR_NAV_KPM
@@ -79,18 +112,23 @@ import me.weishu.kernelsu.ui.util.SIDEBAR_NAV_SUPERUSER
 import me.weishu.kernelsu.ui.util.SidebarClockStyle
 import me.weishu.kernelsu.ui.util.SidebarImageShape
 import me.weishu.kernelsu.ui.util.SidebarNavigationPosition
+import me.weishu.kernelsu.ui.util.SidebarSide
+import me.weishu.kernelsu.ui.util.SidebarMaterial
 import me.weishu.kernelsu.ui.util.SidebarWidgetConfig
 import me.weishu.kernelsu.ui.util.SidebarWidgetType
-import me.weishu.kernelsu.ui.util.isSidebarWidgetPreference
 import me.weishu.kernelsu.ui.util.normalizeSidebarNavigationOrder
-import me.weishu.kernelsu.ui.util.readSidebarWidgetConfig
-import me.weishu.kernelsu.ui.util.sidebarWidgetPreferences
+import me.weishu.kernelsu.ui.util.rememberSidebarWidgetConfig
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
+
+private data class SidebarAppearance(
+    val colors: SidebarColors = sidebarColors(dark = false),
+    val animations: Boolean = false,
+    val material: SidebarMaterial = SidebarMaterial.Flat,
+)
+
+private val LocalSidebarAppearance = staticCompositionLocalOf { SidebarAppearance() }
 
 @Composable
 fun SidebarWidgetRail(
@@ -98,99 +136,243 @@ fun SidebarWidgetRail(
     destinations: List<MainDestination>,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val tablet = configuration.smallestScreenWidthDp >= 600
-    val width = if (tablet) 104.dp else 76.dp
-    val dark = isSystemInDarkTheme()
+    val dark = isInDarkTheme()
     val mainPagerState = LocalMainPagerState.current
     val customIcons = LocalCustomNavigationIcons.current
-    val config = rememberSidebarWidgetConfig(context)
+    val config = rememberSidebarWidgetConfig()
+    val navigator = LocalNavigator.current
+    val moduleViewModel = viewModel<ModuleViewModel>()
+    val moduleUiState by moduleViewModel.uiState.collectAsStateWithLifecycle()
+    val showModuleInstall = mainPagerState.destinationForPage() == MainDestination.Module &&
+        moduleUiState.installButtonVisible
+    val openModuleZipPicker = rememberModuleZipPicker { uris ->
+        if (uris.isNotEmpty()) {
+            navigator.push(Route.Flash(FlashIt.FlashModules(uris)))
+            moduleViewModel.markNeedRefresh()
+        }
+    }
     val orderedDestinations = remember(config.navigationOrder, destinations) {
         orderSidebarDestinations(config.navigationOrder, destinations)
     }
-    val gradient = remember(dark) {
-        if (dark) {
-            Brush.verticalGradient(listOf(Color(0xFF23334C), Color(0xFF36455A), Color(0xFF232B37)))
-        } else {
-            Brush.verticalGradient(listOf(Color(0xFF73A8F0), Color(0xFFBFD0E5), Color(0xFFE1E2E4)))
+    SidebarRailLayout(
+        config = config,
+        navigationCount = orderedDestinations.size + if (showModuleInstall) 1 else 0,
+        tablet = tablet,
+        modifier = modifier,
+        onAvatarClick = { navigator.push(Route.SidebarWidgetSettings) },
+        footer = { SidebarRebootPopup() },
+        windowInsets = WindowInsets.systemBars.union(WindowInsets.displayCutout).only(
+            (if (config.side == SidebarSide.Left) WindowInsetsSides.Left else WindowInsetsSides.Right) +
+                WindowInsetsSides.Vertical
+        ),
+    ) {
+        orderedDestinations.forEach { destination ->
+            val selected = mainPagerState.destinationForPage() == destination
+            val label = customIcons.labelFor(destination, stringResource(destination.label))
+            val badge = badgeFor(destination, navigationBadge)
+            val contentColor = LocalContentColor.current
+            SidebarRailItem(
+                selected = selected,
+                label = label,
+                badgeCount = badge?.count,
+                onClick = { mainPagerState.animateTo(destination) },
+            ) {
+                BadgedBox(badge = {
+                    if (badge != null) {
+                        Badge(
+                            containerColor = contentColor,
+                            contentColor = sidebarColors(config.palettes.palette(config.material, dark)).background,
+                        ) {
+                            Text(badge.count.toString())
+                        }
+                    }
+                }) {
+                    NavigationDestinationIcon(
+                        destination = destination,
+                        state = customIcons.stateFor(destination),
+                        contentDescription = null,
+                        tint = contentColor,
+                    )
+                }
+            }
+            if (destination == MainDestination.Module && showModuleInstall) {
+                SidebarRailItem(
+                    selected = false,
+                    label = stringResource(R.string.module_install),
+                    onClick = openModuleZipPicker,
+                    role = Role.Button,
+                ) {
+                    Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(28.dp))
+                }
+            }
         }
     }
-    val contentColor = if (dark) Color(0xFFF3F6FA) else Color(0xFF101820)
+}
 
-    CompositionLocalProvider(LocalContentColor provides contentColor) {
+/** Shared by the live rail and its settings preview. */
+@Composable
+internal fun SidebarRailLayout(
+    config: SidebarWidgetConfig,
+    navigationCount: Int,
+    modifier: Modifier = Modifier,
+    tablet: Boolean = false,
+    windowInsets: WindowInsets = WindowInsets(0, 0, 0, 0),
+    onAvatarClick: (() -> Unit)? = null,
+    dark: Boolean = isInDarkTheme(),
+    showWidgets: Boolean = true,
+    footer: @Composable () -> Unit = {
+        Icon(Icons.Rounded.PowerSettingsNew, contentDescription = stringResource(R.string.reboot), modifier = Modifier.size(30.dp))
+    },
+    navigation: @Composable ColumnScope.() -> Unit,
+) {
+    val colors = sidebarColors(config.palettes.palette(config.material, dark))
+    val backdrop = LocalSidebarGlassBackdrop.current
+    val mode = sidebarGlassMode(
+        config.material, Build.VERSION.SDK_INT,
+        LocalView.current.isHardwareAccelerated && !LocalInspectionMode.current, backdrop != null,
+    )
+    val contentColor = colors.content
+    val animations = rememberSystemAnimationsEnabled() && !LocalInspectionMode.current
+    val appearance = remember(colors, animations, config.material) {
+        SidebarAppearance(colors, animations, config.material)
+    }
+    val railWidth = (if (tablet) 96.dp else 80.dp) * LocalDensity.current.fontScale.coerceIn(1f, 1.2f)
+    CompositionLocalProvider(
+        LocalContentColor provides contentColor,
+        LocalSidebarAppearance provides appearance,
+    ) {
         Column(
             modifier = modifier
-                .width(width)
-                .fillMaxHeight()
-                .background(gradient)
-                .windowInsetsPadding(
-                    WindowInsets.systemBars.union(WindowInsets.displayCutout).only(
-                        WindowInsetsSides.Start + WindowInsetsSides.Vertical
-                    )
-                )
-                .padding(horizontal = if (tablet) 12.dp else 8.dp, vertical = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+                .clip(SidebarPaneShape)
+                .sidebarMaterialSurface(colors, config.material, mode, backdrop, edgeOnRight = config.side == SidebarSide.Left)
+                .windowInsetsPadding(windowInsets)
+                .width(railWidth)
+                .fillMaxHeight(),
         ) {
-            Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-                RebootListPopupMaterial()
-            }
-            Spacer(Modifier.height(if (tablet) 12.dp else 5.dp))
-            SidebarHeaderWidget(
-                config = config,
-                compact = !tablet,
-                modifier = Modifier.height(if (tablet) 174.dp else 148.dp),
-            )
-            Box(modifier = Modifier.weight(1f).fillMaxSize()) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = when (config.navigationPosition) {
-                        SidebarNavigationPosition.Top -> Arrangement.Top
-                        SidebarNavigationPosition.Center -> Arrangement.Center
-                        SidebarNavigationPosition.Bottom -> Arrangement.Bottom
-                    },
-                ) {
-                    orderedDestinations.forEach { destination ->
-                        val selected = mainPagerState.destinationForPage() == destination
-                        val label = customIcons.labelFor(destination, stringResource(destination.label))
-                        Box(
-                            modifier = Modifier
-                                .padding(vertical = if (tablet) 4.dp else 2.dp)
-                                .size(if (tablet) 58.dp else 52.dp)
-                                .clip(RoundedCornerShape(if (tablet) 22.dp else 19.dp))
-                                .background(
-                                    if (selected) {
-                                        if (dark) Color.White.copy(alpha = 0.19f)
-                                        else Color.White.copy(alpha = 0.67f)
-                                    } else {
-                                        Color.Transparent
-                                    }
-                                )
-                                .clickable(
-                                    role = Role.Tab,
-                                    onClick = { mainPagerState.animateTo(destination) },
-                                ),
-                            contentAlignment = Alignment.Center,
+            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+                val minimumWidgetHeight = if (showWidgets) sidebarMinimumWidgetHeight(
+                    config.widgetType, tablet, LocalDensity.current.fontScale,
+                ) else 0.dp
+                val (contentHeight, widgetHeight) = sidebarRailSizing(
+                    maxHeight, minimumWidgetHeight, navigationCount, config.navigationPosition,
+                    fontScale = LocalDensity.current.fontScale,
+                )
+                // The body scrolls on short windows; the power button stays reachable below it.
+                Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().height(contentHeight),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        if (showWidgets) Column(
+                            Modifier.fillMaxWidth().height(widgetHeight).padding(top = 16.dp, bottom = 12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            CompositionLocalProvider(
-                                LocalContentColor provides if (selected) {
-                                    if (dark) Color.White else Color(0xFF0A1724)
-                                } else {
-                                    contentColor.copy(alpha = 0.88f)
-                                }
-                            ) {
-                                NavigationIconWithBadge(
-                                    destination = destination,
-                                    state = customIcons.stateFor(destination),
-                                    contentDescription = label,
-                                    badge = badgeFor(destination, navigationBadge),
-                                )
-                            }
+                            SidebarAvatar(config, compact = !tablet, onClick = onAvatarClick)
+                            Spacer(Modifier.height(12.dp))
+                            SidebarHeaderWidget(config, modifier = Modifier.weight(1f).padding(horizontal = 6.dp), compact = !tablet)
                         }
+                        HorizontalDivider(thickness = 0.5.dp, color = contentColor.copy(alpha = 0.22f))
+                        Column(
+                            modifier = Modifier.weight(1f).fillMaxWidth().selectableGroup(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = when (config.navigationPosition) {
+                                SidebarNavigationPosition.Top -> Arrangement.Top
+                                SidebarNavigationPosition.Center -> Arrangement.SpaceEvenly
+                                SidebarNavigationPosition.Bottom -> Arrangement.Bottom
+                            },
+                            content = navigation,
+                        )
                     }
                 }
             }
+            HorizontalDivider(thickness = 0.5.dp, color = contentColor.copy(alpha = 0.22f))
+            Box(
+                modifier = Modifier.fillMaxWidth().height(76.dp),
+                contentAlignment = Alignment.Center,
+            ) { footer() }
+        }
+    }
+}
+
+@Composable
+internal fun SidebarRailItem(
+    selected: Boolean,
+    label: String,
+    badgeCount: Int? = null,
+    onClick: (() -> Unit)? = null,
+    role: Role = Role.Tab,
+    content: @Composable () -> Unit,
+) {
+    val appearance = LocalSidebarAppearance.current
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val focused by interaction.collectIsFocusedAsState()
+    val hovered by interaction.collectIsHoveredAsState()
+    val selection by animateFloatAsState(
+        targetValue = when {
+            pressed -> 1f
+            selected -> 0.85f
+            focused -> 0.7f
+            hovered -> 0.45f
+            else -> 0f
+        },
+        animationSpec = tween(if (appearance.animations) 180 else 0, easing = FastOutSlowInEasing),
+        label = "sidebarSelection",
+    )
+    Box(
+        modifier = Modifier
+            .padding(horizontal = 8.dp, vertical = 2.dp)
+            .fillMaxWidth()
+            .height(sidebarNavigationItemHeight(LocalDensity.current.fontScale) - 4.dp)
+            .clip(SidebarPaneShape)
+            .sidebarSelectionSurface(appearance.colors, appearance.material, selection)
+            .semantics(mergeDescendants = true) {
+                contentDescription = if (badgeCount != null) "$label, $badgeCount" else label
+            }
+            .then(
+                if (focused) Modifier.border(
+                    1.5.dp,
+                    appearance.colors.content,
+                    SidebarPaneShape,
+                ) else Modifier
+            )
+            .then(
+                when {
+                    onClick == null -> Modifier
+                    role == Role.Button -> Modifier.clickable(
+                        interactionSource = interaction,
+                        indication = null,
+                        role = Role.Button,
+                        onClick = onClick,
+                    )
+                    else -> Modifier.selectable(
+                        selected = selected,
+                        interactionSource = interaction,
+                        indication = null,
+                        role = role,
+                        onClick = onClick,
+                    )
+                }
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp).clearAndSetSemantics {},
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            content()
+            Text(
+                text = label,
+                fontSize = 11.sp,
+                lineHeight = 14.sp,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+            )
         }
     }
 }
@@ -202,85 +384,80 @@ internal fun SidebarHeaderWidget(
     compact: Boolean = true,
 ) {
     val context = LocalContext.current
-    val now by produceState(initialValue = System.currentTimeMillis()) {
-        while (isActive) {
-            value = System.currentTimeMillis()
-            delay(1_000L)
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val now by produceState(initialValue = System.currentTimeMillis(), config.widgetType, lifecycleOwner) {
+        if (config.widgetType == SidebarWidgetType.Clock || config.widgetType == SidebarWidgetType.Alarm) {
+            lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                while (isActive) {
+                    value = System.currentTimeMillis()
+                    delay(60_000L - value % 60_000L)
+                }
+            }
         }
     }
-    val contentColor = LocalContentColor.current
     Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         when (config.widgetType) {
-            SidebarWidgetType.Clock -> SidebarClockWidget(config.clockStyle, now, compact)
+            SidebarWidgetType.Clock -> SidebarClockWidget(config, now, compact)
             SidebarWidgetType.Weather -> SidebarWeatherWidget(config, compact)
             SidebarWidgetType.Alarm -> SidebarAlarmWidget(context, now, compact)
-            SidebarWidgetType.Image -> SidebarImageWidget(config, compact, contentColor)
         }
     }
 }
 
 @Composable
-private fun SidebarClockWidget(style: SidebarClockStyle, now: Long, compact: Boolean) {
+private fun SidebarClockWidget(config: SidebarWidgetConfig, now: Long, compact: Boolean) {
+    val context = LocalContext.current
     val locale = Locale.getDefault()
     val timePattern = if (DateFormat.is24HourFormat(LocalContext.current)) "HH:mm" else "h:mm"
     val time = remember(now / 1_000L, locale, timePattern) {
         SimpleDateFormat(timePattern, locale).format(Date(now))
     }
     val date = remember(now / 60_000L, locale) {
+        SimpleDateFormat(DateFormat.getBestDateTimePattern(locale, "MMMd"), locale).format(Date(now))
+    }
+    val shortDate = remember(now / 60_000L, locale) {
         SimpleDateFormat("M/d", locale).format(Date(now))
     }
     val weekday = remember(now / 60_000L, locale) {
         SimpleDateFormat("EEE", locale).format(Date(now))
     }
-    when (style) {
-        SidebarClockStyle.Stacked -> {
-            val parts = time.split(':', limit = 2)
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(parts.firstOrNull().orEmpty(), fontSize = if (compact) 31.sp else 38.sp, lineHeight = 34.sp)
-                Text(parts.getOrNull(1).orEmpty(), fontSize = if (compact) 31.sp else 38.sp, lineHeight = 34.sp)
-                Text(date, fontSize = if (compact) 11.sp else 13.sp, fontWeight = FontWeight.Medium)
+    val battery = remember(now / 60_000L, context) {
+        context.getSystemService(BatteryManager::class.java)
+            ?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)?.takeIf { it in 0..100 }
+    }
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        when (config.clockStyle) {
+            SidebarClockStyle.Stacked -> {
+                val parts = time.split(':', limit = 2)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(parts.firstOrNull().orEmpty(), fontSize = if (compact) 30.sp else 36.sp, lineHeight = if (compact) 34.sp else 40.sp, fontWeight = FontWeight.SemiBold)
+                    Text(parts.getOrNull(1).orEmpty(), fontSize = if (compact) 30.sp else 36.sp, lineHeight = if (compact) 34.sp else 40.sp, fontWeight = FontWeight.SemiBold)
+                    Text("$date $weekday", fontSize = if (compact) 10.sp else 12.sp, lineHeight = if (compact) 14.sp else 16.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, maxLines = 2)
+                }
+            }
+
+            SidebarClockStyle.Compact -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = time,
+                    fontSize = if (compact) 18.sp else 22.sp,
+                    lineHeight = if (compact) 22.sp else 26.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                )
+                Text(date, fontSize = if (compact) 11.sp else 13.sp, lineHeight = 16.sp)
+                Text(weekday, fontSize = if (compact) 10.sp else 12.sp, lineHeight = 16.sp)
+            }
+
+            SidebarClockStyle.DateFirst -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(weekday, fontSize = if (compact) 11.sp else 13.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold)
+                Text(shortDate, fontSize = if (compact) 22.sp else 28.sp, lineHeight = if (compact) 26.sp else 32.sp, fontWeight = FontWeight.Bold)
+                Text(time, fontSize = if (compact) 14.sp else 17.sp, lineHeight = if (compact) 18.sp else 21.sp)
             }
         }
-
-        SidebarClockStyle.Compact -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = time,
-                fontSize = if (compact) 18.sp else 22.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-            )
-            Text(date, fontSize = if (compact) 11.sp else 13.sp)
-            Text(weekday, fontSize = if (compact) 10.sp else 12.sp)
-        }
-
-        SidebarClockStyle.DateFirst -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(weekday, fontSize = if (compact) 11.sp else 13.sp, fontWeight = FontWeight.SemiBold)
-            Text(date, fontSize = if (compact) 22.sp else 28.sp, fontWeight = FontWeight.Bold)
-            Text(time, fontSize = if (compact) 14.sp else 17.sp)
-        }
+        if (battery != null) Text("$battery%", fontSize = if (compact) 11.sp else 12.sp, lineHeight = if (compact) 14.sp else 16.sp, fontWeight = FontWeight.SemiBold)
+        SidebarWeatherSummary(config, compact)
     }
 }
-
-@Composable
-private fun SidebarWeatherWidget(config: SidebarWidgetConfig, compact: Boolean) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(Icons.Rounded.Cloud, contentDescription = null, modifier = Modifier.size(if (compact) 27.dp else 34.dp))
-        Text(
-            text = config.weatherTemperature.ifBlank { stringResource(R.string.sidebar_widget_weather_default_temperature) },
-            fontSize = if (compact) 20.sp else 25.sp,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-        )
-        Text(
-            text = config.weatherLabel.ifBlank { stringResource(R.string.sidebar_widget_weather_default_label) },
-            fontSize = if (compact) 10.sp else 12.sp,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-        )
-    }
-}
-
 @Composable
 private fun SidebarAlarmWidget(context: Context, now: Long, compact: Boolean) {
     val nextAlarm = remember(now / 60_000L) {
@@ -296,6 +473,7 @@ private fun SidebarAlarmWidget(context: Context, now: Long, compact: Boolean) {
         Text(
             text = formatted ?: "--:--",
             fontSize = if (compact) 19.sp else 24.sp,
+            lineHeight = if (compact) 24.sp else 28.sp,
             fontWeight = FontWeight.SemiBold,
         )
         Text(
@@ -304,6 +482,7 @@ private fun SidebarAlarmWidget(context: Context, now: Long, compact: Boolean) {
                 else R.string.sidebar_widget_alarm_next
             ),
             fontSize = if (compact) 9.sp else 11.sp,
+            lineHeight = if (compact) 12.sp else 14.sp,
             textAlign = TextAlign.Center,
             maxLines = 2,
         )
@@ -311,46 +490,36 @@ private fun SidebarAlarmWidget(context: Context, now: Long, compact: Boolean) {
 }
 
 @Composable
-private fun SidebarImageWidget(
+internal fun SidebarAvatar(
     config: SidebarWidgetConfig,
-    compact: Boolean,
-    contentColor: Color,
+    compact: Boolean = true,
+    onClick: (() -> Unit)? = null,
 ) {
     val bitmap = rememberCustomImageBitmap(config.imageUriString, maxSide = 512)
-    val size = if (compact) 54.dp else 72.dp
+    val size = if (compact) 60.dp else 76.dp
     val shape = remember(config.imageShape) { sidebarImageShape(config.imageShape) }
+    val label = stringResource(R.string.sidebar_avatar_title)
+    val contentColor = LocalContentColor.current
     Box(
         modifier = Modifier
             .size(size)
             .clip(shape)
-            .background(contentColor.copy(alpha = 0.12f)),
+            .background(LocalSidebarAppearance.current.colors.selection)
+            .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
+            .semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
     ) {
         if (bitmap == null) {
-            Icon(Icons.Rounded.Image, contentDescription = null, modifier = Modifier.size(size * 0.44f))
+            Icon(Icons.Rounded.Person, contentDescription = null, tint = contentColor, modifier = Modifier.size(size * 0.48f))
         } else {
             Image(
                 bitmap = bitmap,
-                contentDescription = stringResource(R.string.sidebar_widget_custom_image),
+                contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
         }
     }
-}
-
-@Composable
-private fun rememberSidebarWidgetConfig(context: Context): SidebarWidgetConfig {
-    var config by remember(context) { mutableStateOf(readSidebarWidgetConfig(context)) }
-    val preferences = remember(context) { sidebarWidgetPreferences(context) }
-    DisposableEffect(preferences) {
-        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-            if (isSidebarWidgetPreference(key)) config = readSidebarWidgetConfig(context)
-        }
-        preferences.registerOnSharedPreferenceChangeListener(listener)
-        onDispose { preferences.unregisterOnSharedPreferenceChangeListener(listener) }
-    }
-    return config
 }
 
 internal fun orderSidebarDestinations(
@@ -372,10 +541,9 @@ internal fun sidebarNavigationId(destination: MainDestination): String = when (d
 
 private fun sidebarImageShape(shape: SidebarImageShape): Shape = when (shape) {
     SidebarImageShape.Circle -> androidx.compose.foundation.shape.CircleShape
-    SidebarImageShape.Square -> RoundedCornerShape(0.dp)
+    SidebarImageShape.Square -> RectangleShape
     SidebarImageShape.Diamond -> PolygonShape(listOf(0.5f to 0f, 1f to 0.5f, 0.5f to 1f, 0f to 0.5f))
     SidebarImageShape.Triangle -> PolygonShape(listOf(0.5f to 0f, 1f to 1f, 0f to 1f))
-    SidebarImageShape.Star -> StarShape
 }
 
 private class PolygonShape(private val points: List<Pair<Float, Float>>) : Shape {
@@ -384,24 +552,6 @@ private class PolygonShape(private val points: List<Pair<Float, Float>>) : Shape
         points.forEachIndexed { index, (x, y) ->
             val offset = Offset(size.width * x, size.height * y)
             if (index == 0) path.moveTo(offset.x, offset.y) else path.lineTo(offset.x, offset.y)
-        }
-        path.close()
-        return Outline.Generic(path)
-    }
-}
-
-private data object StarShape : Shape {
-    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
-        val center = Offset(size.width / 2f, size.height / 2f)
-        val outer = minOf(size.width, size.height) / 2f
-        val inner = outer * 0.44f
-        val path = Path()
-        repeat(10) { index ->
-            val radius = if (index % 2 == 0) outer else inner
-            val angle = -PI / 2.0 + index * PI / 5.0
-            val x = center.x + (cos(angle) * radius).toFloat()
-            val y = center.y + (sin(angle) * radius).toFloat()
-            if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
         }
         path.close()
         return Outline.Generic(path)

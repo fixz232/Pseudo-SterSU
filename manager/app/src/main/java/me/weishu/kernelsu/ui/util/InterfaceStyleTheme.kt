@@ -139,7 +139,7 @@ internal fun parseInterfaceStyleTheme(
         "Interface style theme version is unsupported"
     }
     require(root.getString("engine") == expected.engine) { "Interface style theme engine does not match catalog" }
-    val variant = root.optString("variant").takeIf(String::isNotBlank)
+    val variant = root.optNullableString("variant")
     require(variant == expected.variant) { "Interface style theme variant does not match catalog" }
     require(root.getLong("accent") == expected.accent) { "Interface style theme accent does not match catalog" }
 
@@ -156,6 +156,13 @@ internal fun parseInterfaceStyleTheme(
         glass = parseGlass(root.getJSONObject("glass")),
     )
 }
+
+/** Android may stringify a JSON null value when optString() is used. */
+private fun JSONObject.optNullableString(name: String): String? =
+    opt(name)
+        ?.takeUnless { it == JSONObject.NULL }
+        ?.toString()
+        ?.takeUnless { it.isBlank() || it == "null" }
 
 private fun parsePalette(value: JSONObject): InterfaceStylePalette {
     value.requireExactKeys(
@@ -233,7 +240,11 @@ private fun parseGlass(value: JSONObject): InterfaceStyleGlass {
     )
     return InterfaceStyleGlass(
         surfaceAlpha = value.strictFloat("surfaceAlpha", 0.1f, 1f),
-        blurDp = value.strictFloat("blurDp", 4f, 48f),
+        // A zero radius is a valid way for a style to opt out of extra blur.
+        // The renderer applies its own minimum effective radius when a
+        // backdrop is available, so accepting 0 here does not create an
+        // invalid drawing operation.
+        blurDp = value.strictFloat("blurDp", 0f, 48f),
         strokeAlpha = value.strictFloat("strokeAlpha", 0f, 1f),
         refraction = value.strictBoolean("refraction"),
         refractionHeightDp = value.strictFloat("refractionHeightDp", 0f, 48f),

@@ -20,16 +20,19 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -58,14 +61,14 @@ import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CheckableDropdownMenuItem
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuGroup
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
@@ -76,19 +79,19 @@ import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.SmallExtendedFloatingActionButton
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberBottomSheetState
-import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -105,6 +108,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.FixedScale
@@ -115,6 +119,8 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -133,6 +139,7 @@ import me.weishu.kernelsu.ui.component.ScrollToTopOnChange
 import me.weishu.kernelsu.ui.component.dialog.rememberConfirmDialog
 import me.weishu.kernelsu.ui.component.dialog.rememberLoadingDialog
 import me.weishu.kernelsu.ui.component.material.ExpressiveScaffold
+import me.weishu.kernelsu.ui.component.material.rememberExpressivePageScrollBehavior
 import me.weishu.kernelsu.ui.component.material.ExpressiveSwitch
 import me.weishu.kernelsu.ui.component.material.SearchAppBar
 import me.weishu.kernelsu.ui.component.material.SnackBarHost
@@ -155,7 +162,7 @@ fun ModulePagerMaterial(
     val context = LocalContext.current
     val resource = LocalResources.current
 
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
+    val scrollBehavior = rememberExpressivePageScrollBehavior()
 
     val pullToRefreshState = rememberPullToRefreshState()
 
@@ -701,7 +708,6 @@ private fun ModuleItem(
         val interactionSource = remember { MutableInteractionSource() }
         val indication = LocalIndication.current
         var expanded by rememberSaveable(module.id) { mutableStateOf(false) }
-        var actionsExpanded by rememberSaveable(module.id) { mutableStateOf(false) }
         var isOverflowing by remember { mutableStateOf(false) }
 
         Column(
@@ -761,6 +767,12 @@ private fun ModuleItem(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                 ) {
+                    IconButton(onClick = onEditWallpaper) {
+                        Icon(
+                            imageVector = Icons.Outlined.Image,
+                            contentDescription = stringResource(R.string.module_wallpaper_editor_open),
+                        )
+                    }
                     ExpressiveSwitch(
                         enabled = !module.update,
                         checked = module.enabled,
@@ -824,145 +836,177 @@ private fun ModuleItem(
             Spacer(modifier = Modifier.height(4.dp))
 
             val hasUpdate = updateUrl.isNotEmpty()
-            val primaryAction = resolveModulePrimaryAction(module, hasUpdate)
-            val canOpenModule = module.enabled && !module.remove && !module.update
+            val actionButtonsEnabled = !module.remove && module.enabled && !module.update
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                when (primaryAction) {
-                    ModulePrimaryAction.UndoUninstall -> FilledTonalButton(
-                        modifier = Modifier.defaultMinSize(minWidth = 52.dp, minHeight = 48.dp),
-                        onClick = onUninstallClicked,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Refresh,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp).rotate(180f),
-                        )
-                        Text(stringResource(R.string.undo), modifier = Modifier.padding(start = 7.dp))
-                    }
-
-                    ModulePrimaryAction.Update -> Button(
-                        modifier = Modifier.defaultMinSize(minWidth = 52.dp, minHeight = 48.dp),
-                        onClick = onUpdate,
-                    ) {
-                        Icon(Icons.Outlined.Download, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Text(stringResource(R.string.module_update), modifier = Modifier.padding(start = 7.dp))
-                    }
-
-                    ModulePrimaryAction.WebUi -> Button(
-                        modifier = Modifier.defaultMinSize(minWidth = 52.dp, minHeight = 48.dp),
-                        onClick = {
-                            onClick()
-                            closeSearch()
-                        },
-                    ) {
-                        Icon(Icons.Outlined.Code, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Text("WebUI", modifier = Modifier.padding(start = 7.dp))
-                    }
-
-                    ModulePrimaryAction.Action -> Button(
-                        modifier = Modifier.defaultMinSize(minWidth = 52.dp, minHeight = 48.dp),
-                        onClick = {
-                            onExecuteAction()
-                            closeSearch()
-                        },
-                    ) {
-                        Icon(Icons.Outlined.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Text(stringResource(R.string.action), modifier = Modifier.padding(start = 7.dp))
-                    }
-
-                    ModulePrimaryAction.None -> Spacer(modifier = Modifier.weight(1f))
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-                Box {
-                    IconButton(
-                        onClick = { actionsExpanded = true },
-                        modifier = Modifier.size(48.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.MoreVert,
-                            contentDescription = stringResource(R.string.module_more_actions),
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = actionsExpanded,
-                        onDismissRequest = { actionsExpanded = false },
-                    ) {
-                        if (canOpenModule && module.hasWebUi && primaryAction != ModulePrimaryAction.WebUi) {
-                            DropdownMenuItem(
-                                text = { Text("WebUI") },
-                                leadingIcon = { Icon(Icons.Outlined.Code, contentDescription = null) },
+                AnimatedVisibility(
+                    visible = actionButtonsEnabled,
+                    enter = fadeIn(),
+                    exit = fadeOut(),
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (module.hasActionScript) {
+                            CombinedClickableButton(
                                 onClick = {
-                                    actionsExpanded = false
-                                    onClick()
-                                    closeSearch()
-                                },
-                            )
-                        }
-                        if (canOpenModule && module.hasActionScript && primaryAction != ModulePrimaryAction.Action) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.action)) },
-                                leadingIcon = { Icon(Icons.Outlined.PlayArrow, contentDescription = null) },
-                                onClick = {
-                                    actionsExpanded = false
                                     onExecuteAction()
                                     closeSearch()
                                 },
-                            )
-                        }
-                        if (canOpenModule && module.hasActionScript) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.module_action_shortcut)) },
-                                onClick = {
-                                    actionsExpanded = false
-                                    onAddShortcut(ShortcutType.Action)
-                                },
-                            )
-                        }
-                        if (canOpenModule && module.hasWebUi) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.module_webui_shortcut)) },
-                                onClick = {
-                                    actionsExpanded = false
-                                    onAddShortcut(ShortcutType.WebUI)
-                                },
-                            )
-                        }
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.module_wallpaper_editor_open)) },
-                            onClick = {
-                                actionsExpanded = false
-                                onEditWallpaper()
-                            },
-                        )
-                        if (!module.remove) {
-                            DropdownMenuItem(
-                                text = {
+                                onLongClick = { onAddShortcut(ShortcutType.Action) },
+                                modifier = Modifier.defaultMinSize(48.dp, 48.dp),
+                                shape = ButtonDefaults.filledTonalShape,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                ),
+                                contentPadding = ButtonDefaults.TextButtonContentPadding,
+                            ) {
+                                Icon(
+                                    modifier = Modifier.size(20.dp),
+                                    imageVector = Icons.Outlined.PlayArrow,
+                                    contentDescription = null,
+                                )
+                                if (!module.hasWebUi && !hasUpdate) {
                                     Text(
-                                        text = stringResource(R.string.uninstall),
-                                        color = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.padding(start = 7.dp),
+                                        text = stringResource(R.string.action),
+                                        fontFamily = MaterialTheme.typography.labelMedium.fontFamily,
+                                        fontSize = MaterialTheme.typography.labelMedium.fontSize,
                                     )
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Delete,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.error,
-                                    )
-                                },
+                                }
+                            }
+                        }
+                        if (module.hasWebUi) {
+                            CombinedClickableButton(
                                 onClick = {
-                                    actionsExpanded = false
-                                    onUninstallClicked()
+                                    onClick()
+                                    closeSearch()
                                 },
-                            )
+                                onLongClick = { onAddShortcut(ShortcutType.WebUI) },
+                                modifier = Modifier.defaultMinSize(48.dp, 48.dp),
+                                shape = ButtonDefaults.filledTonalShape,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                ),
+                                contentPadding = ButtonDefaults.TextButtonContentPadding,
+                            ) {
+                                Icon(
+                                    modifier = Modifier.size(20.dp),
+                                    imageVector = Icons.Outlined.Code,
+                                    contentDescription = null,
+                                )
+                                if (!module.hasActionScript && !hasUpdate) {
+                                    Text(
+                                        modifier = Modifier.padding(start = 7.dp),
+                                        text = stringResource(R.string.open),
+                                        fontFamily = MaterialTheme.typography.labelMedium.fontFamily,
+                                        fontSize = MaterialTheme.typography.labelMedium.fontSize,
+                                    )
+                                }
+                            }
                         }
                     }
                 }
+                Spacer(modifier = Modifier.weight(1f, true))
+                AnimatedVisibility(
+                    visible = hasUpdate,
+                    enter = fadeIn(),
+                    exit = fadeOut(),
+                ) {
+                    Row {
+                        Button(
+                            modifier = Modifier.defaultMinSize(48.dp, 48.dp),
+                            enabled = !module.remove,
+                            onClick = onUpdate,
+                            shape = ButtonDefaults.textShape,
+                            contentPadding = ButtonDefaults.TextButtonContentPadding,
+                        ) {
+                            Icon(
+                                modifier = Modifier.size(20.dp),
+                                imageVector = Icons.Outlined.Download,
+                                contentDescription = null,
+                            )
+                            if (!module.hasActionScript || !module.hasWebUi) {
+                                Text(
+                                    modifier = Modifier.padding(start = 7.dp),
+                                    text = stringResource(R.string.module_update),
+                                    fontFamily = MaterialTheme.typography.labelMedium.fontFamily,
+                                    fontSize = MaterialTheme.typography.labelMedium.fontSize,
+                                )
+                            }
+                        }
+                        Spacer(Modifier.width(12.dp))
+                    }
+                }
+                FilledTonalButton(
+                    modifier = Modifier.defaultMinSize(48.dp, 48.dp),
+                    onClick = onUninstallClicked,
+                    contentPadding = ButtonDefaults.TextButtonContentPadding,
+                ) {
+                    Icon(
+                        modifier = Modifier.size(20.dp).then(if (module.remove) Modifier.rotate(180f) else Modifier),
+                        imageVector = if (module.remove) Icons.Outlined.Refresh else Icons.Outlined.Delete,
+                        contentDescription = null,
+                    )
+                    if ((!module.hasActionScript && !module.hasWebUi) || !hasUpdate) {
+                        Text(
+                            modifier = Modifier.padding(start = 7.dp),
+                            text = stringResource(if (module.remove) R.string.undo else R.string.uninstall),
+                            fontFamily = MaterialTheme.typography.labelMedium.fontFamily,
+                            fontSize = MaterialTheme.typography.labelMedium.fontSize,
+                        )
+                    }
+                }
             }
+        }
+    }
+}
+
+@Composable
+private fun CombinedClickableButton(
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    shape: Shape = ButtonDefaults.shape,
+    colors: ButtonColors = ButtonDefaults.buttonColors(),
+    border: BorderStroke? = null,
+    contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
+    interactionSource: MutableInteractionSource? = null,
+    content: @Composable RowScope.() -> Unit,
+) {
+    val source = interactionSource ?: remember { MutableInteractionSource() }
+    Surface(
+        modifier = modifier
+            .semantics { role = Role.Button }
+            .clip(shape)
+            .combinedClickable(
+                interactionSource = source,
+                indication = LocalIndication.current,
+                enabled = enabled,
+                onClick = onClick,
+                onLongClick = onLongClick,
+            ),
+        shape = shape,
+        color = if (enabled) colors.containerColor else colors.disabledContainerColor,
+        contentColor = if (enabled) colors.contentColor else colors.disabledContentColor,
+        border = border,
+    ) {
+        ProvideTextStyle(MaterialTheme.typography.labelLarge) {
+            Row(
+                Modifier
+                    .defaultMinSize(
+                        minWidth = ButtonDefaults.MinWidth,
+                        minHeight = ButtonDefaults.MinHeight,
+                    )
+                    .padding(contentPadding),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+                content = content,
+            )
         }
     }
 }

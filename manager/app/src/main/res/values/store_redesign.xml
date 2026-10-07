@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="store_redesign_themes">Themes</string>
+    <string name="store_redesign_styles">Styles</string>
+    <string name="store_redesign_theme_intro">Find a look that feels like you.</string>
+    <string name="store_redesign_style_intro">Explore complete layouts and interface styles.</string>
+    <string name="store_redesign_plugin_intro">Add the tools you need to your manager.</string>
+    <string name="store_redesign_customize_intro">Make your current theme your own.</string>
+    <string name="store_redesign_library_intro">Saved themes, backups and your profile.</string>
+    <string name="store_redesign_network">Download settings</string>
+    <string name="store_redesign_catalog">Catalog information</string>
+    <string name="store_redesign_plugin_search">Search plugins</string>
+    <string name="store_redesign_installed">Installed</string>
+    <string name="store_redesign_updates">Updates</string>
+    <string name="store_redesign_results">%1$d items</string>
+    <string name="store_redesign_no_results">No matching items</string>
+    <string name="store_redesign_no_results_summary">Try another search or clear the selected filters.</string>
+    <string name="store_redesign_clear_filters">Clear filters</string>
+    <string name="store_redesign_about">About</string>
+    <string name="store_redesign_information">Information</string>
+    <string name="store_redesign_manage">Manage</string>
+    <string name="store_redesign_backup">Backup and transfer</string>
+    <string name="store_redesign_profile">Profile and creator tools</string>
+    <string name="store_redesign_filter_category">Categories</string>
+    <string name="store_redesign_installed_tools">Available in your manager</string>
+    <string name="store_redesign_version">Version</string>
+    <string name="store_redesign_size">Download size</string>
+    <string name="store_redesign_unavailable">This item is unavailable</string>
+    <string name="store_redesign_unavailable_summary">The catalog may have changed. Return to the list and try again.</string>
+</resources>

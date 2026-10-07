@@ -18,7 +18,7 @@
       ],
       "minManagerVersionCode": 32800,
       "minKsudVersionCode": 32800,
-      "downloadUrl": "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/packages/rescue-protection.ksplugin",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/plugin-store/packages/rescue-protection.ksplugin",
       "sha256": "6fde0d6b81156f172630ca7f0929a33cc36ef160a46cee2d5758c8c209bea648",
       "sizeBytes": 816
     },
@@ -37,7 +37,7 @@
       ],
       "minManagerVersionCode": 32800,
       "minKsudVersionCode": 32800,
-      "downloadUrl": "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/packages/image-tools.ksplugin",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/plugin-store/packages/image-tools.ksplugin",
       "sha256": "a21b43bbe8d9c058f13d707a47b9eccd752a14543cc051b626f4e97f3f1f3a6b",
       "sizeBytes": 752
     },
@@ -56,7 +56,7 @@
       ],
       "minManagerVersionCode": 32800,
       "minKsudVersionCode": 32800,
-      "downloadUrl": "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/packages/cpu-spoof.ksplugin",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/plugin-store/packages/cpu-spoof.ksplugin",
       "sha256": "8f2855ae972d0116ce2c442be02c49e34b50e81a5ac03d9f36c5794ee7d60f0f",
       "sizeBytes": 724
     },
@@ -75,7 +75,7 @@
       ],
       "minManagerVersionCode": 32800,
       "minKsudVersionCode": 32800,
-      "downloadUrl": "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/packages/device-identity.ksplugin",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/plugin-store/packages/device-identity.ksplugin",
       "sha256": "cf07342459fdcd470ef5fcf337d162be718590e24d46e62fbbc7219994999fd4",
       "sizeBytes": 753
     },
@@ -94,7 +94,7 @@
       ],
       "minManagerVersionCode": 32800,
       "minKsudVersionCode": 32800,
-      "downloadUrl": "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/packages/graphics-renderer.ksplugin",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/plugin-store/packages/graphics-renderer.ksplugin",
       "sha256": "d19c1952a22aa84ac1e931a14fa26b077ca0a2164f693d2d864ab8d902554813",
       "sizeBytes": 771
     },
@@ -113,7 +113,7 @@
       ],
       "minManagerVersionCode": 32800,
       "minKsudVersionCode": 32800,
-      "downloadUrl": "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/packages/ai-chat.ksplugin",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/plugin-store/packages/ai-chat.ksplugin",
       "sha256": "ddcd079c5430437ddbc2b8bf42c9f131d8933775320fe7746e23a0aa0f91a6b3",
       "sizeBytes": 767
     },
@@ -134,7 +134,7 @@
       ],
       "minManagerVersionCode": 32800,
       "minKsudVersionCode": 32800,
-      "downloadUrl": "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/packages/remote-management-suite.ksplugin",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/plugin-store/packages/remote-management-suite.ksplugin",
       "sha256": "235f67f75abc107c7d4bcd25d1603ee7582e51f532b0db88c81c86dd946778bd",
       "sizeBytes": 1015
     },
@@ -153,7 +153,7 @@
       ],
       "minManagerVersionCode": 32800,
       "minKsudVersionCode": 32800,
-      "downloadUrl": "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/packages/app-id-manager.ksplugin",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/plugin-store/packages/app-id-manager.ksplugin",
       "sha256": "bc6114851e53546486bca7de4b817fa3ea79acad613a10e5731ffc72e592a4d1",
       "sizeBytes": 736
     },
@@ -172,7 +172,7 @@
       ],
       "minManagerVersionCode": 32800,
       "minKsudVersionCode": 32800,
-      "downloadUrl": "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/packages/app-freeze.ksplugin",
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/plugin-store/packages/app-freeze.ksplugin",
       "sha256": "415cb075a234f7e3e7ee97bdc90486d2ff062c75dfff57a960e580fc6ce3b149",
       "sizeBytes": 724
     }

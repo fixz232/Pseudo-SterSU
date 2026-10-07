@@ -106,10 +106,6 @@ sealed interface Route : NavKey, Parcelable {
 
     @Parcelize
     @Serializable
-    data object HomeLayout : Route
-
-    @Parcelize
-    @Serializable
     data object InstallCardWallpapers : Route
 
     @Parcelize

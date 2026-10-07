@@ -78,7 +78,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
+import androidx.lifecycle.viewmodel.compose.viewModel
 import java.io.InputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -102,6 +104,9 @@ import me.weishu.kernelsu.ui.util.normalizeSusfsMapPath
 import me.weishu.kernelsu.ui.util.normalizeSusfsPath
 import me.weishu.kernelsu.ui.util.parseSusfsBackupJson
 import me.weishu.kernelsu.ui.util.saveAndApplySusfsConfig
+import me.weishu.kernelsu.ui.util.withKernelIdentity
+import me.weishu.kernelsu.ui.viewmodel.SusfsKernelSlotsState
+import me.weishu.kernelsu.ui.viewmodel.SusfsKernelSlotsViewModel
 
 private const val SUSFS_IMPORT_MAX_CHARS = 256 * 1024
 
@@ -118,6 +123,8 @@ fun SusfsPathConfigScreen() {
     val context = LocalContext.current
     val resources = LocalResources.current
     val scope = rememberCoroutineScope()
+    val kernelSlotsModel: SusfsKernelSlotsViewModel = viewModel()
+    val kernelSlots by kernelSlotsModel.state.collectAsStateWithLifecycle()
     var runtime by remember { mutableStateOf(SusfsPathConfigState()) }
     var draft by remember { mutableStateOf(SusfsPathConfigState()) }
     var baseline by remember { mutableStateOf<SusfsPathConfigState?>(null) }
@@ -288,6 +295,12 @@ fun SusfsPathConfigScreen() {
     LaunchedEffect(Unit) {
         replaceWithRuntime(getSusfsPathConfig())
         loading = false
+    }
+
+    LaunchedEffect(selectedPage, runtime.available) {
+        if (selectedPage == SusfsPage.KernelSpoofing && runtime.available) {
+            kernelSlotsModel.load()
+        }
     }
 
     if (showDiscardDialog) {
@@ -652,7 +665,10 @@ fun SusfsPathConfigScreen() {
             if (selectedPage == SusfsPage.KernelSpoofing) {
                 SusfsIdentityEditor(
                     draft = draft,
-                    enabled = runtime.available && draft.enabled && !applying,
+                    enabled = runtime.available && draft.enabled && !applying && !importing,
+                    kernelSlots = kernelSlots,
+                    queryEnabled = runtime.available && !applying && !importing,
+                    onRefreshSlots = { kernelSlotsModel.load(refresh = true) },
                     onChange = { draft = it },
                 )
             }
@@ -954,13 +970,27 @@ private fun SusfsStringListEditor(
 private fun SusfsIdentityEditor(
     draft: SusfsPathConfigState,
     enabled: Boolean,
+    kernelSlots: SusfsKernelSlotsState,
+    queryEnabled: Boolean,
+    onRefreshSlots: () -> Unit,
     onChange: (SusfsPathConfigState) -> Unit,
 ) {
+    val context = LocalContext.current
     SusfsSection(title = stringResource(R.string.susfs_identity_spoofing)) {
         Text(
             stringResource(R.string.susfs_identity_spoofing_summary),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall,
+        )
+        SusfsKernelSlotPicker(
+            state = kernelSlots,
+            queryEnabled = queryEnabled,
+            fillEnabled = enabled && draft.capabilities.supportsUnameSpoof,
+            onRefresh = onRefreshSlots,
+            onFill = { identity ->
+                onChange(draft.withKernelIdentity(identity))
+                Toast.makeText(context, R.string.susfs_slots_filled, Toast.LENGTH_SHORT).show()
+            },
         )
         OutlinedTextField(
             value = draft.unameRelease,

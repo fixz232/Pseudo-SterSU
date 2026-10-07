@@ -6,6 +6,8 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <cstdlib>
+#include <cerrno>
+#include <cstdio>
 
 #include <android/log.h>
 #include <cstring>
@@ -202,18 +204,45 @@ static void fillArrayWithList(JNIEnv *env, jobject list, int *data, int count) {
     }
 }
 
+static void throwProfileIoError(JNIEnv *env, const char *operation, int error) {
+    char message[160];
+    snprintf(message, sizeof(message), "%s: errno=%d (%s)", operation, error, strerror(error));
+    env->ThrowNew(env->FindClass("java/io/IOException"), message);
+}
+
 extern "C"
-JNIEXPORT jobject JNICALL
-Java_me_weishu_kernelsu_Natives_getAppProfile(JNIEnv *env, jobject, jstring pkg, jint uid) {
+JNIEXPORT jboolean JNICALL
+Java_me_weishu_kernelsu_Natives_uidShouldUmountStrict(JNIEnv *env, jobject, jint uid) {
+    bool should_umount = false;
+    if (uid_should_umount_checked(uid, &should_umount) != 0) {
+        const int error = errno;
+        throwProfileIoError(env, "UID_SHOULD_UMOUNT", error);
+        return false;
+    }
+    return should_umount;
+}
+
+static jobject readAppProfile(JNIEnv *env, jstring pkg, jint uid, bool strict) {
     app_profile profile = {};
     profile.version = KSU_APP_PROFILE_VER;
 
     if (!copyJStringToFixed(env, pkg, profile.key, sizeof(profile.key))) {
+        if (strict && !env->ExceptionCheck()) {
+            env->ThrowNew(env->FindClass("java/lang/IllegalArgumentException"), "invalid_profile_key");
+        }
         return nullptr;
     }
     profile.curr_uid = uid;
 
     bool useDefaultProfile = get_app_profile(&profile) != 0;
+    const int error = errno;
+    if (strict && useDefaultProfile) {
+        // Only ENOENT means inheritance. Unsupported APIs and lost driver FDs are errors.
+        if (error != ENOENT) {
+            throwProfileIoError(env, "GET_APP_PROFILE", error);
+        }
+        return nullptr;
+    }
 
     auto cls = env->FindClass("me/weishu/kernelsu/Natives$Profile");
     auto constructor = env->GetMethodID(cls, "<init>", "()V");
@@ -294,8 +323,18 @@ Java_me_weishu_kernelsu_Natives_getAppProfile(JNIEnv *env, jobject, jstring pkg,
 }
 
 extern "C"
-JNIEXPORT jboolean JNICALL
-Java_me_weishu_kernelsu_Natives_setAppProfile(JNIEnv *env, jobject clazz, jobject profile) {
+JNIEXPORT jobject JNICALL
+Java_me_weishu_kernelsu_Natives_getAppProfile(JNIEnv *env, jobject, jstring pkg, jint uid) {
+    return readAppProfile(env, pkg, uid, false);
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_me_weishu_kernelsu_Natives_getAppProfileStrict(JNIEnv *env, jobject, jstring pkg, jint uid) {
+    return readAppProfile(env, pkg, uid, true);
+}
+
+static jboolean writeAppProfile(JNIEnv *env, jobject profile, bool strict) {
     if (!profile) {
         return false;
     }
@@ -380,8 +419,26 @@ Java_me_weishu_kernelsu_Natives_setAppProfile(JNIEnv *env, jobject clazz, jobjec
         p.nrp_config.profile.umount_modules = umountModules;
     }
 
-    return set_app_profile(&p);
+    const bool written = set_app_profile(&p);
+    const int error = errno;
+    if (strict && !written) {
+        throwProfileIoError(env, "SET_APP_PROFILE", error);
+    }
+    return written;
 }
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_me_weishu_kernelsu_Natives_setAppProfile(JNIEnv *env, jobject, jobject profile) {
+    return writeAppProfile(env, profile, false);
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_me_weishu_kernelsu_Natives_setAppProfileStrict(JNIEnv *env, jobject, jobject profile) {
+    return writeAppProfile(env, profile, true);
+}
+
 extern "C"
 JNIEXPORT jboolean JNICALL
 Java_me_weishu_kernelsu_Natives_uidShouldUmount(JNIEnv *env, jobject thiz, jint uid) {

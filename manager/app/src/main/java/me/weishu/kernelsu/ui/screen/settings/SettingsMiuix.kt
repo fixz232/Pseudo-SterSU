@@ -66,6 +66,7 @@ import androidx.compose.material.icons.rounded.RemoveCircle
 import androidx.compose.material.icons.rounded.RemoveModerator
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Storefront
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material.icons.rounded.Videocam
@@ -380,10 +381,10 @@ fun SettingPagerMiuix(
                             onCheckedChange = actions.onSetDayNightMode,
                         )
                         CategorizedMiuixActionRow(
-                            title = stringResource(R.string.store_title),
-                            summary = stringResource(R.string.store_summary),
-                            icon = Icons.Rounded.Storefront,
-                            onClick = actions.onOpenThemeStore,
+                            title = stringResource(R.string.sidebar_widget_settings_title),
+                            summary = stringResource(R.string.sidebar_design_entry_summary),
+                            icon = Icons.Rounded.Tune,
+                            onClick = actions.onOpenSidebarDesign,
                         )
                     }
                     }
@@ -421,12 +422,6 @@ fun SettingPagerMiuix(
                             },
                             icon = Icons.Rounded.EditNote,
                             onClick = actions.onEditHomeTitle,
-                        )
-                        CategorizedMiuixActionRow(
-                            title = stringResource(id = R.string.home_layout_title),
-                            summary = stringResource(id = R.string.home_layout_settings_summary),
-                            icon = Icons.Rounded.Dashboard,
-                            onClick = actions.onOpenHomeLayout,
                         )
                         CategorizedMiuixSwitchRow(
                             title = stringResource(id = R.string.settings_show_home_support_card),
@@ -490,48 +485,6 @@ fun SettingPagerMiuix(
                                 onSelectedIndexChange = actions.onSetSuCompatMode
                             )
 
-                            val umountSummary = when (uiState.kernelUmountStatus) {
-                                "unsupported" -> stringResource(id = R.string.feature_status_unsupported_summary)
-                                "managed" -> stringResource(id = R.string.feature_status_managed_summary)
-                                else -> stringResource(id = R.string.settings_kernel_umount_summary)
-                            }
-                            CategorizedMiuixSwitchRow(
-                                title = stringResource(id = R.string.settings_kernel_umount),
-                                summary = umountSummary,
-                                icon = Icons.Rounded.RemoveCircle,
-                                enabled = uiState.kernelUmountStatus == "supported",
-                                checked = uiState.isKernelUmountEnabled,
-                                onCheckedChange = actions.onSetKernelUmountEnabled,
-                            )
-
-                            val webViewUmountSummary = when (uiState.webViewZygoteUmountStatus) {
-                                "unsupported" -> stringResource(id = R.string.feature_status_unsupported_summary)
-                                "managed" -> stringResource(id = R.string.feature_status_managed_summary)
-                                else -> stringResource(id = R.string.settings_webview_zygote_umount_summary)
-                            }
-                            CategorizedMiuixSwitchRow(
-                                title = stringResource(id = R.string.settings_webview_zygote_umount),
-                                summary = webViewUmountSummary,
-                                icon = Icons.Rounded.Language,
-                                enabled = uiState.webViewZygoteUmountStatus == "supported",
-                                checked = uiState.isWebViewZygoteUmountEnabled,
-                                onCheckedChange = actions.onSetWebViewZygoteUmountEnabled,
-                            )
-
-                            val selinuxHideSummary = when (uiState.selinuxHideStatus) {
-                                "unsupported" -> stringResource(id = R.string.feature_status_unsupported_summary)
-                                "managed" -> stringResource(id = R.string.feature_status_managed_summary)
-                                else -> stringResource(id = R.string.settings_selinux_hide_summary)
-                            }
-                            CategorizedMiuixSwitchRow(
-                                title = stringResource(id = R.string.settings_selinux_hide),
-                                summary = selinuxHideSummary,
-                                icon = Icons.Rounded.Policy,
-                                enabled = uiState.selinuxHideStatus == "supported",
-                                checked = uiState.isSelinuxHideEnabled,
-                                onCheckedChange = actions.onSetSelinuxHideEnabled,
-                            )
-
                             val sulogSummary = when (uiState.sulogStatus) {
                                 "unsupported" -> stringResource(id = R.string.feature_status_unsupported_summary)
                                 "managed" -> stringResource(id = R.string.feature_status_managed_summary)
@@ -560,19 +513,6 @@ fun SettingPagerMiuix(
                                 onCheckedChange = actions.onSetAdbRootEnabled,
                             )
 
-                            val avcSpoofSummary = when (uiState.avcSpoofStatus) {
-                                "unsupported" -> stringResource(id = R.string.feature_status_unsupported_summary)
-                                "managed" -> stringResource(id = R.string.feature_status_managed_summary)
-                                else -> stringResource(id = R.string.settings_avc_spoof_summary)
-                            }
-                            CategorizedMiuixSwitchRow(
-                                title = stringResource(id = R.string.settings_avc_spoof),
-                                summary = avcSpoofSummary,
-                                icon = Icons.Rounded.EditNote,
-                                enabled = uiState.avcSpoofStatus == "supported",
-                                checked = uiState.isAvcSpoofEnabled,
-                                onCheckedChange = actions.onSetAvcSpoofEnabled,
-                            )
                             SwitchPreference(
                                 title = stringResource(id = R.string.settings_soft_reboot),
                                 summary = stringResource(id = R.string.settings_soft_reboot_summary),
@@ -588,6 +528,14 @@ fun SettingPagerMiuix(
                                 checked = uiState.isLateLoadMode || uiState.useSoftReboot,
                                 onCheckedChange = actions.onSetUseSoftReboot
                             )
+                            CategorizedMiuixSwitchRow(
+                                title = stringResource(id = R.string.settings_auto_jailbreak),
+                                summary = stringResource(id = R.string.settings_auto_jailbreak_summary),
+                                icon = Icons.Rounded.ElectricalServices,
+                                enabled = uiState.isLateLoadMode,
+                                checked = uiState.autoJailbreak,
+                                onCheckedChange = actions.onSetAutoJailbreak,
+                            )
                         }
                         }
 
@@ -600,6 +548,32 @@ fun SettingPagerMiuix(
                             expanded = categoryExpanded(SettingsCategory.MountAndHide),
                             onExpandedChange = { updateCategory(SettingsCategory.MountAndHide, it) },
                         ) {
+                            val umountSummary = when (uiState.kernelUmountStatus) {
+                                "unsupported" -> stringResource(id = R.string.feature_status_unsupported_summary)
+                                "managed" -> stringResource(id = R.string.feature_status_managed_summary)
+                                else -> stringResource(id = R.string.settings_kernel_umount_summary)
+                            }
+                            CategorizedMiuixSwitchRow(
+                                title = stringResource(id = R.string.settings_kernel_umount),
+                                summary = umountSummary,
+                                icon = Icons.Rounded.RemoveCircle,
+                                enabled = uiState.kernelUmountStatus == "supported",
+                                checked = uiState.isKernelUmountEnabled,
+                                onCheckedChange = actions.onSetKernelUmountEnabled,
+                            )
+                            val webViewUmountSummary = when (uiState.webViewZygoteUmountStatus) {
+                                "unsupported" -> stringResource(id = R.string.feature_status_unsupported_summary)
+                                "managed" -> stringResource(id = R.string.feature_status_managed_summary)
+                                else -> stringResource(id = R.string.settings_webview_zygote_umount_summary)
+                            }
+                            CategorizedMiuixSwitchRow(
+                                title = stringResource(id = R.string.settings_webview_zygote_umount),
+                                summary = webViewUmountSummary,
+                                icon = Icons.Rounded.Language,
+                                enabled = uiState.webViewZygoteUmountStatus == "supported",
+                                checked = uiState.isWebViewZygoteUmountEnabled,
+                                onCheckedChange = actions.onSetWebViewZygoteUmountEnabled,
+                            )
                             CategorizedMiuixSwitchRow(
                                 title = stringResource(id = R.string.settings_umount_modules_default),
                                 summary = stringResource(id = R.string.settings_umount_modules_default_summary),
@@ -607,37 +581,41 @@ fun SettingPagerMiuix(
                                 checked = uiState.isDefaultUmountModules,
                                 onCheckedChange = actions.onSetDefaultUmountModules,
                             )
-
+                            val selinuxHideSummary = when (uiState.selinuxHideStatus) {
+                                "unsupported" -> stringResource(id = R.string.feature_status_unsupported_summary)
+                                "managed" -> stringResource(id = R.string.feature_status_managed_summary)
+                                else -> stringResource(id = R.string.settings_selinux_hide_summary)
+                            }
                             CategorizedMiuixSwitchRow(
-                                title = stringResource(id = R.string.settings_kpatch_next),
-                                summary = kPatchNextSummary(uiState),
-                                icon = Icons.Rounded.DeveloperMode,
-                                enabled = uiState.canToggleKPatchNext,
-                                checked = uiState.isKPatchNextSwitchChecked,
-                                onCheckedChange = actions.onSetKPatchNextEnabled,
+                                title = stringResource(id = R.string.settings_selinux_hide),
+                                summary = selinuxHideSummary,
+                                icon = Icons.Rounded.Policy,
+                                enabled = uiState.selinuxHideStatus == "supported",
+                                checked = uiState.isSelinuxHideEnabled,
+                                onCheckedChange = actions.onSetSelinuxHideEnabled,
                             )
-
-                            CategorizedMiuixActionRow(
-                                title = stringResource(id = R.string.settings_kpatch_next_webui),
-                                summary = stringResource(
-                                    id = if (uiState.canOpenKPatchNextWebUi) {
-                                        R.string.settings_kpatch_next_webui_summary
-                                    } else {
-                                        R.string.settings_kpatch_next_webui_disabled_summary
-                                    }
-                                ),
-                                icon = Icons.Rounded.Apps,
-                                enabled = uiState.canOpenKPatchNextWebUi,
-                                onClick = actions.onOpenKPatchNextWebUi,
+                            val avcSpoofSummary = when (uiState.avcSpoofStatus) {
+                                "unsupported" -> stringResource(id = R.string.feature_status_unsupported_summary)
+                                "managed" -> stringResource(id = R.string.feature_status_managed_summary)
+                                else -> stringResource(id = R.string.settings_avc_spoof_summary)
+                            }
+                            CategorizedMiuixSwitchRow(
+                                title = stringResource(id = R.string.settings_avc_spoof),
+                                summary = avcSpoofSummary,
+                                icon = Icons.Rounded.EditNote,
+                                enabled = uiState.avcSpoofStatus == "supported",
+                                checked = uiState.isAvcSpoofEnabled,
+                                onCheckedChange = actions.onSetAvcSpoofEnabled,
                             )
-
-                            CategorizedMiuixActionRow(
-                                title = pathConfigTitle(uiState),
-                                summary = pathConfigSummary(uiState),
-                                icon = Icons.Rounded.Visibility,
-                                enabled = uiState.canOpenPathConfig,
-                                onClick = actions.onOpenHiddenPathConfig,
-                            )
+                            if (uiState.isPathConfigEntryVisible) {
+                                CategorizedMiuixActionRow(
+                                    title = pathConfigTitle(uiState),
+                                    summary = pathConfigSummary(uiState),
+                                    icon = Icons.Rounded.Visibility,
+                                    enabled = uiState.canOpenPathConfig,
+                                    onClick = actions.onOpenHiddenPathConfig,
+                                )
+                            }
                             CategorizedMiuixSwitchRow(
                                 title = stringResource(id = R.string.settings_epkesu_hide),
                                 summary = stringResource(id = R.string.settings_epkesu_hide_summary),
@@ -648,14 +626,14 @@ fun SettingPagerMiuix(
                         }
                         }
 
-                        if (categoryVisible(SettingsCategory.Toolbox)) {
+                        if (categoryVisible(SettingsCategory.Plugins)) {
                         CollapsibleMiuixSection(
                             title = stringResource(R.string.settings_hub_toolbox),
                             summary = stringResource(R.string.settings_hub_toolbox_summary),
                             icon = Icons.Rounded.DeveloperMode,
-                            itemCount = SettingsCatalog.visibleEntryCount(SettingsCategory.Toolbox, uiState),
-                            expanded = categoryExpanded(SettingsCategory.Toolbox),
-                            onExpandedChange = { updateCategory(SettingsCategory.Toolbox, it) },
+                            itemCount = SettingsCatalog.visibleEntryCount(SettingsCategory.Plugins, uiState),
+                            expanded = categoryExpanded(SettingsCategory.Plugins),
+                            onExpandedChange = { updateCategory(SettingsCategory.Plugins, it) },
                         ) {
                             CategorizedMiuixActionRow(
                                 title = stringResource(R.string.store_title),
@@ -723,6 +701,63 @@ fun SettingPagerMiuix(
 
                     if (categoryVisible(SettingsCategory.AppAndMaintenance)) {
                     CollapsibleMiuixSection(
+                        title = stringResource(R.string.settings_hub_web_privacy),
+                        summary = stringResource(R.string.settings_hub_web_privacy_summary),
+                        icon = Icons.Rounded.Language,
+                        itemCount = SettingsCatalog.visibleEntryCount(SettingsCategory.AppAndMaintenance, uiState),
+                        expanded = categoryExpanded(SettingsCategory.AppAndMaintenance),
+                        onExpandedChange = { updateCategory(SettingsCategory.AppAndMaintenance, it) },
+                    ) {
+                        CategorizedMiuixSwitchRow(
+                            title = stringResource(id = R.string.enable_web_debugging),
+                            summary = stringResource(id = R.string.enable_web_debugging_summary),
+                            icon = Icons.Rounded.DeveloperMode,
+                            checked = uiState.enableWebDebugging,
+                            onCheckedChange = actions.onSetEnableWebDebugging,
+                        )
+                        if (uiState.hasPlugin(ManagerPlugin.RemoteManagementSuite)) {
+                            CategorizedMiuixSwitchRow(
+                                title = stringResource(id = R.string.web_manager_auto_start),
+                                summary = stringResource(id = R.string.web_manager_auto_start_summary),
+                                icon = Icons.Rounded.Language,
+                                checked = uiState.webManagerAutoStart,
+                                onCheckedChange = actions.onSetWebManagerAutoStart,
+                            )
+                            CategorizedMiuixActionRow(
+                                title = stringResource(id = R.string.web_manager_open),
+                                summary = stringResource(id = R.string.web_manager_open_summary),
+                                icon = Icons.Rounded.Language,
+                                onClick = actions.onOpenWebManager,
+                            )
+                            CategorizedMiuixSwitchRow(
+                                title = stringResource(id = R.string.stealth_mode_title),
+                                summary = stringResource(id = R.string.stealth_mode_summary),
+                                icon = Icons.Rounded.Security,
+                                enabled = !uiState.stealthModeBusy,
+                                checked = uiState.stealthModeEnabled,
+                                onCheckedChange = { enabled ->
+                                    if (enabled) {
+                                        stealthModeDialogEnablesMode.value = true
+                                        showStealthModeDialog.value = true
+                                    }
+                                },
+                            )
+                            CategorizedMiuixActionRow(
+                                title = stringResource(id = R.string.stealth_mode_code_title),
+                                summary = uiState.stealthModeCode,
+                                icon = Icons.Rounded.Visibility,
+                                enabled = !uiState.stealthModeBusy && !uiState.stealthModeEnabled,
+                                onClick = {
+                                    stealthModeDialogEnablesMode.value = false
+                                    showStealthModeDialog.value = true
+                                },
+                            )
+                        }
+                    }
+                    }
+
+                    if (categoryVisible(SettingsCategory.AppAndMaintenance)) {
+                    CollapsibleMiuixSection(
                         title = stringResource(R.string.settings_hub_app_maintenance),
                         summary = stringResource(R.string.settings_hub_app_maintenance_summary),
                         icon = Icons.Rounded.BugReport,
@@ -760,57 +795,6 @@ fun SettingPagerMiuix(
                                 onCheckedChange = actions.onSetShowGkiWarning,
                             )
                         }
-                        if (uiState.hasPlugin(ManagerPlugin.RemoteManagementSuite)) CategorizedMiuixSwitchRow(
-                            title = stringResource(id = R.string.web_manager_auto_start),
-                            summary = stringResource(id = R.string.web_manager_auto_start_summary),
-                            icon = Icons.Rounded.Language,
-                            checked = uiState.webManagerAutoStart,
-                            onCheckedChange = actions.onSetWebManagerAutoStart,
-                        )
-                        if (uiState.hasPlugin(ManagerPlugin.RemoteManagementSuite)) CategorizedMiuixActionRow(
-                            title = stringResource(id = R.string.web_manager_open),
-                            summary = stringResource(id = R.string.web_manager_open_summary),
-                            icon = Icons.Rounded.Language,
-                            onClick = actions.onOpenWebManager,
-                        )
-                        if (uiState.hasPlugin(ManagerPlugin.RemoteManagementSuite)) CategorizedMiuixSwitchRow(
-                            title = stringResource(id = R.string.stealth_mode_title),
-                            summary = stringResource(id = R.string.stealth_mode_summary),
-                            icon = Icons.Rounded.Security,
-                            enabled = !uiState.stealthModeBusy,
-                            checked = uiState.stealthModeEnabled,
-                            onCheckedChange = { enabled ->
-                                if (enabled) {
-                                    stealthModeDialogEnablesMode.value = true
-                                    showStealthModeDialog.value = true
-                                }
-                            },
-                        )
-                        if (uiState.hasPlugin(ManagerPlugin.RemoteManagementSuite)) CategorizedMiuixActionRow(
-                            title = stringResource(id = R.string.stealth_mode_code_title),
-                            summary = uiState.stealthModeCode,
-                            icon = Icons.Rounded.Visibility,
-                            enabled = !uiState.stealthModeBusy && !uiState.stealthModeEnabled,
-                            onClick = {
-                                stealthModeDialogEnablesMode.value = false
-                                showStealthModeDialog.value = true
-                            },
-                        )
-                        CategorizedMiuixSwitchRow(
-                            title = stringResource(id = R.string.enable_web_debugging),
-                            summary = stringResource(id = R.string.enable_web_debugging_summary),
-                            icon = Icons.Rounded.DeveloperMode,
-                            checked = uiState.enableWebDebugging,
-                            onCheckedChange = actions.onSetEnableWebDebugging,
-                        )
-                        CategorizedMiuixSwitchRow(
-                            title = stringResource(id = R.string.settings_auto_jailbreak),
-                            summary = stringResource(id = R.string.settings_auto_jailbreak_summary),
-                            icon = Icons.Rounded.ElectricalServices,
-                            enabled = uiState.isLateLoadMode,
-                            checked = uiState.autoJailbreak,
-                            onCheckedChange = actions.onSetAutoJailbreak,
-                        )
                         if (uiState.isLkmMode) {
                             val uninstall = stringResource(id = R.string.settings_uninstall)
                             CategorizedMiuixActionRow(

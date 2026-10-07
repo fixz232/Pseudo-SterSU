@@ -8,14 +8,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
+import me.weishu.kernelsu.ui.InterfaceStyle
+import me.weishu.kernelsu.ui.LocalInterfaceStyle
 import me.weishu.kernelsu.ui.component.decoration.uiDecoratedCard
 import me.weishu.kernelsu.ui.component.liquid.globalLiquidGlassSurface
 import me.weishu.kernelsu.ui.component.liquid.liquidGlassMaterialCardColors
 
 @Composable
+private fun tonalCardContainerColor(): Color =
+    if (LocalInterfaceStyle.current == InterfaceStyle.SidebarWidget.value) {
+        MaterialTheme.colorScheme.surfaceContainer
+    } else MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)
+
+@Composable
 fun TonalCard(
     modifier: Modifier = Modifier,
-    containerColor: Color = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp),
+    containerColor: Color = tonalCardContainerColor(),
     shape: Shape = MaterialTheme.shapes.large,
     enabled: Boolean = true,
     onClick: () -> Unit,
@@ -37,7 +45,7 @@ fun TonalCard(
 @Composable
 fun TonalCard(
     modifier: Modifier = Modifier,
-    containerColor: Color = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp),
+    containerColor: Color = tonalCardContainerColor(),
     shape: Shape = MaterialTheme.shapes.large,
     content: @Composable () -> Unit
 ) {

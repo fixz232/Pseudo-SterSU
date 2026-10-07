@@ -108,7 +108,6 @@ import me.weishu.kernelsu.ui.util.execKsud
 import me.weishu.kernelsu.ui.webmanager.WEB_MANAGER_AUTO_START_KEY
 import me.weishu.kernelsu.ui.util.getFeaturePersistValue
 import me.weishu.kernelsu.ui.util.getFeatureStatus
-import me.weishu.kernelsu.ui.util.getKPatchNextStatus as readKPatchNextStatus
 import me.weishu.kernelsu.ui.util.getKpmCaps as readKpmCaps
 import me.weishu.kernelsu.ui.util.releaseCustomImageReference
 import me.weishu.kernelsu.ui.util.releasePersistableVideoBackgroundReadPermission
@@ -133,7 +132,6 @@ import me.weishu.kernelsu.ui.util.setCustomPageBackgroundVisualSettings as write
 import me.weishu.kernelsu.ui.util.setGlobalBackgroundVisualSettings as writeGlobalBackgroundVisualSettings
 import me.weishu.kernelsu.ui.util.setStartupAnimationSettings as writeStartupAnimationSettings
 import me.weishu.kernelsu.ui.util.setCustomPageBackgroundWallpaper as writeCustomPageBackgroundWallpaper
-import me.weishu.kernelsu.ui.util.setKPatchNextEnabled as writeKPatchNextEnabled
 import me.weishu.kernelsu.ui.util.getEpkesuHideStatus as readEpkesuHideStatus
 import me.weishu.kernelsu.ui.util.setEpkesuHideEnabled as writeEpkesuHideEnabled
 import me.weishu.kernelsu.ui.util.setCustomNavigationIcon as writeCustomNavigationIcon
@@ -188,17 +186,43 @@ class SettingsRepositoryImpl : SettingsRepository {
             } else {
                 UiMode.DEFAULT_VALUE
             }
-            if (storedValue != normalizedValue) {
-                prefs.edit { putString("ui_mode", normalizedValue) }
-            }
             return normalizedValue
         }
-        set(value) = prefs.edit { putString("ui_mode", InterfaceStyle.normalizeValue(value)) }
+        set(value) {
+            val normalized = InterfaceStyle.normalizeValue(value)
+            val keepPackage = normalized in setOf(InterfaceStyle.Alpha.value, InterfaceStyle.Delta.value) &&
+                uiMode in setOf(InterfaceStyle.Alpha.value, InterfaceStyle.Delta.value)
+            prefs.edit {
+                putString("ui_mode", normalized)
+                if (!keepPackage) remove(ACTIVE_INTERFACE_STYLE_ID_KEY)
+            }
+        }
+
+    override val activeInterfaceStyleId: String?
+        get() {
+            val mode = uiMode
+            if (InterfaceStyle.builtInEntries.any { it.value == mode }) return null
+            val engine = if (mode == InterfaceStyle.Delta.value) InterfaceStyle.Alpha.value else mode
+            val variant = when (engine) {
+                InterfaceStyle.Snow.value -> seasonStyle
+                InterfaceStyle.Rain.value -> rainStyle
+                InterfaceStyle.Pixel.value -> pixelStyle
+                else -> null
+            }
+            val candidates = interfaceStyleRegistry.list().filter {
+                it.style.engine == engine && it.style.variant == variant &&
+                    (mode != InterfaceStyle.Delta.value || it.style.id == "alpha-delta")
+            }
+            val selectedId = prefs.getString(ACTIVE_INTERFACE_STYLE_ID_KEY, null)
+            return if (selectedId == null) candidates.firstOrNull()?.style?.id
+            else candidates.firstOrNull { it.style.id == selectedId }?.style?.id
+        }
 
     private fun isDownloadedInterfaceStyleAvailable(mode: String): Boolean {
-        if (mode in InterfaceStyle.builtInEntries.map(InterfaceStyle::value) || mode == InterfaceStyle.Delta.value) {
+        if (mode in InterfaceStyle.builtInEntries.map(InterfaceStyle::value)) {
             return true
         }
+        val engine = if (mode == InterfaceStyle.Delta.value) InterfaceStyle.Alpha.value else mode
         val variant = when (mode) {
             InterfaceStyle.Snow.value -> SeasonStyle.fromValue(
                 prefs.getString(SEASON_STYLE_KEY, SeasonStyle.DEFAULT_VALUE)
@@ -211,8 +235,11 @@ class SettingsRepositoryImpl : SettingsRepository {
             ).value
             else -> null
         }
+        val selectedId = prefs.getString(ACTIVE_INTERFACE_STYLE_ID_KEY, null)
         return interfaceStyleRegistry.list().any { installed ->
-            installed.style.engine == mode && installed.style.variant == variant
+            installed.style.engine == engine && installed.style.variant == variant &&
+                (mode != InterfaceStyle.Delta.value || installed.style.id == "alpha-delta") &&
+                (selectedId == null || installed.style.id == selectedId)
         }
     }
 
@@ -1024,10 +1051,6 @@ class SettingsRepositoryImpl : SettingsRepository {
 
     override fun setDefaultUmountModules(enabled: Boolean): Boolean = Natives.setDefaultUmountModules(enabled)
 
-    override suspend fun getKPatchNextStatus() = readKPatchNextStatus()
-
-    override fun setKPatchNextEnabled(enabled: Boolean): Boolean = writeKPatchNextEnabled(enabled)
-
     override suspend fun getKpmCaps() = readKpmCaps()
 
     override suspend fun getEpkesuHideStatus(): Boolean = readEpkesuHideStatus().configured
@@ -1039,8 +1062,11 @@ class SettingsRepositoryImpl : SettingsRepository {
     override fun applyInterfaceStyle(mode: String, preset: ThemePreset?, preservedColorMode: Int) {
         val targetUiMode = InterfaceStyle.normalizeValue(mode)
         val syncStrategy = themeSyncStrategy
+        val keepPackage = targetUiMode in setOf(InterfaceStyle.Alpha.value, InterfaceStyle.Delta.value) &&
+            uiMode in setOf(InterfaceStyle.Alpha.value, InterfaceStyle.Delta.value)
         prefs.edit {
             putString("ui_mode", targetUiMode)
+            if (!keepPackage) remove(ACTIVE_INTERFACE_STYLE_ID_KEY)
             if (preset != null) {
                 writeThemeSnapshot(
                     ThemeAppearanceSnapshot(
@@ -1071,6 +1097,9 @@ class SettingsRepositoryImpl : SettingsRepository {
     }
 
     override fun applyInterfaceStylePackage(style: InterfaceStylePackage) {
+        require(interfaceStyleRegistry.get(style.id)?.style == style) {
+            "Interface style must be installed before it can be applied"
+        }
         val mode = InterfaceStyle.normalizeValue(style.engine)
         val preset = when (mode) {
             InterfaceStyle.Skrootpro.value -> ThemePreset.SKROOTPRO
@@ -1096,6 +1125,7 @@ class SettingsRepositoryImpl : SettingsRepository {
         val syncStrategy = themeSyncStrategy
         prefs.edit {
             putString("ui_mode", mode)
+            putString(ACTIVE_INTERFACE_STYLE_ID_KEY, style.id)
             writeThemeSnapshot(
                 ThemeAppearanceSnapshot(
                     colorMode = preservedColorMode,
@@ -1127,6 +1157,7 @@ class SettingsRepositoryImpl : SettingsRepository {
         val targetUiMode = InterfaceStyle.normalizeValue(preset.targetUiMode(uiMode))
         prefs.edit {
             putString("ui_mode", targetUiMode)
+            remove(ACTIVE_INTERFACE_STYLE_ID_KEY)
             writeThemeSnapshot(
                 ThemeAppearanceSnapshot(
                     colorMode = preset.colorMode.value,
@@ -1172,6 +1203,7 @@ class SettingsRepositoryImpl : SettingsRepository {
         val targetUiMode = InterfaceStyle.normalizeValue(preset.uiMode)
         prefs.edit {
             putString("ui_mode", targetUiMode)
+            remove(ACTIVE_INTERFACE_STYLE_ID_KEY)
             writeThemeSnapshot(preset.snapshot, targetUiMode)
             putString(themeKey("theme_preset", themeSyncStrategy, targetUiMode), ThemePreset.CUSTOM.value)
         }

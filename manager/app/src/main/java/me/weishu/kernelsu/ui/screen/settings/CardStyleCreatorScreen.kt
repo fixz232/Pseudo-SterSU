@@ -183,7 +183,6 @@ import me.weishu.kernelsu.ui.util.THEME_STORE_FILE_MIME_TYPE
 import me.weishu.kernelsu.ui.util.canonicalCloudThemePackageFileName
 import me.weishu.kernelsu.ui.util.exportCardComponentStylePackage
 import me.weishu.kernelsu.ui.util.prepareCardStyleCloudSubmission
-import me.weishu.kernelsu.ui.util.readHomeLayoutState
 import me.weishu.kernelsu.ui.util.readComponentStylePackage
 import me.weishu.kernelsu.ui.viewmodel.HomeViewModel
 import java.util.UUID
@@ -242,7 +241,7 @@ fun CardStyleCreatorScreen() {
     val store = remember(context) { ComponentStyleStore(context) }
     val homeViewModel = viewModel<HomeViewModel>()
     val homeUiState by homeViewModel.uiState.collectAsStateWithLifecycle()
-    var mappedHomeLayout by remember(context) { mutableStateOf(readHomeLayoutState(context)) }
+    val mappedHomeLayout = remember { HomeLayoutState() }
     val snackbarHostState = remember { SnackbarHostState() }
     val defaultName = stringResource(R.string.card_style_creator_default_name)
     val saveSuccess = stringResource(R.string.component_creator_saved)
@@ -297,7 +296,6 @@ fun CardStyleCreatorScreen() {
     var busy by remember { mutableStateOf(false) }
 
     LifecycleResumeEffect(Unit) {
-        mappedHomeLayout = readHomeLayoutState(context)
         homeViewModel.refresh()
         onPauseOrDispose { }
     }
@@ -763,7 +761,6 @@ fun CardStyleCreatorScreen() {
                     onImportImage = { pixelImageLauncher.launch(arrayOf("image/*")) },
                     onOpenAssetLibrary = { showAssetLibrary = true },
                     onOpenFullscreen = { fullscreenEditor = true },
-                    onOpenHomeLayout = { navigator.push(Route.HomeLayout) },
                 )
                 CardCreatorPage.Motion -> CardMotionPage(
                     draft = draft,
@@ -776,7 +773,6 @@ fun CardStyleCreatorScreen() {
                     },
                     onMotionInteractionStart = ::beginInteraction,
                     onMotionInteractionEnd = ::finishInteraction,
-                    onOpenHomeLayout = { navigator.push(Route.HomeLayout) },
                 )
                 CardCreatorPage.Library -> CardStyleLibraryPage(
                     styles = styles,
@@ -1379,7 +1375,6 @@ private fun CardDesignPage(
     onImportImage: () -> Unit,
     onOpenAssetLibrary: () -> Unit,
     onOpenFullscreen: () -> Unit,
-    onOpenHomeLayout: () -> Unit,
 ) {
     val previewStyle = remember(draft, hiddenLayerKeys) {
         draft.withHiddenEditorLayers(hiddenLayerKeys)
@@ -1409,7 +1404,6 @@ private fun CardDesignPage(
                             editorScope = editorScope,
                             onTargetSelected = onTargetSelected,
                             onScopeSelected = onScopeSelected,
-                            onOpenHomeLayout = onOpenHomeLayout,
                         )
                     }
                 }
@@ -1479,7 +1473,6 @@ private fun CardDesignPage(
                         editorScope = editorScope,
                         onTargetSelected = onTargetSelected,
                         onScopeSelected = onScopeSelected,
-                        onOpenHomeLayout = onOpenHomeLayout,
                     )
                 }
                 item {
@@ -1567,7 +1560,6 @@ private fun CardStylePreviewSection(
     editorScope: CardEditorScope,
     onTargetSelected: (CustomCardTarget) -> Unit,
     onScopeSelected: (CardEditorScope) -> Unit,
-    onOpenHomeLayout: () -> Unit,
 ) {
     PixelEditorSection(stringResource(R.string.card_style_creator_xiaomi_preview)) {
         XiaomiCardStylePreview(
@@ -1578,7 +1570,6 @@ private fun CardStylePreviewSection(
             selectedScope = editorScope,
             onTargetSelected = onTargetSelected,
             onScopeSelected = onScopeSelected,
-            onOpenHomeLayout = onOpenHomeLayout,
         )
     }
 }
@@ -1931,7 +1922,6 @@ private fun CardMotionPage(
     onDraftChange: (CustomCardStyle) -> Unit,
     onMotionInteractionStart: () -> Unit,
     onMotionInteractionEnd: () -> Unit,
-    onOpenHomeLayout: () -> Unit,
 ) {
     var timelinePlaying by rememberSaveable(draft.id) { mutableStateOf(true) }
     var timelineProgress by rememberSaveable(draft.id) { mutableFloatStateOf(0f) }
@@ -1959,7 +1949,6 @@ private fun CardMotionPage(
                 selectedScope = CardEditorScope.Card,
                 onTargetSelected = onTargetSelected,
                 onScopeSelected = {},
-                onOpenHomeLayout = onOpenHomeLayout,
                 motionProgressOverride = displayedTimelineProgress.takeIf { draft.motion.enabled },
             )
         }
@@ -2064,7 +2053,6 @@ private fun XiaomiCardStylePreview(
     selectedScope: CardEditorScope,
     onTargetSelected: (CustomCardTarget) -> Unit,
     onScopeSelected: (CardEditorScope) -> Unit,
-    onOpenHomeLayout: () -> Unit,
     motionProgressOverride: Float? = null,
 ) {
     var previewSurfaceIndex by rememberSaveable(style.id) {
@@ -2218,14 +2206,6 @@ private fun XiaomiCardStylePreview(
                             onTargetSelected(target)
                         },
                     )
-                    OutlinedButton(
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = onOpenHomeLayout,
-                    ) {
-                        Icon(Icons.Rounded.DashboardCustomize, contentDescription = null)
-                        Spacer(Modifier.size(8.dp))
-                        Text(stringResource(R.string.card_style_creator_edit_home_layout))
-                    }
                 }
 
                 CardPreviewSurface.Chrome -> {

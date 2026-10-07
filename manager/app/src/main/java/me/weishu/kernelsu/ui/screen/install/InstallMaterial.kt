@@ -237,14 +237,6 @@ private fun PatchModeSelector(
                 onClick = { actions.onSelectPatchMode(BootPatchMode.Normal) },
             )
         }
-        item {
-            SegmentedRadioItem(
-                title = stringResource(R.string.install_patch_mode_hidden_path),
-                summary = stringResource(R.string.install_patch_mode_hidden_path_summary),
-                selected = state.patchMode == BootPatchMode.HiddenPath,
-                onClick = { actions.onSelectPatchMode(BootPatchMode.HiddenPath) },
-            )
-        }
     }
 }
 

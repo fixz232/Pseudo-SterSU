@@ -21,6 +21,7 @@ uint32_t get_version();
 void refresh_info();
 
 bool uid_should_umount(int uid);
+int uid_should_umount_checked(int uid, bool *should_umount);
 
 bool is_safe_mode();
 

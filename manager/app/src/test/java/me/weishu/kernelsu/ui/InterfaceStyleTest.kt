@@ -9,19 +9,19 @@ import me.weishu.kernelsu.ui.theme.defaultThemePresetForUiMode
 
 class InterfaceStyleTest {
     @Test
-    fun onlyFourInterfaceStylesAreBundled() {
+    fun onlyThreeInterfaceStylesAreBundled() {
         assertEquals(
-            listOf(InterfaceStyle.Miuix, InterfaceStyle.Material, InterfaceStyle.Skrootpro, InterfaceStyle.Alpha),
+            listOf(InterfaceStyle.Miuix, InterfaceStyle.Material, InterfaceStyle.SidebarWidget),
             InterfaceStyle.selectableEntries,
         )
     }
 
     @Test
-    fun alphaAndDeltaShareOneSelectableEntry() {
-        assertTrue(InterfaceStyle.Alpha in InterfaceStyle.selectableEntries)
+    fun alphaAndDeltaRequireAStoreDownload() {
+        assertFalse(InterfaceStyle.Alpha in InterfaceStyle.selectableEntries)
         assertFalse(InterfaceStyle.Delta in InterfaceStyle.selectableEntries)
         assertEquals(
-            InterfaceStyle.selectedIndex(InterfaceStyle.Alpha.value),
+            InterfaceStyle.selectedIndex(InterfaceStyle.Miuix.value),
             InterfaceStyle.selectedIndex(InterfaceStyle.Delta.value),
         )
     }
@@ -65,10 +65,10 @@ class InterfaceStyleTest {
     }
 
     @Test
-    fun sidebarWidgetIsDownloadedButUsesMaterialUiMode() {
+    fun sidebarWidgetIsBuiltInAndUsesMaterialUiMode() {
         val sidebarValue = InterfaceStyle.SidebarWidget.value
         assertTrue(InterfaceStyle.SidebarWidget in InterfaceStyle.entries)
-        assertFalse(InterfaceStyle.SidebarWidget in InterfaceStyle.selectableEntries)
+        assertTrue(InterfaceStyle.SidebarWidget in InterfaceStyle.selectableEntries)
         assertEquals(sidebarValue, InterfaceStyle.normalizeValue(sidebarValue))
         assertEquals(UiMode.Material, UiMode.fromValue(sidebarValue))
         assertFalse(InterfaceStyle.isMiuixBased(sidebarValue))

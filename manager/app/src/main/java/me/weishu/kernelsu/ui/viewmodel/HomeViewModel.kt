@@ -29,6 +29,7 @@ import me.weishu.kernelsu.data.repository.SHOW_HOME_LEARN_CARD_KEY
 import me.weishu.kernelsu.data.repository.SHOW_HOME_SUPPORT_CARD_KEY
 import me.weishu.kernelsu.data.repository.SHOW_VERSION_MISMATCH_WARNING_KEY
 import me.weishu.kernelsu.getKernelVersion
+import me.weishu.kernelsu.isCompatibleUapiVersion
 import me.weishu.kernelsu.ksuApp
 import me.weishu.kernelsu.ui.screen.home.HomeUiState
 import me.weishu.kernelsu.ui.screen.home.GkiSeccompHookReport
@@ -346,7 +347,7 @@ class HomeViewModel(
             gkiHookReady = hookReport.usable,
             gkiHookFailureReason = hookReport.failureReason,
             uapi = kernelUapi != null && kernelUapi > 0 &&
-                managerUapi > 0 && kernelUapi == managerUapi,
+                managerUapi > 0 && isCompatibleUapiVersion(kernelUapi, managerUapi),
             ksud = ksudReady,
         )
         val selfCheck = if (capabilities.ready) {
@@ -467,7 +468,8 @@ class HomeViewModel(
         val installedVersionMatches = installedCode == BuildConfig.VERSION_CODE
         val daemonVersionMatches = packagedVersionMatches && installedVersionMatches
         val driverConnected = info.driverVersion > 0 || info.kernelModuleLoaded || info.ksuRootShell
-        val uapiMismatch = info.kernelUapi > 0 && info.kernelUapi != info.managerUapi
+        val uapiMismatch = info.kernelUapi > 0 &&
+            !isCompatibleUapiVersion(info.kernelUapi, info.managerUapi)
         val requiresNewKernel =
             (info.driverVersion in 1 until Natives.minimalSupportedKernel) || uapiMismatch
         val state = RootRuntimeState.resolve(

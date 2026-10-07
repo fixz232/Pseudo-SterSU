@@ -20,22 +20,17 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.add
-import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -46,7 +41,6 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Error
-import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.FontDownload
 import androidx.compose.material.icons.rounded.Explore
 import androidx.compose.material.icons.rounded.ImageSearch
@@ -59,16 +53,11 @@ import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material.icons.rounded.Wallpaper
-import androidx.compose.material.icons.rounded.Download
-import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Share
-import androidx.compose.material.icons.rounded.Security
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -79,6 +68,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
@@ -87,7 +77,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -108,12 +97,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.weishu.kernelsu.R
+import me.weishu.kernelsu.ui.component.store.StoreScaffold
+import me.weishu.kernelsu.ui.component.store.StoreSectionHeading
+import me.weishu.kernelsu.ui.component.store.StoreExpandableSection
+import me.weishu.kernelsu.ui.component.store.StoreSearchField
+import me.weishu.kernelsu.ui.component.store.StoreFilters
+import me.weishu.kernelsu.ui.component.store.StoreTag
+import me.weishu.kernelsu.ui.component.store.StoreEmptyState
 import me.weishu.kernelsu.BuildConfig
 import me.weishu.kernelsu.ui.InterfaceStyle
 import me.weishu.kernelsu.ui.LocalInterfaceStyle
 import me.weishu.kernelsu.ui.UiMode
-import me.weishu.kernelsu.ui.component.skrootpro.SkrootproColors
-import me.weishu.kernelsu.ui.component.skrootpro.SkrootproScreen
 import me.weishu.kernelsu.ui.navigation3.LocalNavigator
 import me.weishu.kernelsu.ui.navigation3.Route
 import me.weishu.kernelsu.ui.theme.isInDarkTheme
@@ -146,11 +140,6 @@ import me.weishu.kernelsu.ui.util.safeInterfaceStyleMessage
 import me.weishu.kernelsu.data.repository.SettingsRepositoryImpl
 import me.weishu.kernelsu.ui.util.previewThemeStorePackage
 import me.weishu.kernelsu.ui.util.readThemeStoreSummary
-import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
-import top.yukonga.miuix.kmp.basic.IconButton as MiuixIconButton
-import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
-import top.yukonga.miuix.kmp.basic.TopAppBar as MiuixTopAppBar
-import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
 import java.io.File
 import java.io.FileOutputStream
 
@@ -159,12 +148,14 @@ enum class ThemeStorePage(@StringRes val titleRes: Int) {
     Customize(R.string.theme_store_customize_title),
     My(R.string.theme_store_my_library_title),
     Plugins(R.string.store_tab_plugins),
+    Styles(R.string.store_redesign_styles),
 }
 
 internal val themeStoreNavigationPages = listOf(
     ThemeStorePage.Overview,
-    ThemeStorePage.Customize,
+    ThemeStorePage.Styles,
     ThemeStorePage.Plugins,
+    ThemeStorePage.Customize,
     ThemeStorePage.My,
 )
 
@@ -172,6 +163,23 @@ enum class ThemeStoreCustomizeSection(@StringRes val titleRes: Int) {
     Style(R.string.theme_store_customize_style),
     Assets(R.string.theme_store_customize_assets),
     Atmosphere(R.string.theme_store_customize_atmosphere),
+}
+
+private enum class InterfaceStyleCategory(@StringRes val labelRes: Int) {
+    All(R.string.interface_style_category_all),
+    FrostedGlass(R.string.interface_style_category_frosted_glass),
+    Seasons(R.string.interface_style_category_seasons),
+    Rain(R.string.interface_style_category_rain),
+    Pixel(R.string.interface_style_category_pixel),
+    System(R.string.interface_style_category_system),
+}
+
+private fun InterfaceStylePackage.category(): InterfaceStyleCategory = when (engine) {
+    "liquid_glass" -> InterfaceStyleCategory.FrostedGlass
+    "snow" -> InterfaceStyleCategory.Seasons
+    "rain" -> InterfaceStyleCategory.Rain
+    "pixel" -> InterfaceStyleCategory.Pixel
+    else -> InterfaceStyleCategory.System
 }
 
 @Composable
@@ -185,21 +193,25 @@ fun ThemeStoreScreen(
     val navigator = LocalNavigator.current
     val scope = rememberCoroutineScope()
     var summary by remember { mutableStateOf(readThemeStoreSummary(context)) }
-    var downloadedStyleCount by remember {
-        mutableIntStateOf(InterfaceStyleRegistry(context).list().size)
-    }
     var busy by remember { mutableStateOf(false) }
     var pendingImport by remember { mutableStateOf<PendingThemeStoreImport?>(null) }
     var transferReport by remember { mutableStateOf<ThemeStoreTransferReport?>(null) }
-    var selectedPageIndex by rememberSaveable(page) { mutableIntStateOf(page.ordinal) }
+    var selectedPageIndex by rememberSaveable(page, interfaceStyleStore) {
+        mutableIntStateOf(if (interfaceStyleStore) ThemeStorePage.Styles.ordinal else page.ordinal)
+    }
     val pageStateHolder = rememberSaveableStateHolder()
+    var selectedStyleId by rememberSaveable { mutableStateOf<String?>(null) }
+    val styleListScroll = rememberScrollState()
+    val styleDetailScroll = rememberScrollState()
+    LaunchedEffect(selectedStyleId) {
+        if (selectedStyleId != null) styleDetailScroll.scrollTo(0)
+    }
     val selectedPage = ThemeStorePage.entries.getOrElse(selectedPageIndex) {
         ThemeStorePage.Overview
     }
 
     fun refresh() {
         summary = readThemeStoreSummary(context)
-        downloadedStyleCount = InterfaceStyleRegistry(context).list().size
     }
 
     fun showTransferFailure(error: Throwable, messageRes: Int) {
@@ -316,38 +328,41 @@ fun ThemeStoreScreen(
     )
 
     val onInterfaceStyleInstalled: (String) -> Unit = { id ->
-        downloadedStyleCount = InterfaceStyleRegistry(context).list().size
         if (returnToAppearance) {
             navigator.setResult(INTERFACE_STYLE_RESULT_KEY, id)
         }
     }
     val onSelectedPage: (ThemeStorePage) -> Unit = { selected ->
         if (selected == ThemeStorePage.Plugins) {
-            navigator.push(Route.PluginStore)
+            navigator.replace(Route.PluginStore)
         } else {
             if (selected == ThemeStorePage.My) refresh()
             selectedPageIndex = selected.ordinal
         }
     }
     val content: @Composable () -> Unit = {
-        if (interfaceStyleStore) {
-            ThemeStorePageColumn(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .widthIn(max = 840.dp)
-                    .fillMaxWidth()
-                    .navigationBarsPadding(),
-            ) {
-                InterfaceStyleStoreContent(
-                    onInstalled = onInterfaceStyleInstalled,
-                    onConfigureSidebar = dropUnlessResumed {
-                        navigator.push(Route.SidebarWidgetSettings)
-                    },
-                )
-            }
-        } else {
-            pageStateHolder.SaveableStateProvider(selectedPage.name) {
+        pageStateHolder.SaveableStateProvider(selectedPage.name) {
+            if (selectedPage == ThemeStorePage.Styles) {
+                ThemeStorePageColumn(
+                    scrollState = if (selectedStyleId == null) styleListScroll else styleDetailScroll,
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .widthIn(max = 840.dp)
+                        .fillMaxWidth()
+                        .navigationBarsPadding(),
+                ) {
+                    InterfaceStyleStoreContent(
+                        selectedStyleId = selectedStyleId,
+                        onSelectStyle = { selectedStyleId = it },
+                        onInstalled = onInterfaceStyleInstalled,
+                        onConfigureSidebar = dropUnlessResumed {
+                            navigator.push(Route.SidebarWidgetSettings)
+                        },
+                    )
+                }
+            } else {
                 when (selectedPage) {
+                    ThemeStorePage.Styles -> Unit
                     ThemeStorePage.Overview -> ThemeStoreOverviewContent(
                         actions = actions,
                         modifier = Modifier.fillMaxSize(),
@@ -385,19 +400,21 @@ fun ThemeStoreScreen(
                             .widthIn(max = 840.dp)
                             .fillMaxWidth(),
                         headerContent = { libraryBusy ->
+                            StoreSectionHeading(stringResource(R.string.store_tab_library),
+                                stringResource(R.string.store_redesign_library_intro))
                             ThemeStoreCurrentThemeStatus(summary)
-                            ThemeStoreDestinationItem(
-                                title = stringResource(R.string.interface_style_store_title),
-                                summary = stringResource(R.string.interface_style_store_summary),
-                                status = stringResource(
-                                    R.string.theme_store_downloaded_style_count,
-                                    downloadedStyleCount,
-                                ),
-                                icon = Icons.Rounded.Palette,
-                                onClick = actions.onOpenInterfaceStyles,
-                            )
-                            ThemeStoreTransferPanel(summary, busy || libraryBusy, actions)
-                            ThemeStoreNotice(stringResource(R.string.theme_store_import_replaces_notice))
+                            StoreExpandableSection(stringResource(R.string.store_redesign_backup)) {
+                                Text(stringResource(R.string.theme_store_transfer_panel_summary), style = MaterialTheme.typography.bodyMedium)
+                                FilledTonalButton(onClick = actions.onExport, enabled = !busy && !libraryBusy,
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                                    Text(stringResource(R.string.theme_store_export))
+                                }
+                                OutlinedButton(onClick = actions.onImport, enabled = !busy && !libraryBusy,
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                                    Text(stringResource(R.string.theme_store_import))
+                                }
+                                ThemeStoreNotice(stringResource(R.string.theme_store_import_replaces_notice))
+                            }
                             transferReport?.let { ThemeStoreTransferReportCard(it) }
                         },
                     )
@@ -406,78 +423,29 @@ fun ThemeStoreScreen(
         }
     }
 
-    if (LocalInterfaceStyle.current == InterfaceStyle.Skrootpro.value) {
-        SkrootproScreen(
-            title = stringResource(
-                if (interfaceStyleStore) R.string.interface_style_store_title else selectedPage.titleRes,
-            ),
-            showAdd = selectedPage == ThemeStorePage.My,
-            actionIcon = Icons.Rounded.Person,
-            actionContentDescription = stringResource(R.string.theme_store_my_title),
-            onAddClick = actions.onOpenProfile,
-            bottomInnerPadding = 0.dp,
-        ) { paddingValues ->
-            ThemeStoreResponsiveLayout(
-                selectedPage = selectedPage,
-                onSelected = onSelectedPage,
-                showNavigation = !interfaceStyleStore,
-                showBackButton = true,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                onBack = actions.onBack,
-                content = content,
-            )
-        }
-    } else {
-        MiuixScaffold(
-            containerColor = Color.Transparent,
-            popupHost = { },
-            contentWindowInsets = WindowInsets.systemBars
-                .add(WindowInsets.displayCutout)
-                .only(WindowInsetsSides.Horizontal),
-            topBar = {
-                MiuixTopAppBar(
-                    title = stringResource(
-                        if (interfaceStyleStore) R.string.interface_style_store_title else selectedPage.titleRes,
-                    ),
-                    color = Color.Transparent,
-                    titleColor = themeStoreTextColor(),
-                    navigationIcon = {
-                        MiuixIconButton(onClick = actions.onBack) {
-                            MiuixIcon(
-                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                                contentDescription = stringResource(R.string.back),
-                                tint = themeStoreTextColor(),
-                            )
-                        }
-                    },
-                    actions = {
-                        if (selectedPage == ThemeStorePage.My) {
-                            MiuixIconButton(onClick = actions.onOpenProfile) {
-                                MiuixIcon(
-                                    imageVector = Icons.Rounded.Person,
-                                    contentDescription = stringResource(R.string.theme_store_my_title),
-                                    tint = themeStoreTextColor(),
-                                )
-                            }
-                        }
-                    },
-                )
-            },
-            content = { paddingValues ->
-                ThemeStoreResponsiveLayout(
-                    selectedPage = selectedPage,
-                    onSelected = onSelectedPage,
-                    showNavigation = !interfaceStyleStore,
-                    showBackButton = false,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
-                    onBack = actions.onBack,
-                    content = content,
-                )
-            },
+    StoreScaffold(
+        title = stringResource(if (selectedPage == ThemeStorePage.Styles && selectedStyleId != null)
+            R.string.interface_style_details else R.string.store_title),
+        onBack = {
+            if (selectedPage == ThemeStorePage.Styles && selectedStyleId != null) selectedStyleId = null
+            else actions.onBack()
+        },
+        actions = {
+            if (selectedPage == ThemeStorePage.My) {
+                IconButton(onClick = actions.onOpenProfile) {
+                    Icon(Icons.Rounded.Person, stringResource(R.string.theme_store_my_title))
+                }
+            }
+        },
+    ) { padding ->
+        ThemeStoreResponsiveLayout(
+            selectedPage = selectedPage,
+            onSelected = onSelectedPage,
+            showNavigation = selectedPage != ThemeStorePage.Styles || selectedStyleId == null,
+            showBackButton = false,
+            modifier = Modifier.fillMaxSize().padding(padding),
+            onBack = actions.onBack,
+            content = content,
         )
     }
 
@@ -605,7 +573,7 @@ internal fun ThemeStoreNavigationBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(72.dp)
+            .heightIn(min = 72.dp)
             .background(palette.navigationSurface)
             .selectableGroup(),
         verticalAlignment = Alignment.CenterVertically,
@@ -710,6 +678,7 @@ internal fun ThemeStoreNavigationRail(
 }
 
 private fun themeStorePageIcon(page: ThemeStorePage): ImageVector = when (page) {
+    ThemeStorePage.Styles -> Icons.Rounded.Palette
     ThemeStorePage.Overview -> Icons.Rounded.Explore
     ThemeStorePage.Customize -> Icons.Rounded.AutoFixHigh
     ThemeStorePage.Plugins -> Icons.Rounded.Extension
@@ -719,7 +688,8 @@ private fun themeStorePageIcon(page: ThemeStorePage): ImageVector = when (page) 
 @Composable
 private fun themeStorePageLabel(page: ThemeStorePage): String = stringResource(
     when (page) {
-        ThemeStorePage.Overview -> R.string.store_tab_discover
+        ThemeStorePage.Styles -> R.string.store_redesign_styles
+        ThemeStorePage.Overview -> R.string.store_redesign_themes
         ThemeStorePage.Customize -> R.string.store_tab_customize
         ThemeStorePage.Plugins -> R.string.store_tab_plugins
         ThemeStorePage.My -> R.string.store_tab_library
@@ -734,7 +704,6 @@ private fun ThemeStoreOverviewContent(
     CloudThemeDiscoverContent(
         onOpenTheme = actions.onOpenCloudTheme,
         onOpenRanking = actions.onOpenCloudThemeRanking,
-        onOpenInterfaceStyles = actions.onOpenInterfaceStyles,
         modifier = modifier,
     )
 }
@@ -750,6 +719,7 @@ private fun ThemeStoreCustomizeContent(
         mutableStateOf(initialSection)
     }
     ThemeStorePageColumn(modifier) {
+        StoreSectionHeading(stringResource(R.string.theme_store_customize_title), stringResource(R.string.store_redesign_customize_intro))
         ThemeStoreCurrentThemeStatus(summary)
         ThemeStoreCustomizeSelector(
             selected = selectedSection,
@@ -771,43 +741,11 @@ private fun ThemeStoreCustomizeSelector(
     selected: ThemeStoreCustomizeSection,
     onSelected: (ThemeStoreCustomizeSection) -> Unit,
 ) {
-    val palette = themeStorePalette()
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 48.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(palette.surface.copy(alpha = 0.68f))
-            .selectableGroup(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        ThemeStoreCustomizeSection.entries.forEach { section ->
-            val isSelected = selected == section
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 48.dp)
-                    .selectable(
-                        selected = isSelected,
-                        role = Role.Tab,
-                        onClick = { onSelected(section) },
-                    )
-                    .padding(4.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(if (isSelected) palette.accentContainer else Color.Transparent),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = stringResource(section.titleRes),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                    color = if (isSelected) palette.text else palette.mutedText,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-    }
+    StoreFilters(
+        labels = ThemeStoreCustomizeSection.entries.map { stringResource(it.titleRes) },
+        selectedIndex = selected.ordinal,
+        onSelect = { onSelected(ThemeStoreCustomizeSection.entries[it]) },
+    )
 }
 
 @Composable
@@ -1043,6 +981,8 @@ private fun ColumnScope.ThemeStoreAtmosphereItems(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun InterfaceStyleStoreContent(
+    selectedStyleId: String?,
+    onSelectStyle: (String?) -> Unit,
     onInstalled: (String) -> Unit,
     onConfigureSidebar: () -> Unit,
     modifier: Modifier = Modifier,
@@ -1061,12 +1001,24 @@ private fun InterfaceStyleStoreContent(
     var preferences by remember { mutableStateOf(readInterfaceStyleDownloadPreferences(context)) }
     var customProxy by rememberSaveable { mutableStateOf(preferences.customProxy) }
     var query by rememberSaveable { mutableStateOf("") }
-    var selectedStyleId by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedCategoryKey by rememberSaveable { mutableStateOf(InterfaceStyleCategory.All.name) }
+    var catalogLoading by remember { mutableStateOf(false) }
     var pendingSaveStyle by remember { mutableStateOf<InterfaceStylePackage?>(null) }
 
     fun loadCatalog(force: Boolean) {
+        if (catalogLoading) return
+        catalogLoading = true
+        error = null
         scope.launch {
-            snapshot = withContext(Dispatchers.IO) { repository.fetch(forceNetwork = force) }
+            try {
+                snapshot = withContext(Dispatchers.IO) { repository.fetch(forceNetwork = force) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Throwable) {
+                error = failure.safeInterfaceStyleMessage()
+            } finally {
+                catalogLoading = false
+            }
         }
     }
     LaunchedEffect(Unit) { loadCatalog(force = true) }
@@ -1126,7 +1078,10 @@ private fun InterfaceStyleStoreContent(
     }
 
     fun isActive(style: InterfaceStylePackage): Boolean =
-        settingsRepository.uiMode == style.engine &&
+        settingsRepository.activeInterfaceStyleId == style.id &&
+            (settingsRepository.uiMode == style.engine ||
+                style.id == "alpha-delta" && style.engine == InterfaceStyle.Alpha.value &&
+                settingsRepository.uiMode == InterfaceStyle.Delta.value) &&
             when (style.engine) {
                 InterfaceStyle.Snow.value -> settingsRepository.seasonStyle == style.variant
                 InterfaceStyle.Rain.value -> settingsRepository.rainStyle == style.variant
@@ -1211,7 +1166,18 @@ private fun InterfaceStyleStoreContent(
     }
 
     val selectedStyle = snapshot?.catalog?.styles?.firstOrNull { it.id == selectedStyleId }
-    BackHandler(enabled = selectedStyle != null) { selectedStyleId = null }
+    BackHandler(enabled = selectedStyleId != null) { onSelectStyle(null) }
+    if (selectedStyleId != null && selectedStyle == null) {
+        if (catalogLoading) {
+            me.weishu.kernelsu.ui.component.store.StoreLoadingItems()
+        } else {
+            StoreEmptyState(Icons.Rounded.Palette,
+                stringResource(R.string.store_redesign_unavailable),
+                stringResource(R.string.store_redesign_unavailable_summary),
+                stringResource(R.string.back), { onSelectStyle(null) })
+        }
+        return
+    }
     if (selectedStyle != null) {
         val installedStyle = installed.firstOrNull { it.style.id == selectedStyle.id }
         InterfaceStyleDetailContent(
@@ -1220,11 +1186,11 @@ private fun InterfaceStyleStoreContent(
             active = isActive(selectedStyle),
             busy = busyId != null,
             progress = if (busyId == selectedStyle.id) progress else null,
-            onBack = { selectedStyleId = null },
             onDownload = { runInstall(selectedStyle, applyAfter = false) },
             onApply = {
-                if (installedStyle != null) applyInstalled(selectedStyle)
-                else runInstall(selectedStyle, applyAfter = true)
+                if (installedStyle == null || hasInterfaceStyleUpdate(installedStyle, selectedStyle))
+                    runInstall(selectedStyle, applyAfter = true)
+                else applyInstalled(installedStyle.style)
             },
             onSave = {
                 pendingSaveStyle = selectedStyle
@@ -1250,150 +1216,116 @@ private fun InterfaceStyleStoreContent(
         return
     }
 
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        InterfaceStyleStoreHeader(
-            catalogCount = snapshot?.catalog?.styles?.size ?: 0,
-            installedCount = installed.size,
-            source = snapshot?.source,
-        )
-        ThemeStoreNotice(stringResource(R.string.interface_style_store_notice))
-        OutlinedTextField(
-            value = query,
-            onValueChange = { query = it.take(80) },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
-            label = { Text(stringResource(R.string.interface_style_search_hint)) },
-        )
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            InterfaceStyleProxyMode.entries.forEach { mode ->
-                FilterChip(
-                    selected = preferences.mode == mode,
-                    onClick = {
-                        preferences = preferences.copy(mode = mode)
-                        saveInterfaceStyleDownloadPreferences(context, preferences)
-                    },
-                    label = {
-                        Text(
-                            when (mode) {
-                                InterfaceStyleProxyMode.Direct -> stringResource(R.string.interface_style_proxy_direct)
-                                InterfaceStyleProxyMode.Auto -> stringResource(R.string.interface_style_proxy_auto)
-                                InterfaceStyleProxyMode.Custom -> stringResource(R.string.interface_style_proxy_custom)
-                            },
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    },
-                    modifier = Modifier.heightIn(min = 48.dp),
-                )
-            }
+    val selectedCategory = InterfaceStyleCategory.entries.firstOrNull {
+        it.name == selectedCategoryKey
+    } ?: InterfaceStyleCategory.All
+    val visibleStyles = remember(snapshot, query, selectedCategory) {
+        val normalized = query.trim().lowercase()
+        snapshot?.catalog?.styles.orEmpty().filter { style ->
+            (selectedCategory == InterfaceStyleCategory.All || style.category() == selectedCategory) &&
+                (normalized.isBlank() || listOf(style.name, style.summary, style.engine, style.variant.orEmpty())
+                    .any { normalized in it.lowercase() })
         }
-        if (preferences.mode == InterfaceStyleProxyMode.Custom) {
-            OutlinedTextField(
-                value = customProxy,
-                onValueChange = { customProxy = it.take(240) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                label = { Text(stringResource(R.string.interface_style_proxy_custom_hint)) },
-                supportingText = { Text(stringResource(R.string.interface_style_proxy_custom_summary)) },
-                trailingIcon = {
-                    TextButton(onClick = {
-                        preferences = preferences.copy(customProxy = customProxy.trim())
-                        saveInterfaceStyleDownloadPreferences(context, preferences)
-                    }) { Text(stringResource(R.string.interface_style_proxy_save)) }
+    }
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        StoreSectionHeading(
+            stringResource(R.string.interface_style_store_title),
+            stringResource(R.string.store_redesign_style_intro),
+            action = {
+                IconButton(onClick = { loadCatalog(true) }, enabled = !catalogLoading && busyId == null) {
+                    Icon(Icons.Rounded.Refresh, stringResource(R.string.interface_style_catalog_refresh))
+                }
+            },
+        )
+        StoreSearchField(query, { query = it }, stringResource(R.string.interface_style_search_hint))
+        StoreFilters(
+            InterfaceStyleCategory.entries.map { stringResource(it.labelRes) },
+            selectedCategory.ordinal,
+            { selectedCategoryKey = InterfaceStyleCategory.entries[it].name },
+        )
+        StoreExpandableSection(
+            title = stringResource(R.string.store_redesign_network),
+            summary = stringResource(when (preferences.mode) {
+                InterfaceStyleProxyMode.Direct -> R.string.interface_style_proxy_direct
+                InterfaceStyleProxyMode.Auto -> R.string.interface_style_proxy_auto
+                InterfaceStyleProxyMode.Custom -> R.string.interface_style_proxy_custom
+            }),
+        ) {
+            StoreFilters(
+                InterfaceStyleProxyMode.entries.map { mode -> stringResource(when (mode) {
+                    InterfaceStyleProxyMode.Direct -> R.string.interface_style_proxy_direct
+                    InterfaceStyleProxyMode.Auto -> R.string.interface_style_proxy_auto
+                    InterfaceStyleProxyMode.Custom -> R.string.interface_style_proxy_custom
+                }) },
+                preferences.mode.ordinal,
+                { index ->
+                    preferences = preferences.copy(mode = InterfaceStyleProxyMode.entries[index])
+                    saveInterfaceStyleDownloadPreferences(context, preferences)
                 },
             )
+            if (preferences.mode == InterfaceStyleProxyMode.Custom) {
+                OutlinedTextField(
+                    value = customProxy, onValueChange = { customProxy = it.take(240) },
+                    modifier = Modifier.fillMaxWidth(), singleLine = true,
+                    label = { Text(stringResource(R.string.interface_style_proxy_custom_hint)) },
+                    supportingText = { Text(stringResource(R.string.interface_style_proxy_custom_summary)) },
+                )
+                TextButton(onClick = {
+                    preferences = preferences.copy(customProxy = customProxy.trim())
+                    saveInterfaceStyleDownloadPreferences(context, preferences)
+                }) { Text(stringResource(R.string.interface_style_proxy_save)) }
+            }
+            Text(stringResource(R.string.interface_style_store_notice),
+                style = MaterialTheme.typography.bodySmall, color = themeStoreMutedColor())
+            snapshot?.source?.let { source ->
+                Text(stringResource(when (source) {
+                    InterfaceStyleCatalogSource.Network -> R.string.interface_style_source_network
+                    InterfaceStyleCatalogSource.Cache -> R.string.interface_style_source_cache
+                    InterfaceStyleCatalogSource.Bundled -> R.string.interface_style_source_bundled
+                }), style = MaterialTheme.typography.labelMedium, color = themeStoreMutedColor())
+            }
         }
-        snapshot?.let { current ->
-            if (current.errorMessage != null) {
-                ThemeStoreNotice(stringResource(R.string.interface_style_catalog_offline, current.errorMessage))
-            }
-            val visibleStyles = remember(current.catalog.styles, query) {
-                val normalized = query.trim().lowercase()
-                current.catalog.styles.filter { style ->
-                    normalized.isBlank() || listOf(
-                        style.name,
-                        style.summary,
-                        style.engine,
-                        style.variant.orEmpty(),
-                    ).any { normalized in it.lowercase() }
-                }
-            }
-            if (current.catalog.styles.isEmpty()) {
-                ThemeStoreNotice(stringResource(R.string.interface_style_catalog_empty))
-            } else if (visibleStyles.isEmpty()) {
-                ThemeStoreNotice(stringResource(R.string.interface_style_search_empty))
-            }
-            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                val gap = 12.dp
-                val columns = when {
-                    maxWidth >= 1000.dp -> 3
-                    maxWidth >= 620.dp -> 2
-                    else -> 1
-                }
-                val itemWidth = (maxWidth - gap * (columns - 1)) / columns
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(gap),
-                    verticalArrangement = Arrangement.spacedBy(gap),
-                    maxItemsInEachRow = columns,
-                ) {
+        snapshot?.errorMessage?.let { ThemeStoreNotice(stringResource(R.string.interface_style_catalog_offline, it)) }
+        error?.let { ThemeStoreNotice(stringResource(R.string.interface_style_operation_failed, it)) }
+        if (catalogLoading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        if (snapshot == null && catalogLoading) {
+            me.weishu.kernelsu.ui.component.store.StoreLoadingItems()
+        } else if (visibleStyles.isEmpty()) {
+            StoreEmptyState(Icons.Rounded.Search,
+                stringResource(R.string.store_redesign_no_results),
+                stringResource(R.string.store_redesign_no_results_summary),
+                stringResource(R.string.store_redesign_clear_filters),
+                { query = ""; selectedCategoryKey = InterfaceStyleCategory.All.name; if (snapshot == null) loadCatalog(true) })
+        } else {
+            StoreSectionHeading(stringResource(R.string.store_redesign_results, visibleStyles.size))
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val columns = if (maxWidth >= 620.dp) 2 else 1
+                val itemWidth = (maxWidth - 16.dp * (columns - 1)) / columns
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp), maxItemsInEachRow = columns) {
                     visibleStyles.forEach { style ->
                         val installedStyle = installed.firstOrNull { it.style.id == style.id }
-                        val active = isActive(style)
                         InterfaceStylePackageRow(
-                            style = style,
-                            installed = installedStyle,
-                            active = active,
+                            style, installedStyle, isActive(style),
                             progress = if (busyId == style.id) progress else null,
                             busy = busyId != null,
                             modifier = Modifier.width(itemWidth),
-                            onDownload = { runInstall(style, applyAfter = false) },
-                            onDetails = { selectedStyleId = style.id },
+                            onDetails = { onSelectStyle(style.id) },
                             onApply = {
-                                if (installedStyle != null) applyInstalled(style)
-                                else runInstall(style, applyAfter = true)
-                            },
-                            onRemove = {
-                                if (active) {
-                                    settingsRepository.applyInterfaceStyle(
-                                        UiMode.DEFAULT_VALUE,
-                                        ThemePreset.CLEAN_TOOL,
-                                        settingsRepository.themeMode,
-                                    )
-                                }
-                                registry.remove(style.id)
-                                installed = registry.list()
+                                if (installedStyle == null || hasInterfaceStyleUpdate(installedStyle, style)) runInstall(style, true)
+                                else applyInstalled(installedStyle.style)
                             },
                         )
                     }
                 }
             }
-        } ?: run {
-            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            ThemeStoreNotice(stringResource(R.string.interface_style_catalog_loading))
-        }
-        error?.let { ThemeStoreNotice(stringResource(R.string.interface_style_operation_failed, it)) }
-        if (snapshot != null) {
-            OutlinedButton(
-                onClick = { loadCatalog(force = true) },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                enabled = busyId == null,
-            ) {
-                Icon(Icons.Rounded.Refresh, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.interface_style_catalog_refresh))
-            }
         }
     }
 }
+
+internal fun hasInterfaceStyleUpdate(installed: InstalledInterfaceStyle?, remote: InterfaceStylePackage): Boolean =
+    installed != null && (remote.version > installed.style.version ||
+        (remote.version == installed.style.version && !remote.sha256.equals(installed.style.sha256, ignoreCase = true)))
 
 @Composable
 private fun InterfaceStylePackageRow(
@@ -1404,174 +1336,42 @@ private fun InterfaceStylePackageRow(
     busy: Boolean,
     modifier: Modifier = Modifier,
     onDetails: () -> Unit,
-    onDownload: () -> Unit,
     onApply: () -> Unit,
-    onRemove: () -> Unit,
 ) {
     val context = LocalContext.current
-    ThemeStoreSurface(modifier = modifier, onClick = onDetails) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Box(
-                    modifier = Modifier.size(40.dp).clip(RoundedCornerShape(8.dp))
-                        .background(Color(style.accent.toInt())),
-                )
-                Column(Modifier.weight(1f)) {
-                    Text(style.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = themeStoreTextColor())
-                    Text(style.summary.ifBlank { style.engine }, style = MaterialTheme.typography.bodySmall, color = themeStoreMutedColor(), maxLines = 2, overflow = TextOverflow.Ellipsis)
+    val updateAvailable = hasInterfaceStyleUpdate(installed, style)
+    ThemeStoreSurface(modifier, onClick = onDetails) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(48.dp).clip(MaterialTheme.shapes.medium).background(Color(style.accent.toInt())),
+                    contentAlignment = Alignment.Center) {
+                    Icon(Icons.Rounded.Palette, null, tint = if (Color(style.accent.toInt()).luminance() > 0.4f) Color.Black else Color.White)
                 }
-                Column(horizontalAlignment = Alignment.End) {
-                    if (installed != null) {
-                        Text(
-                            text = stringResource(
-                                if (active) R.string.theme_store_applied else R.string.interface_style_installed,
-                            ),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = themeStorePalette().accent,
-                        )
-                    }
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
-                        contentDescription = stringResource(R.string.interface_style_details),
-                        tint = themeStoreMutedColor(),
-                    )
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(style.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
+                        maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(stringResource(style.category().labelRes), style = MaterialTheme.typography.labelMedium,
+                        color = themeStoreMutedColor())
                 }
+                Icon(Icons.AutoMirrored.Rounded.ArrowForward, stringResource(R.string.interface_style_details),
+                    Modifier.size(20.dp), tint = themeStoreMutedColor())
             }
-            Text(
-                text = stringResource(
-                    R.string.interface_style_package_meta,
-                    style.engine,
-                    style.version,
-                    Formatter.formatShortFileSize(context, style.sizeBytes),
-                ),
-                style = MaterialTheme.typography.labelSmall,
-                color = themeStoreMutedColor(),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Text(style.summary.ifBlank { style.engine }, style = MaterialTheme.typography.bodyMedium,
+                color = themeStoreMutedColor(), maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text("v" + style.version + " · " + Formatter.formatShortFileSize(context, style.sizeBytes),
+                style = MaterialTheme.typography.labelMedium, color = themeStoreMutedColor())
             progress?.let {
-                LinearProgressIndicator(progress = { it.fraction ?: 0f }, modifier = Modifier.fillMaxWidth())
-                Text(
-                    text = stringResource(
-                        R.string.interface_style_download_progress,
-                        ((it.fraction ?: 0f) * 100).toInt(),
-                    ),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = themeStoreMutedColor(),
-                )
+                if (it.fraction == null) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                else LinearProgressIndicator(progress = { it.fraction ?: 0f }, modifier = Modifier.fillMaxWidth())
             }
-            FilledTonalButton(
-                onClick = onApply,
-                enabled = !busy,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-            ) {
-                Icon(
-                    imageVector = if (installed == null) Icons.Rounded.Download else Icons.Rounded.CheckCircle,
-                    contentDescription = null,
-                )
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    stringResource(
-                        if (installed == null) R.string.interface_style_download_apply
-                        else R.string.interface_style_apply,
-                    )
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TextButton(onClick = onDownload, enabled = !busy) {
-                    Icon(Icons.Rounded.Download, contentDescription = null)
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        stringResource(
-                            if (installed == null) R.string.interface_style_download
-                            else R.string.interface_style_update,
-                        )
-                    )
-                }
-                if (installed != null) {
-                    IconButton(onClick = onRemove, enabled = !busy, modifier = Modifier.size(48.dp)) {
-                        Icon(
-                            Icons.Rounded.Delete,
-                            contentDescription = stringResource(R.string.interface_style_remove),
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun InterfaceStyleStoreHeader(
-    catalogCount: Int,
-    installedCount: Int,
-    source: InterfaceStyleCatalogSource?,
-) {
-    val palette = themeStorePalette()
-    ThemeStoreSurface {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(46.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(palette.accentContainer),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Palette,
-                    contentDescription = null,
-                    tint = palette.accent,
-                )
-            }
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(3.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.interface_style_store_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = palette.text,
-                )
-                Text(
-                    text = stringResource(
-                        R.string.interface_style_store_counts,
-                        catalogCount,
-                        installedCount,
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = palette.mutedText,
-                )
-            }
-            source?.let {
-                Text(
-                    text = stringResource(
-                        when (it) {
-                            InterfaceStyleCatalogSource.Network -> R.string.interface_style_source_network
-                            InterfaceStyleCatalogSource.Cache -> R.string.interface_style_source_cache
-                            InterfaceStyleCatalogSource.Bundled -> R.string.interface_style_source_bundled
-                        }
-                    ),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = palette.accent,
-                )
+            FilledTonalButton(onClick = onApply, enabled = !busy && (!active || updateAvailable || installed == null),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                Text(stringResource(when {
+                    updateAvailable -> R.string.cloud_theme_update_and_apply
+                active && installed != null -> R.string.theme_store_applied
+                    installed == null -> R.string.interface_style_download_apply
+                    else -> R.string.interface_style_apply
+                }))
             }
         }
     }
@@ -1585,7 +1385,6 @@ private fun InterfaceStyleDetailContent(
     active: Boolean,
     busy: Boolean,
     progress: InterfaceStyleDownloadProgress?,
-    onBack: () -> Unit,
     onDownload: () -> Unit,
     onApply: () -> Unit,
     onSave: () -> Unit,
@@ -1594,210 +1393,82 @@ private fun InterfaceStyleDetailContent(
     onRemove: () -> Unit,
 ) {
     val context = LocalContext.current
-    val palette = themeStorePalette()
-    val accent = Color(style.accent.toInt())
-    val accentContent = if (accent.luminance() > 0.5f) Color.Black else Color.White
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                contentDescription = stringResource(R.string.back),
-                tint = palette.text,
-            )
-        }
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = stringResource(R.string.interface_style_details),
-                style = MaterialTheme.typography.labelLarge,
-                color = palette.mutedText,
-            )
-            Text(
-                text = style.name,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = palette.text,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
-
-    ThemeStoreSurface {
-        Column {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(132.dp)
-                    .background(accent),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Palette,
-                    contentDescription = null,
-                    modifier = Modifier.size(54.dp),
-                    tint = accentContent,
-                )
+    val updateAvailable = hasInterfaceStyleUpdate(installed, style)
+    var confirmRemove by rememberSaveable(style.id) { mutableStateOf(false) }
+    StoreSectionHeading(style.name, stringResource(style.category().labelRes))
+    me.weishu.kernelsu.ui.component.store.StorePanel {
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(56.dp).clip(MaterialTheme.shapes.medium).background(Color(style.accent.toInt())),
+                contentAlignment = Alignment.Center) {
+                Icon(Icons.Rounded.Palette, null, Modifier.size(28.dp),
+                    tint = if (Color(style.accent.toInt()).luminance() > 0.4f) Color.Black else Color.White)
             }
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = style.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = palette.text,
-                    )
-                    Text(
-                        text = stringResource(
-                            when {
-                                active -> R.string.theme_store_applied
-                                installed != null -> R.string.interface_style_installed
-                                else -> R.string.interface_style_not_downloaded
-                            }
-                        ),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (installed != null) palette.accent else palette.mutedText,
-                    )
-                }
-                Text(
-                    text = style.summary.ifBlank { style.engine },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = palette.mutedText,
-                )
+            Text(style.summary.ifBlank { style.engine }, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+        }
+        StoreTag(stringResource(when {
+            updateAvailable -> R.string.store_redesign_updates
+            active && installed != null -> R.string.theme_store_applied
+            installed != null -> R.string.interface_style_installed
+            else -> R.string.interface_style_not_downloaded
+        }), installed != null)
+        progress?.let {
+            if (it.fraction == null) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            else LinearProgressIndicator(progress = { it.fraction ?: 0f }, modifier = Modifier.fillMaxWidth())
+        }
+        FilledTonalButton(onClick = onApply, enabled = !busy && (!active || updateAvailable || installed == null),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+            Text(stringResource(when {
+                updateAvailable -> R.string.cloud_theme_update_and_apply
+                    active && installed != null -> R.string.theme_store_applied
+                installed == null -> R.string.interface_style_download_apply
+                else -> R.string.interface_style_apply
+            }))
+        }
+        OutlinedButton(onClick = onDownload, enabled = !busy && (installed == null || updateAvailable), modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+            Text(stringResource(when {
+                installed == null -> R.string.interface_style_download
+                updateAvailable -> R.string.interface_style_update
+                else -> R.string.interface_style_downloaded
+            }))
+        }
+        onConfigure?.let { configure ->
+            TextButton(onClick = configure, enabled = !busy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                Text(stringResource(R.string.sidebar_widget_configure))
             }
         }
     }
-
-    ThemeStoreSurface {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-            InterfaceStyleMetadataRow(
-                label = stringResource(R.string.interface_style_engine),
-                value = style.engine,
-            )
-            HorizontalDivider(color = palette.mutedText.copy(alpha = 0.16f))
-            InterfaceStyleMetadataRow(
-                label = stringResource(R.string.interface_style_variant),
-                value = style.variant ?: stringResource(R.string.interface_style_variant_default),
-            )
-            HorizontalDivider(color = palette.mutedText.copy(alpha = 0.16f))
-            InterfaceStyleMetadataRow(
-                label = stringResource(R.string.interface_style_version_label),
-                value = style.version.toString(),
-            )
-            HorizontalDivider(color = palette.mutedText.copy(alpha = 0.16f))
-            InterfaceStyleMetadataRow(
-                label = stringResource(R.string.interface_style_size_label),
-                value = Formatter.formatShortFileSize(context, style.sizeBytes),
-            )
+    StoreSectionHeading(stringResource(R.string.store_redesign_information))
+    me.weishu.kernelsu.ui.component.store.StorePanel {
+        InterfaceStyleMetadataRow(stringResource(R.string.interface_style_version_label), style.version.toString())
+        InterfaceStyleMetadataRow(stringResource(R.string.interface_style_size_label), Formatter.formatShortFileSize(context, style.sizeBytes))
+        InterfaceStyleMetadataRow(stringResource(R.string.store_redesign_filter_category), stringResource(style.category().labelRes))
+    }
+    StoreExpandableSection(stringResource(R.string.interface_style_verified_title)) {
+        Text(stringResource(R.string.interface_style_verified_summary), style = MaterialTheme.typography.bodyMedium)
+        InterfaceStyleMetadataRow(stringResource(R.string.interface_style_engine), style.engine)
+        InterfaceStyleMetadataRow(stringResource(R.string.interface_style_variant), style.variant ?: stringResource(R.string.interface_style_variant_default))
+    }
+    StoreExpandableSection(stringResource(R.string.store_redesign_manage)) {
+        OutlinedButton(onClick = onSave, enabled = !busy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+            Icon(Icons.Rounded.SaveAlt, null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.interface_style_save_to_device))
+        }
+        OutlinedButton(onClick = onShare, enabled = !busy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+            Icon(Icons.Rounded.Share, null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.interface_style_share))
+        }
+        if (installed != null) TextButton(onClick = { confirmRemove = true }, enabled = !busy,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+            Text(stringResource(R.string.interface_style_remove), color = MaterialTheme.colorScheme.error)
         }
     }
-
-    ThemeStoreSurface {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.Top,
-        ) {
-            Icon(Icons.Rounded.Security, contentDescription = null, tint = palette.accent)
-            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(
-                    text = stringResource(R.string.interface_style_verified_title),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = palette.text,
-                )
-                Text(
-                    text = stringResource(R.string.interface_style_verified_summary),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = palette.mutedText,
-                )
-            }
-        }
-    }
-
-    progress?.let {
-        LinearProgressIndicator(
-            progress = { it.fraction ?: 0f },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Text(
-            text = stringResource(
-                R.string.interface_style_download_progress,
-                ((it.fraction ?: 0f) * 100).toInt(),
-            ),
-            style = MaterialTheme.typography.labelSmall,
-            color = palette.mutedText,
-        )
-    }
-
-    FilledTonalButton(
-        onClick = onApply,
-        enabled = !busy,
-        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-    ) {
-        Icon(
-            imageVector = if (installed == null) Icons.Rounded.Download else Icons.Rounded.CheckCircle,
-            contentDescription = null,
-        )
-        Spacer(Modifier.width(8.dp))
-        Text(
-            stringResource(
-                if (installed == null) R.string.interface_style_download_apply
-                else R.string.interface_style_apply,
-            )
-        )
-    }
-
-    FlowRow(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        OutlinedButton(onClick = onDownload, enabled = !busy, modifier = Modifier.heightIn(min = 48.dp)) {
-            Icon(Icons.Rounded.Download, contentDescription = null)
-            Spacer(Modifier.width(6.dp))
-            Text(stringResource(if (installed == null) R.string.interface_style_download else R.string.interface_style_update))
-        }
-        OutlinedButton(onClick = onSave, enabled = !busy, modifier = Modifier.heightIn(min = 48.dp)) {
-            Icon(Icons.Rounded.SaveAlt, contentDescription = null)
-            Spacer(Modifier.width(6.dp))
-            Text(stringResource(R.string.interface_style_save_to_device))
-        }
-        OutlinedButton(onClick = onShare, enabled = !busy, modifier = Modifier.heightIn(min = 48.dp)) {
-            Icon(Icons.Rounded.Share, contentDescription = null)
-            Spacer(Modifier.width(6.dp))
-            Text(stringResource(R.string.interface_style_share))
-        }
-        if (installed != null) {
-            if (onConfigure != null) {
-                OutlinedButton(
-                    onClick = onConfigure,
-                    enabled = !busy,
-                    modifier = Modifier.heightIn(min = 48.dp),
-                ) {
-                    Icon(Icons.Rounded.Settings, contentDescription = null)
-                    Spacer(Modifier.width(6.dp))
-                    Text(stringResource(R.string.sidebar_widget_configure))
-                }
-            }
-            TextButton(onClick = onRemove, enabled = !busy, modifier = Modifier.heightIn(min = 48.dp)) {
-                Icon(Icons.Rounded.Delete, contentDescription = null)
-                Spacer(Modifier.width(6.dp))
-                Text(stringResource(R.string.interface_style_remove))
-            }
-        }
-    }
+    if (confirmRemove) me.weishu.kernelsu.ui.component.store.StoreAlertDialog(
+        onDismissRequest = { confirmRemove = false },
+        title = { Text(stringResource(R.string.interface_style_remove)) },
+        text = { Text(style.name) },
+        confirmButton = { TextButton(onClick = { confirmRemove = false; onRemove() }, enabled = !busy) {
+            Text(stringResource(R.string.interface_style_remove))
+        } },
+        dismissButton = { TextButton(onClick = { confirmRemove = false }) { Text(stringResource(android.R.string.cancel)) } },
+    )
 }
 
 @Composable
@@ -1817,6 +1488,7 @@ private fun InterfaceStyleMetadataRow(label: String, value: String) {
         )
         Text(
             text = value,
+            modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,
             color = themeStoreTextColor(),
@@ -1829,14 +1501,15 @@ private fun InterfaceStyleMetadataRow(label: String, value: String) {
 @Composable
 private fun ThemeStorePageColumn(
     modifier: Modifier,
+    scrollState: ScrollState = rememberScrollState(),
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .verticalScroll(scrollState)
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         content()
         Spacer(modifier = Modifier.height(18.dp))
@@ -1928,92 +1601,6 @@ private fun ThemeStoreDestinationRow(
     }
 }
 
-@Composable
-private fun ThemeStoreTransferPanel(
-    summary: ThemeStoreSummary,
-    busy: Boolean,
-    actions: ThemeStoreActions,
-) {
-    val palette = themeStorePalette()
-    ThemeStoreSurface {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .background(palette.accentContainer, CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (busy) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(22.dp),
-                            color = palette.accent,
-                            strokeWidth = 2.dp,
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Rounded.SaveAlt,
-                            contentDescription = null,
-                            tint = palette.accent,
-                        )
-                    }
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.theme_store_transfer_panel_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = themeStoreTextColor(),
-                    )
-                    Text(
-                        text = stringResource(R.string.theme_store_selected_count, summary.selectedCount),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = themeStoreMutedColor(),
-                    )
-                }
-            }
-            Text(
-                text = stringResource(R.string.theme_store_transfer_panel_summary),
-                style = MaterialTheme.typography.bodyMedium,
-                color = themeStoreMutedColor(),
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                FilledTonalButton(
-                    modifier = Modifier.weight(1f),
-                    enabled = !busy,
-                    onClick = actions.onExport,
-                ) {
-                    Text(
-                        text = stringResource(R.string.theme_store_export),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                OutlinedButton(
-                    modifier = Modifier.weight(1f),
-                    enabled = !busy,
-                    onClick = actions.onImport,
-                ) {
-                    Text(
-                        text = stringResource(R.string.theme_store_import),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-        }
-    }
-}
 
 @Composable
 private fun ThemeStoreTransferReportCard(report: ThemeStoreTransferReport) {
@@ -2132,7 +1719,9 @@ private fun ThemeStoreSurface(
     content: @Composable () -> Unit,
 ) {
     val palette = themeStorePalette()
-    val shape = RoundedCornerShape(12.dp)
+    val shape = if (LocalInterfaceStyle.current == InterfaceStyle.SidebarWidget.value) {
+        MaterialTheme.shapes.large
+    } else RoundedCornerShape(12.dp)
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -2172,44 +1761,15 @@ private data class ThemeStorePalette(
 
 @Composable
 private fun themeStorePalette(): ThemeStorePalette {
-    if (LocalInterfaceStyle.current == InterfaceStyle.Skrootpro.value) {
-        return ThemeStorePalette(
-            surface = SkrootproColors.BarSurface,
-            navigationSurface = SkrootproColors.BarSurface,
-            text = SkrootproColors.Text,
-            mutedText = SkrootproColors.Muted,
-            accent = SkrootproColors.Purple,
-            accentContainer = SkrootproColors.Purple.copy(alpha = 0.18f),
-        )
-    }
-
-    val dark = isInDarkTheme()
-    val materialColors = MaterialTheme.colorScheme
-    val requestedAccent = materialColors.primary
-    val accent = if (dark && requestedAccent.luminance() < 0.34f) {
-        Color(0xFFC7CCFF)
-    } else {
-        requestedAccent
-    }
-    return if (dark) {
-        ThemeStorePalette(
-            surface = Color(0xDE191C23),
-            navigationSurface = Color(0xF0181A20),
-            text = Color(0xFFF4F5FA),
-            mutedText = Color(0xFFC3C7D2),
-            accent = accent,
-            accentContainer = accent.copy(alpha = 0.20f),
-        )
-    } else {
-        ThemeStorePalette(
-            surface = colorScheme.surfaceContainer,
-            navigationSurface = colorScheme.surface,
-            text = materialColors.onSurface,
-            mutedText = materialColors.onSurfaceVariant,
-            accent = accent,
-            accentContainer = accent.copy(alpha = 0.11f),
-        )
-    }
+    val colors = MaterialTheme.colorScheme
+    return ThemeStorePalette(
+        surface = colors.surface,
+        navigationSurface = colors.background,
+        text = colors.onSurface,
+        mutedText = colors.onSurfaceVariant,
+        accent = colors.primary,
+        accentContainer = colors.primaryContainer,
+    )
 }
 
 private data class ThemeStoreActions(

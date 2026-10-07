@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sidebar_material_title">Material and colors</string>
+    <string name="sidebar_material_saved_hint">Changes save automatically. Fine-tuning sliders apply when released.</string>
+    <string name="sidebar_design_home_tab">Home</string>
+    <string name="sidebar_material_liquid">Liquid glass</string>
+    <string name="sidebar_material_neumorphic">Neumorphic glass</string>
+    <string name="sidebar_material_flat">Flat</string>
+    <string name="sidebar_material_liquid_summary">Translucent glass with light edges. Refraction requires Android 14+; unsupported devices and video wallpapers use a static surface. Corners stay square.</string>
+    <string name="sidebar_material_neumorphic_summary">Soft frosted glass with raised edges and inset navigation highlights. Neutral gray and white by default; corners stay square.</string>
+    <string name="sidebar_material_flat_summary">Solid surfaces with no blur or refraction. The lowest-overhead option.</string>
+    <string name="sidebar_palette_light">Day colors</string>
+    <string name="sidebar_palette_dark">Night colors</string>
+    <string name="sidebar_palette_help">Each material has separate day and night colors. Edits save automatically; custom image icons keep their original colors.</string>
+    <string name="sidebar_palette_mode">Color mode</string>
+    <string name="sidebar_palette_colors_title">Colors</string>
+    <string name="sidebar_palette_effects_title">Glass effects</string>
+    <string name="sidebar_palette_background">Top color</string>
+    <string name="sidebar_palette_background_end">Bottom color</string>
+    <string name="sidebar_palette_selection">Selected item</string>
+    <string name="sidebar_palette_content">Text and icons</string>
+    <string name="sidebar_palette_highlight">Glass highlight</string>
+    <string name="sidebar_palette_shade">Relief shadow</string>
+    <string name="sidebar_palette_tint">Glass opacity</string>
+    <string name="sidebar_palette_highlight_strength">Highlight intensity</string>
+    <string name="sidebar_palette_relief_strength">Relief depth</string>
+    <string name="sidebar_palette_presets">Quick colors</string>
+    <string name="sidebar_palette_rgb_show">Fine-tune RGB</string>
+    <string name="sidebar_palette_rgb_hide">Hide RGB controls</string>
+    <string name="sidebar_palette_hex">Enter #RRGGBB, choose a quick color, or fine-tune RGB.</string>
+    <string name="sidebar_palette_invalid">Enter six hexadecimal digits, e.g. #E5E5E5.</string>
+    <string name="sidebar_palette_red">Red</string>
+    <string name="sidebar_palette_green">Green</string>
+    <string name="sidebar_palette_blue">Blue</string>
+    <string name="sidebar_palette_contrast">Some text may be hard to read with these colors. Try contrasting text and similar top/bottom brightness; wallpaper and glass highlights can affect the result.</string>
+    <string name="sidebar_palette_improve_text">Suggest text color</string>
+    <string name="sidebar_palette_save">Save colors</string>
+    <string name="sidebar_palette_reset">Reset this palette</string>
+    <string name="sidebar_palette_discard">Discard edits</string>
+</resources>

@@ -106,6 +106,23 @@ class PageTransitionEffectTest {
     }
 
     @Test
+    fun sidebarPagerKeepsFullOpaquePageBoundsDuringTransition() {
+        PageTransitionVisual.entries.forEach { visual ->
+            listOf(-0.75f, -0.25f, 0.25f, 0.75f).forEach { offset ->
+                assertEquals(
+                    PageTransitionTransform(),
+                    resolveMainPageTransitionTransform(
+                        visual = visual,
+                        interfaceStyle = InterfaceStyle.SidebarWidget.value,
+                        pageOffset = offset,
+                        animationsEnabled = true,
+                    ),
+                )
+            }
+        }
+    }
+
+    @Test
     fun nonMaterialPagerRetainsSelectedTransition() {
         val expected = resolvePageTransitionTransform(
             visual = PageTransitionVisual.Depth,

@@ -25,21 +25,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Warning
-import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.material3.contentColorFor
-import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
@@ -55,12 +52,20 @@ import androidx.compose.ui.unit.dp
 import me.weishu.kernelsu.KernelVersion
 import me.weishu.kernelsu.Natives
 import me.weishu.kernelsu.R
+import me.weishu.kernelsu.ui.InterfaceStyle
+import me.weishu.kernelsu.ui.LocalInterfaceStyle
 import me.weishu.kernelsu.ui.component.WarningLevel
 import me.weishu.kernelsu.ui.component.dialog.rememberConfirmDialog
 import me.weishu.kernelsu.ui.component.material.ExpressiveScaffold
+import me.weishu.kernelsu.ui.component.material.ExpressiveTopAppBar
+import me.weishu.kernelsu.ui.component.material.rememberExpressivePageScrollBehavior
 import me.weishu.kernelsu.ui.component.material.TonalCard
 import me.weishu.kernelsu.ui.component.material.expressiveTopAppBarColors
 import me.weishu.kernelsu.ui.component.rebootlistpopup.RebootListPopup
+import me.weishu.kernelsu.ui.util.SidebarHomeLayout
+import me.weishu.kernelsu.ui.util.SidebarHomeCardId
+import me.weishu.kernelsu.ui.util.SidebarHomeCards
+import me.weishu.kernelsu.ui.util.rememberSidebarWidgetConfig
 import me.weishu.kernelsu.ui.component.statustag.StatusTag
 
 @Composable
@@ -68,8 +73,24 @@ fun HomePagerMaterial(
     state: HomeUiState,
     actions: HomeActions,
     bottomInnerPadding: Dp,
+    sidebarHomeLayout: SidebarHomeLayout = SidebarHomeLayout.Material,
 ) {
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
+    val cards = if (LocalInterfaceStyle.current == InterfaceStyle.SidebarWidget.value) {
+        rememberSidebarWidgetConfig().homeCards
+    } else SidebarHomeCards()
+    CompositionLocalProvider(LocalSidebarHomeCards provides cards) {
+        HomePagerMaterialContent(state, actions, bottomInnerPadding, sidebarHomeLayout)
+    }
+}
+
+@Composable
+private fun HomePagerMaterialContent(
+    state: HomeUiState,
+    actions: HomeActions,
+    bottomInnerPadding: Dp,
+    sidebarHomeLayout: SidebarHomeLayout,
+) {
+    val scrollBehavior = rememberExpressivePageScrollBehavior()
 
     ExpressiveScaffold(
         topBar = {
@@ -137,14 +158,15 @@ fun HomePagerMaterial(
             if (state.showRootWarning) {
                 WarningCard(stringResource(id = R.string.grant_root_failed))
             }
-            StatusCard(
-                state = state,
-                actions = actions,
-            )
-            if (state.isKernelActive) {
-                MaterialMetricCards(state = state, actions = actions)
+            if (sidebarHomeLayout == SidebarHomeLayout.StatusCards) {
+                SidebarStatusCards(state = state, actions = actions)
+            } else {
+                StatusCard(state = state, actions = actions)
+                if (state.isKernelActive) {
+                    MaterialMetricCards(state = state, actions = actions)
+                }
+                InfoCard(systemInfo = state.systemInfo)
             }
-            InfoCard(systemInfo = state.systemInfo)
             if (state.showHomeSupportCard) {
                 DonateCard(onOpenUrl = actions.onOpenUrl)
             }
@@ -162,18 +184,20 @@ private fun TopBar(
     onSusfsClick: () -> Unit,
     scrollBehavior: TopAppBarScrollBehavior? = null
 ) {
-    LargeFlexibleTopAppBar(
+    ExpressiveTopAppBar(
         title = { Text(stringResource(R.string.app_name)) },
         actions = {
             if (showSusfs) {
                 IconButton(onClick = onSusfsClick) {
                     Icon(
-                        Icons.Rounded.VisibilityOff,
+                        Icons.Rounded.Apps,
                         contentDescription = stringResource(R.string.home_susfs_path),
                     )
                 }
             }
-            RebootListPopup()
+            if (LocalInterfaceStyle.current != InterfaceStyle.SidebarWidget.value) {
+                RebootListPopup()
+            }
         },
         colors = expressiveTopAppBarColors(),
         windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
@@ -255,24 +279,19 @@ private fun StatusCard(
             }
         } else null
 
-        Surface(
+        HomeStatusCardContainer(
             modifier = Modifier.fillMaxWidth(),
-            color = containerColor,
+            containerColor = containerColor,
             contentColor = contentColor,
-            shape = MaterialTheme.shapes.large,
+            wallpaperState = wallpaperState,
+            wallpaperBitmap = wallpaperBitmap,
             onClick = {
                 if (!state.isLateLoadMode) {
                     actions.onInstallClick()
                 }
             }
-        ) {
+        ) { contentColor ->
             Box {
-                HomeMetricCardWallpaperBackground(
-                    bitmap = wallpaperBitmap,
-                    videoUriString = wallpaperState.videoUriString,
-                    videoCrop = wallpaperState.crop,
-                    visualSettings = wallpaperState.visualSettings,
-                )
                 ListItem(
                     modifier = Modifier,
                     leadingContent = {
@@ -291,7 +310,7 @@ private fun StatusCard(
                         contentColor = contentColor,
                         leadingContentColor = contentColor,
                         trailingContentColor = contentColor,
-                        supportingContentColor = contentColor.copy(alpha = 0.78f)
+                        supportingContentColor = if (LocalInterfaceStyle.current == InterfaceStyle.SidebarWidget.value) contentColor else contentColor.copy(alpha = 0.78f)
                     ),
                     elevation = ListItemDefaults.elevation(),
                     content = {
@@ -320,6 +339,41 @@ private fun StatusCard(
                     },
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun HomeStatusCardContainer(
+    modifier: Modifier,
+    containerColor: Color,
+    contentColor: Color,
+    wallpaperState: HomeMetricCardWallpaperState,
+    wallpaperBitmap: android.graphics.Bitmap?,
+    onClick: () -> Unit,
+    content: @Composable (Color) -> Unit,
+) {
+    val image: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit = {
+        HomeMetricCardWallpaperBackground(
+            bitmap = wallpaperBitmap,
+            videoUriString = wallpaperState.videoUriString,
+            videoCrop = wallpaperState.crop,
+            visualSettings = wallpaperState.visualSettings,
+        )
+    }
+    if (LocalInterfaceStyle.current == InterfaceStyle.SidebarWidget.value) {
+        SidebarHomeCardSurface(
+            id = SidebarHomeCardId.MaterialStatus,
+            modifier = modifier,
+            onClick = onClick,
+            containerColor = containerColor,
+            fallbackContentColor = contentColor,
+            inheritedHasImage = wallpaperBitmap != null || !wallpaperState.videoUriString.isNullOrBlank(),
+            inheritedImage = image,
+        ) { primary, _ -> content(primary) }
+    } else {
+        Surface(modifier = modifier, color = containerColor, contentColor = contentColor, shape = MaterialTheme.shapes.large, onClick = onClick) {
+            Box { image(); content(contentColor) }
         }
     }
 }
@@ -424,7 +478,7 @@ private fun MaterialMetricCard(
 @Composable
 private fun LearnMoreCard(onOpenUrl: (String) -> Unit) {
     val url = stringResource(R.string.home_learn_kernelsu_url)
-    TonalCard(onClick = { onOpenUrl(url) }) {
+    SidebarSupplementCard(SidebarHomeCardId.Learn, onClick = { onOpenUrl(url) }) { primary, secondary ->
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -432,12 +486,12 @@ private fun LearnMoreCard(onOpenUrl: (String) -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
-                Text(text = stringResource(R.string.home_learn_kernelsu), style = MaterialTheme.typography.titleSmall)
+                Text(text = stringResource(R.string.home_learn_kernelsu), style = MaterialTheme.typography.titleSmall, color = primary)
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = stringResource(R.string.home_click_to_learn_kernelsu),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = secondary
                 )
             }
         }
@@ -446,7 +500,7 @@ private fun LearnMoreCard(onOpenUrl: (String) -> Unit) {
 
 @Composable
 private fun DonateCard(onOpenUrl: (String) -> Unit) {
-    TonalCard(onClick = { onOpenUrl("https://patreon.com/weishu") }) {
+    SidebarSupplementCard(SidebarHomeCardId.Support, onClick = { onOpenUrl("https://patreon.com/weishu") }) { primary, secondary ->
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -454,15 +508,24 @@ private fun DonateCard(onOpenUrl: (String) -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
-                Text(text = stringResource(R.string.home_support_title), style = MaterialTheme.typography.titleSmall)
+                Text(text = stringResource(R.string.home_support_title), style = MaterialTheme.typography.titleSmall, color = primary)
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = stringResource(R.string.home_support_content),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = secondary
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun SidebarSupplementCard(id: SidebarHomeCardId, onClick: () -> Unit, content: @Composable (Color, Color) -> Unit) {
+    if (LocalInterfaceStyle.current == InterfaceStyle.SidebarWidget.value) {
+        SidebarHomeCardSurface(id = id, modifier = Modifier.fillMaxWidth(), onClick = onClick, content = content)
+    } else {
+        TonalCard(onClick = onClick) { content(MaterialTheme.colorScheme.onSurface, MaterialTheme.colorScheme.onSurfaceVariant) }
     }
 }
 
@@ -566,6 +629,32 @@ private fun WallpaperTonalCard(
         crop = wallpaperState.crop,
     )
     val hasWallpaper = wallpaperBitmap != null || !wallpaperState.videoUriString.isNullOrBlank()
+    if (LocalInterfaceStyle.current == InterfaceStyle.SidebarWidget.value) {
+        val id = when (target) {
+            HomeMetricCardWallpaperTarget.Superuser -> SidebarHomeCardId.Superuser
+            HomeMetricCardWallpaperTarget.Module -> SidebarHomeCardId.Module
+            HomeMetricCardWallpaperTarget.StatusMonitor -> SidebarHomeCardId.MaterialSecurity
+            HomeMetricCardWallpaperTarget.SystemInfo -> SidebarHomeCardId.MaterialInfo
+            else -> SidebarHomeCardId.MaterialStatus
+        }
+        SidebarHomeCardSurface(
+            id = id,
+            modifier = modifier,
+            onClick = onClick,
+            fallbackContentColor = if (hasWallpaper) Color.White else MaterialTheme.colorScheme.onSurface,
+            inheritedHasImage = hasWallpaper,
+            inheritedImage = {
+                HomeMetricCardWallpaperBackground(
+                    bitmap = wallpaperBitmap,
+                    videoUriString = wallpaperState.videoUriString,
+                    videoCrop = wallpaperState.crop,
+                    visualSettings = wallpaperState.visualSettings,
+                )
+            },
+            content = content,
+        )
+        return
+    }
     val primaryColor = if (hasWallpaper) Color.White else MaterialTheme.colorScheme.onSurface
     val secondaryColor = if (hasWallpaper) {
         Color.White.copy(alpha = 0.78f)

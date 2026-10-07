@@ -139,30 +139,30 @@ function New-ThemeResource([object]$Style, [int]$StyleIndex) {
     }
     if ($Style.id -eq 'sidebar-widget') {
         $lightPalette = [ordered]@{
-            background = '#FFF5F7FA'
-            backgroundAlt = '#FFEAF0F7'
+            background = '#FFE8E8E8'
+            backgroundAlt = '#FFFAFAFA'
             surface = '#FFFFFFFF'
-            surfaceAlt = '#FFE4EBF3'
-            primary = '#FF4B86D6'
-            secondary = '#FF667B96'
-            outline = '#FFB5C0CE'
-            highlight = '#FFFFFFFF'
-            shadow = '#FF17202B'
-            muted = '#FF5B6878'
-            content = '#FF121A23'
-        }
-        $darkPalette = [ordered]@{
-            background = '#FF111820'
-            backgroundAlt = '#FF182332'
-            surface = '#FF1B2634'
-            surfaceAlt = '#FF243244'
-            primary = '#FF8BB9F5'
-            secondary = '#FFA9BBD1'
-            outline = '#FF51647C'
+            surfaceAlt = '#FFEEEEEE'
+            primary = '#FF161616'
+            secondary = '#FF303030'
+            outline = '#FFBDBDBD'
             highlight = '#FFFFFFFF'
             shadow = '#FF000000'
-            muted = '#FFBCC8D7'
-            content = '#FFF3F6FA'
+            muted = '#FF5A5A5A'
+            content = '#FF161616'
+        }
+        $darkPalette = [ordered]@{
+            background = '#FF202020'
+            backgroundAlt = '#FF151515'
+            surface = '#FF242424'
+            surfaceAlt = '#FF303030'
+            primary = '#FFF5F5F5'
+            secondary = '#FFDDDDDD'
+            outline = '#FF626262'
+            highlight = '#FFFFFFFF'
+            shadow = '#FF000000'
+            muted = '#FFCCCCCC'
+            content = '#FFF5F5F5'
         }
     }
     $motifs = @()
@@ -241,6 +241,11 @@ function New-ThemeResource([object]$Style, [int]$StyleIndex) {
     $isGlass = $Style.engine -eq 'liquid_glass'
     $isWindowsFluent = $Style.id -eq 'windows-fluent'
     $isSidebarWidget = $Style.id -eq 'sidebar-widget'
+    if ($isSidebarWidget) {
+        $scene.primaryCount = 0
+        $scene.secondaryCount = 0
+        $scene.speed = 0.0
+    }
     return [ordered]@{
         schema = 'io.github.fixz.apkesu.interface-style-theme'
         version = 3
@@ -252,19 +257,19 @@ function New-ThemeResource([object]$Style, [int]$StyleIndex) {
         scene = $scene
         chrome = [ordered]@{
             cardAlpha = if ($isGlass) { 0.54 } elseif ($isPixel) { 0.94 } elseif ($isWindowsFluent -or $isSidebarWidget) { 0.98 } else { 0.76 }
-            borderAlpha = if ($isGlass) { 0.70 } elseif ($isPixel) { 0.72 } elseif ($isWindowsFluent) { 0.56 } elseif ($isSidebarWidget) { 0.42 } else { 0.60 }
-            cornerDp = if ($isGlass) { 20.0 } elseif ($isPixel) { 0.0 } elseif ($isWindowsFluent) { 8.0 } elseif ($isSidebarWidget) { 24.0 } else { 14.0 }
+            borderAlpha = if ($isGlass) { 0.70 } elseif ($isPixel) { 0.72 } elseif ($isWindowsFluent) { 0.56 } elseif ($isSidebarWidget) { 0.58 } else { 0.60 }
+            cornerDp = if ($isGlass) { 20.0 } elseif ($isPixel) { 0.0 } elseif ($isWindowsFluent) { 8.0 } elseif ($isSidebarWidget) { 16.0 } else { 14.0 }
             unitDp = if ($isPixel) { 2.0 } elseif ($isWindowsFluent -or $isSidebarWidget) { 1.0 } else { 1.5 }
             topBarAlpha = if ($isGlass) { 0.18 } elseif ($isWindowsFluent -or $isSidebarWidget) { 0.97 } else { 0.62 }
-            navigationAlpha = if ($isGlass) { 0.54 } elseif ($isPixel) { 0.94 } elseif ($isWindowsFluent -or $isSidebarWidget) { 0.96 } else { 0.62 }
+            navigationAlpha = if ($isGlass) { 0.54 } elseif ($isPixel) { 0.94 } elseif ($isWindowsFluent) { 0.96 } elseif ($isSidebarWidget) { 0.68 } else { 0.62 }
         }
         glass = [ordered]@{
-            surfaceAlpha = if ($isGlass) { 0.54 } elseif ($isWindowsFluent -or $isSidebarWidget) { 0.94 } else { 0.70 }
-            blurDp = if ($isGlass) { 18.0 } elseif ($isWindowsFluent) { 16.0 } elseif ($isSidebarWidget) { 0.0 } else { 12.0 }
-            strokeAlpha = if ($isGlass) { 0.70 } elseif ($isWindowsFluent) { 0.48 } elseif ($isSidebarWidget) { 0.32 } else { 0.55 }
-            refraction = $isGlass
-            refractionHeightDp = if ($isGlass) { 16.0 } else { 0.0 }
-            refractionAmountDp = if ($isGlass) { 9.0 } else { 0.0 }
+            surfaceAlpha = if ($isGlass) { 0.54 } elseif ($isWindowsFluent) { 0.94 } elseif ($isSidebarWidget) { 0.68 } else { 0.70 }
+            blurDp = if ($isGlass) { 18.0 } elseif ($isWindowsFluent) { 16.0 } else { 12.0 }
+            strokeAlpha = if ($isGlass) { 0.70 } elseif ($isWindowsFluent) { 0.48 } elseif ($isSidebarWidget) { 0.58 } else { 0.55 }
+            refraction = $isGlass -or $isSidebarWidget
+            refractionHeightDp = if ($isGlass) { 16.0 } elseif ($isSidebarWidget) { 14.0 } else { 0.0 }
+            refractionAmountDp = if ($isGlass) { 9.0 } elseif ($isSidebarWidget) { 4.0 } else { 0.0 }
             chromaticAberration = if ($isGlass) { 0.18 } else { 0.0 }
         }
     }
@@ -314,7 +319,9 @@ $styles = @(
     [ordered]@{ id='pixel-jiangnan-watertown'; name='江南水乡 / Jiangnan watertown'; summary='像素风：江南水乡'; engine='pixel'; variant='jiangnan_watertown'; accent=4283987311L },
     [ordered]@{ id='pixel-cloud-town'; name='云上小镇 / Cloud town'; summary='像素风：云上小镇'; engine='pixel'; variant='cloud_town'; accent=4285308569L },
     [ordered]@{ id='windows-fluent'; name='Windows 流畅设计 / Windows Fluent'; summary='Windows 11 Fluent 风格的清爽系统界面，使用 Mica 中性色、紧凑 8dp 圆角，并完整适配浅色与深色模式。'; engine='alpha'; variant=$null; accent=4278221012L },
-    [ordered]@{ id='sidebar-widget'; name='侧栏组件 / Sidebar widgets'; summary='参考图同款蓝灰渐变侧栏，右侧沿用 Material 主页；支持时间日期、天气、闹钟、自定义图片、导航排序与平板布局。'; engine='sidebar_widget'; variant=$null; accent=4284323039L }
+    [ordered]@{ id='sidebar-widget'; name='侧栏组件'; summary='黑白液态玻璃侧栏，支持左右切换、日夜主题、自定义天气 API、时钟、闹钟、图片和导航排序，适配平板；完整功能需支持新版侧栏的管理器。'; engine='sidebar_widget'; variant=$null; accent=4279637526L },
+    [ordered]@{ id='skrootpro'; name='SKRoot 风格'; summary='紫色强调的 SKRoot 风格界面，支持浅色与深色模式。'; engine='skrootpro'; variant=$null; accent=4285137140L },
+    [ordered]@{ id='alpha-delta'; name='Alpha / Delta 融合'; summary='下载后可在界面风格设置中切换 Alpha 与 Delta 两种布局。'; engine='alpha'; variant=$null; accent=4278246821L }
 )
 
 $styleIndex = 0
@@ -349,7 +356,9 @@ $catalogStyles = foreach ($style in $styles) {
         variant = $style.variant
         resources = @($resource)
     })
-    $packagePath = Join-Path $packageDirectory "$($style.id).ksstyle"
+    # Keep the old sidebar URL immutable for Managers with pinned package hashes.
+    $packageFileName = if ($style.id -eq 'sidebar-widget') { 'sidebar-widget-glass-20261003.ksstyle' } else { "$($style.id).ksstyle" }
+    $packagePath = Join-Path $packageDirectory $packageFileName
     $fileStream = [System.IO.File]::Open(
         $packagePath,
         [System.IO.FileMode]::Create,
@@ -380,7 +389,7 @@ $catalogStyles = foreach ($style in $styles) {
         engine = $style.engine
         variant = $style.variant
         version = 3
-        downloadUrl = "$repositoryBase/packages/$($style.id).ksstyle"
+        downloadUrl = "$repositoryBase/packages/$packageFileName"
         sha256 = $sha256
         sizeBytes = $bytes.LongLength
         accent = $style.accent
@@ -395,7 +404,7 @@ $catalog = [ordered]@{
     styles = @($catalogStyles)
 }
 $catalogJson = ($catalog | ConvertTo-Json -Depth 6) -replace "`r`n", "`n"
-$catalogPath = Join-Path $catalogDirectory 'catalog-v1.json'
+$catalogPath = Join-Path $catalogDirectory 'catalog-v2.json'
 [System.IO.File]::WriteAllText($catalogPath, $catalogJson, $utf8NoBom)
 [System.IO.File]::WriteAllText($CatalogAsset, $catalogJson, $utf8NoBom)
 
@@ -403,6 +412,8 @@ $readme = @'
 # SterSU Interface Styles
 
 This directory is generated by `scripts/generate-interface-style-store.ps1` in the SterSU source tree.
+
+`catalog-v1.json` and its signature remain frozen for older Managers. The generator writes `catalog-v2.json`, which must be signed with `scripts/sign-interface-style-store-v2.py` and the external `STERSU_INTERFACE_STYLE_V2_KEY` before publication. Never commit the private key.
 
 Each `.ksstyle` file is a data-only ZIP bundle. Four-season bundles contain their wallpaper. Rain, pixel, frosted-glass, Fluent, and sidebar-widget bundles contain their full palette, scene, animation, motif, chrome, and material parameters in a strict v3 declarative theme resource. Packages cannot contain scripts, DEX, native libraries, or arbitrary Web content. The Manager verifies the signed catalog, fixed GitHub URL, package and resource SHA-256 values, byte limits, ZIP entry allowlist, exact schema fields, numeric limits, engine, and variant before atomically installing a style.
 '@

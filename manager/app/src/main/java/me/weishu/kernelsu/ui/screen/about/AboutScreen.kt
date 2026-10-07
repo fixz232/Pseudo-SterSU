@@ -57,6 +57,11 @@ fun AboutScreen() {
                 fullText = stringResource(R.string.about_official_upstream),
                 url = OFFICIAL_UPSTREAM_URL,
             ),
+            LinkInfo(
+                fullText = stringResource(R.string.about_aster_design),
+                url = ASTER_PROJECT_URL,
+                summary = stringResource(R.string.about_aster_design_summary),
+            ),
         ),
     )
     val actions = AboutScreenActions(
@@ -102,6 +107,9 @@ private fun AboutScreenCompact(
                                 .fillMaxWidth()
                                 .clickable { actions.onOpenLink(link.url) },
                             headlineContent = { Text(link.fullText) },
+                            supportingContent = link.summary?.let { summary ->
+                                { Text(summary) }
+                            },
                             trailingContent = {
                                 Icon(
                                     Icons.AutoMirrored.Rounded.ArrowForward,
@@ -161,3 +169,4 @@ private fun RowAboutIdentity(state: AboutUiState) {
 private const val QQ_GROUP_URL = "https://qm.qq.com/q/Q8PmBoq9iK"
 private const val OFFICIAL_TELEGRAM_URL = "https://t.me/ApkeSu"
 private const val OFFICIAL_UPSTREAM_URL = "https://github.com/tiann/KernelSU"
+private const val ASTER_PROJECT_URL = "https://github.com/LyraVoid/Aster"

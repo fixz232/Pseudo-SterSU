@@ -25,7 +25,6 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExpandedFullScreenContainedSearchBar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
@@ -56,6 +55,8 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import me.weishu.kernelsu.ui.theme.immersiveTopBarColor
+import me.weishu.kernelsu.ui.InterfaceStyle
+import me.weishu.kernelsu.ui.LocalInterfaceStyle
 
 @Composable
 fun SearchAppBar(
@@ -73,7 +74,9 @@ fun SearchAppBar(
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     val scaledDensity = LocalDensity.current
-    val topBarContainerColor = immersiveTopBarColor(MaterialTheme.colorScheme.surface)
+    val topBarContainerColor = if (LocalInterfaceStyle.current == InterfaceStyle.SidebarWidget.value) {
+        MaterialTheme.colorScheme.surface
+    } else immersiveTopBarColor(MaterialTheme.colorScheme.surface)
     val interactionSource = remember { MutableInteractionSource() }
 
     val scope = rememberCoroutineScope()
@@ -182,7 +185,7 @@ fun SearchAppBar(
         Column(
             modifier = Modifier.fillMaxWidth()
         ) {
-            LargeFlexibleTopAppBar(
+            ExpressiveTopAppBar(
                 title = title,
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = topBarContainerColor,

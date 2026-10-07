@@ -39,6 +39,7 @@ enum class ManagerPlugin(
     ),
     AppIdManager("app-id-manager", setOf(PluginSlot.SuperuserAppIdManager)),
     AppFreeze("app-freeze", setOf(PluginSlot.SuperuserAppFreeze)),
+    PathmaskLkm("pathmask-lkm", setOf(PluginSlot.MountHidePathmaskLkm)),
     ;
 
     companion object {
@@ -57,6 +58,7 @@ enum class PluginSlot(val id: String) {
     MaintenanceStealthMode("maintenance.stealth-mode"),
     SuperuserAppIdManager("superuser.app-id-manager"),
     SuperuserAppFreeze("superuser.app-freeze"),
+    MountHidePathmaskLkm("mount-hide.pathmask-lkm"),
     ;
 
     companion object {
@@ -131,10 +133,10 @@ data class PluginDownloadProgress(
 private const val PLUGIN_CATALOG_SCHEMA = "io.github.fixz.apkesu.plugin-catalog"
 private const val PLUGIN_PACKAGE_SCHEMA = "io.github.fixz.apkesu.plugin"
 private const val PLUGIN_SCHEMA_VERSION = 1
-private const val CATALOG_ASSET = "plugin-store/catalog-v1.json"
-private const val SIGNATURE_ASSET = "plugin-store/catalog-v1.sig"
-private const val CATALOG_CACHE_NAME = "catalog-v1.json"
-private const val SIGNATURE_CACHE_NAME = "catalog-v1.sig"
+private const val CATALOG_ASSET = "plugin-store/catalog-v2.json"
+private const val SIGNATURE_ASSET = "plugin-store/catalog-v2.sig"
+private const val CATALOG_CACHE_NAME = "catalog-v2.json"
+private const val SIGNATURE_CACHE_NAME = "catalog-v2.sig"
 private const val STATE_FILE_NAME = "installed-v1.json"
 private const val MAX_CATALOG_BYTES = 384L * 1024L
 private const val MAX_SIGNATURE_BYTES = 1024L
@@ -144,15 +146,17 @@ private const val MAX_DESCRIPTION_LENGTH = 2_000
 private const val MAX_INSTRUCTION_COUNT = 16
 private const val MAX_INSTRUCTION_LENGTH = 360
 private const val ACTIVE_PLUGIN_STORE_BASE_URL =
-    "https://raw.githubusercontent.com/fixz232/Pseudo-SterSU/main/plugin-store"
+    "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/plugin-store"
 private const val LEGACY_PLUGIN_STORE_BASE_URL =
     "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main"
 private const val DEFAULT_CATALOG_URL =
-    "$ACTIVE_PLUGIN_STORE_BASE_URL/catalog-v1.json"
+    "$ACTIVE_PLUGIN_STORE_BASE_URL/catalog-v2.json"
 
 // This is an X.509 SubjectPublicKeyInfo encoding for the release catalog key.
 // The corresponding private key is deliberately kept outside source control.
-private const val CATALOG_PUBLIC_KEY_B64 = "MCowBQYDK2VwAyEAsuUUb5hSL7V2e89TyM0XRJ9IKY6VSOqP9a5a/OMeCts="
+private const val CATALOG_PUBLIC_KEY_B64 = "MCowBQYDK2VwAyEAIZ4tQbthCiLpZp4InJw/cuFWEjzFDABFbWnEd+ioI6g="
+// Retain the pinned legacy key for existing signed catalogs during migration.
+private const val LEGACY_CATALOG_PUBLIC_KEY_B64 = "MCowBQYDK2VwAyEAsuUUb5hSL7V2e89TyM0XRJ9IKY6VSOqP9a5a/OMeCts="
 
 private val PLUGIN_ID_PATTERN = Regex("[a-z][a-z0-9-]{1,63}")
 private val HASH_PATTERN = Regex("[a-fA-F0-9]{64}")
@@ -551,17 +555,38 @@ internal fun resolveCompatiblePluginIds(
     .filter { it.isCompatibleWith(managerVersionCode, ksudStatus) }
     .mapTo(linkedSetOf()) { it.plugin.id }
 
-internal enum class PluginRemovalResult { Removed, NotInstalled, RequiresStealthDisabled, RemoteManagementStopFailed }
+internal enum class PluginRemovalResult {
+    Removed, NotInstalled, RequiresStealthDisabled, RemoteManagementStopFailed, PathmaskStopFailed,
+}
 
-internal fun removeManagerPlugin(
+internal suspend fun stopPathmaskPluginForRemoval(
+    readStatus: suspend () -> HiddenPathConfigReadResult,
+    disableAutoLoad: suspend () -> ToolCommandResult,
+    unload: suspend () -> ToolCommandResult,
+): Boolean {
+    val before = readStatus().config ?: return false
+    if (before.hasPendingCandidate) return false
+    if (!before.loaded && before.targetPaths.isEmpty()) return true
+    if (!before.loaded && !before.autoLoadEnabled) return true
+    if (before.autoLoadEnabled && !disableAutoLoad().success) return false
+    if (!unload().success) return false
+    val after = readStatus().config ?: return false
+    return !after.autoLoadEnabled && !after.loaded && !after.hasPendingCandidate
+}
+
+internal suspend fun removeManagerPlugin(
     pluginId: String,
     stealthEnabled: Boolean,
     stopRemoteManagement: () -> Boolean,
+    stopPathmask: suspend () -> Boolean,
     removeRecord: () -> Boolean,
 ): PluginRemovalResult {
     val remoteManagement = pluginId == ManagerPlugin.RemoteManagementSuite.id
     if (remoteManagement && stealthEnabled) return PluginRemovalResult.RequiresStealthDisabled
     if (remoteManagement && !stopRemoteManagement()) return PluginRemovalResult.RemoteManagementStopFailed
+    if (pluginId == ManagerPlugin.PathmaskLkm.id && !stopPathmask()) {
+        return PluginRemovalResult.PathmaskStopFailed
+    }
     return if (removeRecord()) PluginRemovalResult.Removed else PluginRemovalResult.NotInstalled
 }
 
@@ -571,13 +596,18 @@ internal fun parseManagerPluginCatalog(json: String): ManagerPluginCatalog {
     require(root.optString("schema") == PLUGIN_CATALOG_SCHEMA) { "Unsupported plugin catalog" }
     require(root.optInt("version") == PLUGIN_SCHEMA_VERSION) { "Unsupported plugin catalog version" }
     val items = root.optJSONArray("plugins") ?: error("Plugin catalog has no plugins")
-    require(items.length() == ManagerPlugin.entries.size) { "Plugin catalog is incomplete" }
+    require(items.length() in (ManagerPlugin.entries.size - 1)..ManagerPlugin.entries.size) {
+        "Plugin catalog size is invalid"
+    }
     val plugins = buildList {
         for (index in 0 until items.length()) {
             add(parsePlugin(items.optJSONObject(index) ?: error("Plugin catalog entry is invalid"), requireDownload = true))
         }
     }
-    require(plugins.map { it.id }.toSet() == ManagerPlugin.entries.map { it.id }.toSet()) {
+    val pluginIds = plugins.mapTo(linkedSetOf()) { it.id }
+    val expectedIds = ManagerPlugin.entries.mapTo(linkedSetOf()) { it.id }
+    require(pluginIds.size == plugins.size &&
+        (pluginIds == expectedIds || pluginIds == expectedIds - ManagerPlugin.PathmaskLkm.id)) {
         "Plugin catalog identifiers do not match the Manager"
     }
     return ManagerPluginCatalog(root.optLong("generatedAt").coerceAtLeast(0L), plugins)
@@ -704,13 +734,16 @@ private fun isAllowedPluginHost(host: String): Boolean {
 internal fun verifyManagerPluginCatalogSignature(
     catalog: ByteArray,
     signatureText: ByteArray,
-    publicKeyBase64: String = CATALOG_PUBLIC_KEY_B64,
+    publicKeyBase64: String? = null,
 ) {
     val signatureBytes = Base64.getMimeDecoder().decode(signatureText.toString(Charsets.UTF_8).trim())
     require(signatureBytes.size == 64) { "Plugin catalog signature is invalid" }
-    val keyBytes = Base64.getDecoder().decode(publicKeyBase64)
+    val trustedKeys = publicKeyBase64?.let { listOf(it) }
+        ?: listOf(CATALOG_PUBLIC_KEY_B64, LEGACY_CATALOG_PUBLIC_KEY_B64)
     val payloads = listOfNotNull(catalog, catalog.withCrlfLineEndings())
-    require(verifyCatalogEd25519Signature(payloads, signatureBytes, keyBytes)) {
+    require(trustedKeys.any { key ->
+        verifyCatalogEd25519Signature(payloads, signatureBytes, Base64.getDecoder().decode(key))
+    }) {
         "Plugin catalog signature verification failed"
     }
 }

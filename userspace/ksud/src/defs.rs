@@ -76,6 +76,7 @@ mod android {
 
 #[allow(unused)]
 pub const DEFAULT_MANAGER_PACKAGE: &str = "io.github.fixz.stersu";
+#[cfg(target_os = "android")]
 pub const LEGACY_MANAGER_PACKAGE: &str = "io.github.fixz.apkesu";
 
 #[cfg(target_os = "android")]

@@ -154,12 +154,6 @@ fun SettingPagerSkrootpro(
                     leadingIcon = Icons.Rounded.EditNote,
                     onClick = actions.onEditHomeTitle,
                 )
-                SkrootproActionRow(
-                    title = stringResource(R.string.home_layout_title),
-                    summary = stringResource(R.string.home_layout_settings_summary),
-                    leadingIcon = Icons.Rounded.Apps,
-                    onClick = actions.onOpenHomeLayout,
-                )
                 SkrootproSwitchRow(
                     title = stringResource(R.string.settings_show_home_support_card),
                     summary = stringResource(R.string.settings_show_home_support_card_summary),
@@ -269,37 +263,15 @@ fun SettingPagerSkrootpro(
                     checked = uiState.isDefaultUmountModules,
                     onCheckedChange = actions.onSetDefaultUmountModules,
                 )
-                SkrootproSwitchRow(
-                    title = stringResource(R.string.settings_kpatch_next),
-                    summary = kPatchNextSummary(uiState),
-                    checked = uiState.isKPatchNextSwitchChecked,
-                    onCheckedChange = actions.onSetKPatchNextEnabled,
-                    enabled = uiState.canToggleKPatchNext,
-                )
-                SkrootproActionRow(
-                    title = stringResource(R.string.settings_kpatch_next_webui),
-                    summary = stringResource(
-                        if (uiState.canOpenKPatchNextWebUi) {
-                            R.string.settings_kpatch_next_webui_summary
-                        } else {
-                            R.string.settings_kpatch_next_webui_disabled_summary
-                        }
-                    ),
-                    leadingIcon = Icons.Rounded.Apps,
-                    enabled = uiState.canOpenKPatchNextWebUi,
-                    onClick = {
-                        if (uiState.canOpenKPatchNextWebUi) {
-                            actions.onOpenKPatchNextWebUi()
-                        }
-                    },
-                )
-                SkrootproActionRow(
-                    title = pathConfigTitle(uiState),
-                    summary = pathConfigSummary(uiState),
-                    leadingIcon = Icons.Rounded.Visibility,
-                    enabled = uiState.canOpenPathConfig,
-                    onClick = actions.onOpenHiddenPathConfig,
-                )
+                if (uiState.isPathConfigEntryVisible) {
+                    SkrootproActionRow(
+                        title = pathConfigTitle(uiState),
+                        summary = pathConfigSummary(uiState),
+                        leadingIcon = Icons.Rounded.Visibility,
+                        enabled = uiState.canOpenPathConfig,
+                        onClick = actions.onOpenHiddenPathConfig,
+                    )
+                }
                 SkrootproSwitchRow(
                     title = stringResource(R.string.settings_epkesu_hide),
                     summary = stringResource(R.string.settings_epkesu_hide_summary),

@@ -10,8 +10,8 @@ use log::{error, info, warn};
 use prop_rs_android::resetprop::ResetProp;
 use prop_rs_android::sys_prop;
 use rustix::process::chdir;
-use std::{path::Path, time::Instant};
 use std::process::Command;
+use std::{path::Path, time::Instant};
 
 pub fn on_post_fs_data() -> Result<()> {
     if ksucalls::is_uapi_version_mismatch() {
@@ -354,7 +354,10 @@ pub fn soft_reboot() -> Result<()> {
     if let Err(e) = reset_boot_completed() {
         warn!("reset boot completed failed: {e}");
     }
-    run_stage("emulated-soft-reboot", ScriptWait::Until(Instant::now() + defs::BOOT_STAGE_TIMEOUT));
+    run_stage(
+        "emulated-soft-reboot",
+        ScriptWait::Until(Instant::now() + defs::BOOT_STAGE_TIMEOUT),
+    );
     info!("stop");
     let status = Command::new("stop").status().context("stop failed")?;
     if !status.success() {

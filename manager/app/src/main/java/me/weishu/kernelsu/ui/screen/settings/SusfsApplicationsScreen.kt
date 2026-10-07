@@ -1,72 +1,83 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package me.weishu.kernelsu.ui.screen.settings
 
-import android.content.Context
-import android.net.Uri
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Apps
-import androidx.compose.material.icons.rounded.FileDownload
-import androidx.compose.material.icons.rounded.FileUpload
-import androidx.compose.material.icons.rounded.ErrorOutline
-import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.ExpandMore
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Security
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import me.weishu.kernelsu.R
 import me.weishu.kernelsu.ui.component.AppIconImage
 import me.weishu.kernelsu.ui.navigation3.LocalNavigator
@@ -75,171 +86,109 @@ import me.weishu.kernelsu.ui.theme.immersiveScrolledTopBarColor
 import me.weishu.kernelsu.ui.theme.immersiveSurfaceColor
 import me.weishu.kernelsu.ui.theme.immersiveTopBarColor
 import me.weishu.kernelsu.ui.util.SusfsApplication
-import me.weishu.kernelsu.ui.util.SusfsApplicationHidingConfigEntry
+import me.weishu.kernelsu.ui.util.SusfsApplyReport
+import me.weishu.kernelsu.ui.util.SusfsHideMode
+import me.weishu.kernelsu.ui.util.SusfsImportPlan
+import me.weishu.kernelsu.ui.util.SusfsPlanAction
+import me.weishu.kernelsu.ui.util.SusfsPolicyState
 import me.weishu.kernelsu.ui.util.SusfsRiskSignal
-import me.weishu.kernelsu.ui.util.encodeSusfsApplicationHidingConfig
-import me.weishu.kernelsu.ui.util.importSusfsApplicationHidingConfig
-import me.weishu.kernelsu.ui.util.loadSusfsApplications
-import me.weishu.kernelsu.ui.util.setSusfsApplicationHidden
-import java.io.ByteArrayOutputStream
-
-private enum class SusfsApplicationCategory {
-    Risk,
-    Normal,
-}
+import me.weishu.kernelsu.ui.viewmodel.SusfsAppCategory
+import me.weishu.kernelsu.ui.viewmodel.SusfsAppFilter
+import me.weishu.kernelsu.ui.viewmodel.SusfsApplicationsViewModel
+import me.weishu.kernelsu.ui.viewmodel.filterSusfsApplications
+import java.text.DateFormat
+import java.util.Date
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SusfsApplicationsScreen() {
-    val context = LocalContext.current
+    val model = viewModel<SusfsApplicationsViewModel>()
+    val state by model.state.collectAsStateWithLifecycle()
     val navigator = LocalNavigator.current
-    val scope = rememberCoroutineScope()
-    var applications by remember { mutableStateOf(emptyList<SusfsApplication>()) }
-    var loading by remember { mutableStateOf(true) }
-    var refreshing by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf("") }
     var query by rememberSaveable { mutableStateOf("") }
-    var selectedCategory by rememberSaveable { mutableIntStateOf(0) }
-    var updatingUid by remember { mutableStateOf<Int?>(null) }
-    var showSystemApps by rememberSaveable { mutableStateOf(false) }
-    var configBusy by remember { mutableStateOf(false) }
+    var category by rememberSaveable { mutableStateOf(SusfsAppCategory.All) }
+    var filter by rememberSaveable { mutableStateOf(SusfsAppFilter.All) }
+    var showSystem by rememberSaveable { mutableStateOf(false) }
+    var filtersOpen by rememberSaveable { mutableStateOf(false) }
+    var menu by remember { mutableStateOf(false) }
+    var showHelp by rememberSaveable { mutableStateOf(false) }
+    var showReport by rememberSaveable { mutableStateOf(false) }
+    var pendingChange by remember { mutableStateOf<Pair<SusfsApplication, SusfsHideMode>?>(null) }
 
-    fun refresh(showLoading: Boolean = true) {
-        if (refreshing || configBusy) return
-        scope.launch {
-            refreshing = true
-            if (showLoading) loading = true
-            error = ""
-            val result = runCatching { loadSusfsApplications(context) }
-            result.onSuccess { applications = it }
-                .onFailure { error = it.message.orEmpty().ifBlank { "load_failed" } }
-            loading = false
-            refreshing = false
-        }
+    val importer = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        model.choosingDocument = false
+        if (uri != null) model.prepareImport(uri)
     }
-
-    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) {
-            scope.launch {
-                configBusy = true
-                try {
-                    val result = runCatching {
-                        val json = readSusfsApplicationHidingConfig(context, uri)
-                        val imported = importSusfsApplicationHidingConfig(context, json)
-                        imported to loadSusfsApplications(context)
-                    }
-                    result.onSuccess { (imported, refreshed) ->
-                        applications = refreshed
-                        error = ""
-                        Toast.makeText(
-                            context,
-                            context.getString(
-                                R.string.susfs_applications_import_success,
-                                imported.updated,
-                                imported.unchanged,
-                                imported.skipped,
-                                imported.failed,
-                            ),
-                            Toast.LENGTH_LONG,
-                        ).show()
-                    }.onFailure { failure ->
-                        Toast.makeText(
-                            context,
-                            context.getString(
-                                R.string.susfs_applications_import_failed,
-                                failure.message.orEmpty().ifBlank { "invalid_config" },
-                            ),
-                            Toast.LENGTH_LONG,
-                        ).show()
-                    }
-                } finally {
-                    configBusy = false
-                }
-            }
-        }
+    val exporter = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        model.choosingDocument = false
+        if (uri != null) model.export(uri)
     }
-    val exportLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/json"),
-    ) { uri ->
-        if (uri != null) {
-            scope.launch {
-                configBusy = true
-                try {
-                    val result = runCatching {
-                        val entries = applications
-                            .asSequence()
-                            .filter { it.canManage }
-                            .map { SusfsApplicationHidingConfigEntry(it.packageName, it.hidden) }
-                            .toList()
-                        writeSusfsApplicationHidingConfig(
-                            context,
-                            uri,
-                            encodeSusfsApplicationHidingConfig(entries),
-                        )
-                    }
-                    Toast.makeText(
-                        context,
-                        if (result.isSuccess) {
-                            R.string.susfs_applications_export_success
-                        } else {
-                            R.string.susfs_applications_export_failed
-                        },
-                        Toast.LENGTH_LONG,
-                    ).show()
-                } finally {
-                    configBusy = false
-                }
-            }
-        }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { model.onResume() }
+    LaunchedEffect(state.notice) {
+        if (state.notice == "applied" && state.report?.items?.any { it.status == "failed" } == true) showReport = true
+    }
+    val filtered = remember(state.apps, query, category, filter, showSystem) {
+        filterSusfsApplications(state.apps, query, category, filter, showSystem)
     }
 
-    LaunchedEffect(Unit) { refresh() }
-
-    val category = if (selectedCategory == 0) {
-        SusfsApplicationCategory.Risk
-    } else {
-        SusfsApplicationCategory.Normal
+    fun requestChange(app: SusfsApplication, mode: SusfsHideMode) {
+        if (state.busy) return
+        if (app.packageNames.size > 1) pendingChange = app to mode else model.change(app, mode)
     }
-    val normalizedQuery = query.trim()
-    val displayedApplications = remember(applications, showSystemApps) {
-        if (showSystemApps) applications else applications.filterNot { it.isSystem }
-    }
-    val filtered = remember(displayedApplications, category, normalizedQuery) {
-        displayedApplications.filter { app ->
-            val categoryMatches = app.isRisk == (category == SusfsApplicationCategory.Risk)
-            val queryMatches = normalizedQuery.isBlank() ||
-                app.label.contains(normalizedQuery, ignoreCase = true) ||
-                app.packageName.contains(normalizedQuery, ignoreCase = true) ||
-                app.uid.toString().contains(normalizedQuery)
-            categoryMatches && queryMatches
-        }
-    }
-    val hiddenCount = displayedApplications.count { it.hidden }
-    val systemAppCount = applications.count { it.isSystem }
 
     Scaffold(
         containerColor = immersivePageColor(MaterialTheme.colorScheme.background),
         contentWindowInsets = WindowInsets.safeDrawing,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.susfs_applications_title)) },
+                title = { Text(stringResource(R.string.susfs_applications_title), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 navigationIcon = {
                     IconButton(onClick = dropUnlessResumed { navigator.pop() }) {
-                        Icon(
-                            Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = stringResource(R.string.back),
-                        )
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.back))
                     }
                 },
                 actions = {
-                    IconButton(
-                        onClick = dropUnlessResumed { refresh(showLoading = false) },
-                        enabled = !refreshing && updatingUid == null && !configBusy,
-                    ) {
-                        Icon(
-                            Icons.Rounded.Refresh,
-                            contentDescription = stringResource(R.string.susfs_applications_refresh),
-                        )
+                    IconButton(onClick = model::refresh, enabled = !state.busy) {
+                        Icon(Icons.Rounded.Refresh, stringResource(R.string.susfs_applications_refresh))
+                    }
+                    Box {
+                        IconButton(onClick = { menu = true }) {
+                            Icon(Icons.Rounded.MoreVert, stringResource(R.string.susfs_more_actions))
+                        }
+                        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.susfs_applications_import)) },
+                                enabled = !state.busy,
+                                onClick = {
+                                    menu = false
+                                    model.choosingDocument = true
+                                    importer.launch(arrayOf("application/json", "text/*", "application/octet-stream"))
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.susfs_applications_export)) },
+                                enabled = state.loaded && !state.busy,
+                                onClick = {
+                                    menu = false
+                                    model.choosingDocument = true
+                                    exporter.launch("SterSU-application-policies.json")
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.susfs_apps_restore)) },
+                                enabled = state.hasBackup && !state.busy,
+                                onClick = { menu = false; model.prepareRestore() },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.susfs_apps_results)) },
+                                enabled = state.report != null,
+                                onClick = { menu = false; showReport = true },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.susfs_apps_help)) },
+                                onClick = { menu = false; showHelp = true },
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -249,435 +198,346 @@ fun SusfsApplicationsScreen() {
             )
         },
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            item {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.Top,
-                    ) {
-                        Icon(Icons.Rounded.Info, contentDescription = null)
-                        Text(
-                            text = stringResource(R.string.susfs_applications_summary),
-                            modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
-                }
-            }
-
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    SusfsAppMetric(
-                        value = displayedApplications.count { it.isRisk }.toString(),
-                        label = stringResource(R.string.susfs_applications_risk_count),
-                        modifier = Modifier.weight(1f),
-                    )
-                    SusfsAppMetric(
-                        value = displayedApplications.count { !it.isRisk }.toString(),
-                        label = stringResource(R.string.susfs_applications_normal_count),
-                        modifier = Modifier.weight(1f),
-                    )
-                    SusfsAppMetric(
-                        value = hiddenCount.toString(),
-                        label = stringResource(R.string.susfs_applications_hidden_count),
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-            }
-
-            item {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
-                    color = immersiveSurfaceColor(MaterialTheme.colorScheme.surfaceContainer),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(
-                                text = stringResource(R.string.susfs_applications_show_system),
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.Medium,
-                            )
-                            Text(
-                                text = stringResource(
-                                    R.string.susfs_applications_show_system_summary,
-                                    systemAppCount,
-                                ),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        Switch(
-                            checked = showSystemApps,
-                            onCheckedChange = { showSystemApps = it },
-                            enabled = !loading && !configBusy,
-                        )
-                    }
-                }
-            }
-
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    OutlinedButton(
-                        onClick = { importLauncher.launch(arrayOf("application/json", "text/plain")) },
-                        enabled = !configBusy && updatingUid == null,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Icon(Icons.Rounded.FileUpload, contentDescription = null)
-                        Text(
-                            text = stringResource(R.string.susfs_applications_import),
-                            modifier = Modifier.padding(start = 8.dp),
-                        )
-                    }
-                    OutlinedButton(
-                        onClick = { exportLauncher.launch("stersu-susfs-app-hiding.json") },
-                        enabled = !loading && !configBusy && updatingUid == null,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Icon(Icons.Rounded.FileDownload, contentDescription = null)
-                        Text(
-                            text = stringResource(R.string.susfs_applications_export),
-                            modifier = Modifier.padding(start = 8.dp),
-                        )
-                    }
-                }
-            }
-
-            item {
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    label = { Text(stringResource(R.string.susfs_applications_search)) },
-                    leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                )
-            }
-
-            item {
-                TabRow(selectedTabIndex = selectedCategory) {
-                    Tab(
-                        selected = selectedCategory == 0,
-                        onClick = { selectedCategory = 0 },
-                        text = {
-                            Text(
-                                stringResource(
-                                    R.string.susfs_applications_risk_tab,
-                                    categoryCountFor(displayedApplications, true),
-                                ),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        },
-                        icon = { Icon(Icons.Rounded.Security, contentDescription = null) },
-                    )
-                    Tab(
-                        selected = selectedCategory == 1,
-                        onClick = { selectedCategory = 1 },
-                        text = {
-                            Text(
-                                stringResource(
-                                    R.string.susfs_applications_normal_tab,
-                                    categoryCountFor(displayedApplications, false),
-                                ),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        },
-                        icon = { Icon(Icons.Rounded.Apps, contentDescription = null) },
-                    )
-                }
-            }
-
-            if (error.isNotBlank()) {
-                item {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.errorContainer,
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(Icons.Rounded.ErrorOutline, contentDescription = null)
-                            Text(
-                                text = stringResource(R.string.susfs_applications_load_failed, error),
-                                modifier = Modifier.weight(1f),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        }
-                    }
-                }
-            }
-
-            if (loading) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 48.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                }
-            } else if (filtered.isEmpty()) {
-                item {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp),
-                        color = immersiveSurfaceColor(MaterialTheme.colorScheme.surfaceContainer),
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(24.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            Icon(Icons.Rounded.Apps, contentDescription = null, modifier = Modifier.size(32.dp))
-                            Text(
-                                text = stringResource(R.string.susfs_applications_empty),
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                        }
-                    }
-                }
-            } else {
-                items(filtered, key = { it.packageName }) { app ->
-                    SusfsApplicationRow(
-                        app = app,
-                        busy = configBusy || updatingUid == app.uid,
-                        onToggle = { hidden ->
-                            if (updatingUid == null) {
-                                scope.launch {
-                                    updatingUid = app.uid
-                                    try {
-                                        val result = setSusfsApplicationHidden(app, hidden)
-                                        val cause = result.exceptionOrNull()
-                                        if (cause == null) {
-                                            error = ""
-                                            Toast.makeText(
-                                                context,
-                                                if (hidden) {
-                                                    R.string.susfs_applications_hidden_success
-                                                } else {
-                                                    R.string.susfs_applications_visible_success
-                                                },
-                                                Toast.LENGTH_SHORT,
-                                            ).show()
-                                            runCatching { loadSusfsApplications(context) }
-                                                .onSuccess { applications = it }
-                                                .onFailure {
-                                                    error = it.message.orEmpty().ifBlank { "load_failed" }
-                                                }
-                                        } else {
-                                            error = cause.message.orEmpty().ifBlank { "profile_update_failed" }
-                                        }
-                                    } finally {
-                                        updatingUid = null
-                                    }
-                                }
-                            }
-                        },
-                    )
-                }
-            }
-        }
-    }
-}
-
-private fun categoryCountFor(applications: List<SusfsApplication>, risk: Boolean): Int =
-    applications.count { it.isRisk == risk }
-
-@Composable
-private fun SusfsAppMetric(
-    value: String,
-    label: String,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(8.dp),
-        color = immersiveSurfaceColor(MaterialTheme.colorScheme.surfaceContainer),
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Text(
-                label,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
-}
-
-@Composable
-private fun SusfsApplicationRow(
-    app: SusfsApplication,
-    busy: Boolean,
-    onToggle: (Boolean) -> Unit,
-) {
-    val riskDetails = when {
-        SusfsRiskSignal.RootOrIntegrityName in app.riskSignals &&
-            SusfsRiskSignal.SensitivePermission in app.riskSignals -> {
-            stringResource(R.string.susfs_applications_risk_name) + " · " +
-                stringResource(R.string.susfs_applications_risk_permission)
-        }
-        SusfsRiskSignal.RootOrIntegrityName in app.riskSignals ->
-            stringResource(R.string.susfs_applications_risk_name)
-        SusfsRiskSignal.SensitivePermission in app.riskSignals ->
-            stringResource(R.string.susfs_applications_risk_permission)
-        else -> ""
-    }
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        color = immersiveSurfaceColor(MaterialTheme.colorScheme.surfaceContainer),
-    ) {
-        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
+        Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding(), contentAlignment = Alignment.TopCenter) {
+            LazyColumn(
+                modifier = Modifier.widthIn(max = 840.dp).fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                AppIconImage(
-                    packageInfo = app.packageInfo,
-                    label = app.label,
-                    modifier = Modifier.size(44.dp),
-                )
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(
-                        app.label,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                item(key = "search") {
+                    OutlinedTextField(
+                        value = query,
+                        onValueChange = { query = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(stringResource(R.string.susfs_applications_search)) },
+                        leadingIcon = { Icon(Icons.Rounded.Search, null) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     )
+                }
+                item(key = "categories") {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                        SusfsAppCategory.entries.forEach { item ->
+                            FilterChip(
+                                selected = category == item,
+                                onClick = { category = item },
+                                label = { Text(stringResource(when (item) {
+                                    SusfsAppCategory.All -> R.string.susfs_apps_all
+                                    SusfsAppCategory.Risk -> R.string.susfs_applications_risk_count
+                                    SusfsAppCategory.Normal -> R.string.susfs_applications_normal_count
+                                })) },
+                            )
+                        }
+                        FilterChip(
+                            selected = filtersOpen || showSystem || filter != SusfsAppFilter.All,
+                            onClick = { filtersOpen = !filtersOpen },
+                            label = { Text(stringResource(R.string.susfs_apps_filters)) },
+                            leadingIcon = { Icon(Icons.Rounded.Tune, null, Modifier.size(18.dp)) },
+                        )
+                    }
+                    if (filtersOpen) {
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SusfsAppFilter.entries.forEach { item ->
+                                FilterChip(
+                                    selected = filter == item,
+                                    onClick = { filter = item },
+                                    label = { Text(stringResource(when (item) {
+                                        SusfsAppFilter.All -> R.string.susfs_apps_all_policies
+                                        SusfsAppFilter.Enabled -> R.string.susfs_apps_enabled
+                                        SusfsAppFilter.Disabled -> R.string.susfs_apps_disabled
+                                        SusfsAppFilter.Default -> R.string.susfs_apps_default
+                                        SusfsAppFilter.Unknown -> R.string.susfs_apps_unknown
+                                    })) },
+                                )
+                            }
+                        }
+                        Row(
+                            Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(
+                                value = showSystem, role = Role.Switch, onValueChange = { showSystem = it },
+                            ).padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Text(stringResource(R.string.susfs_applications_show_system), Modifier.weight(1f))
+                            Switch(checked = showSystem, onCheckedChange = null)
+                        }
+                    }
                     Text(
-                        app.packageName,
+                        stringResource(
+                            R.string.susfs_apps_count,
+                            filtered.size,
+                            filtered.count { it.policy.effectiveHidden == true },
+                            filtered.count { !it.policy.known },
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
                     )
-                    Text(
-                        if (app.isSystem) {
-                            stringResource(R.string.susfs_applications_uid_system, app.uid)
-                        } else {
-                            stringResource(R.string.susfs_applications_uid, app.uid)
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    if (app.packageNames.size > 1) {
-                        Text(
-                            stringResource(
-                                R.string.susfs_applications_shared_uid,
-                                app.packageNames.size - 1,
-                            ),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                }
+                if (state.busy) item(key = "progress") {
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                    Text(stringResource(R.string.susfs_apps_working), style = MaterialTheme.typography.bodySmall)
+                }
+                if (state.error != null) item(key = "error") {
+                    Surface(color = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer, shape = RoundedCornerShape(8.dp)) {
+                        Column(Modifier.fillMaxWidth().padding(12.dp)) {
+                            SelectionContainer { Text(policyFailureText(state.error.orEmpty()), style = MaterialTheme.typography.bodyMedium) }
+                            TextButton(onClick = model::refresh, enabled = !state.busy) { Text(stringResource(R.string.retry)) }
+                        }
                     }
                 }
-                Column(horizontalAlignment = Alignment.End) {
-                    Switch(
-                        checked = app.hidden,
-                        onCheckedChange = onToggle,
-                        enabled = app.canManage && !app.allowSu && !busy,
-                    )
-                    Text(
-                        text = if (app.hidden) {
-                            stringResource(R.string.susfs_applications_hidden)
-                        } else {
-                            stringResource(R.string.susfs_applications_visible)
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (app.hidden) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                    )
+                if (state.notice != null) item(key = "notice") {
+                    Column {
+                        Text(
+                            stringResource(if (state.notice == "exported") R.string.susfs_applications_export_success else R.string.susfs_apps_saved),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        if (state.notice != "exported") TextButton(onClick = { showReport = true }) { Text(stringResource(R.string.susfs_apps_results)) }
+                    }
+                }
+                if (state.loaded && filtered.isEmpty() && !state.busy) item(key = "empty") {
+                    Column(Modifier.fillMaxWidth().padding(vertical = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(stringResource(R.string.susfs_applications_empty))
+                        TextButton(onClick = { query = ""; category = SusfsAppCategory.All; filter = SusfsAppFilter.All; showSystem = false }) {
+                            Text(stringResource(R.string.susfs_apps_reset_filters))
+                        }
+                    }
+                }
+                items(filtered, key = { "${it.uid}:${it.packageName}" }, contentType = { "application" }) { app ->
+                    SusfsApplicationRow(app, state.busy, onChange = { requestChange(app, it) })
                 }
             }
-            if (app.isRisk || app.allowSu || !app.canManage) {
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                Text(
-                    text = when {
-                        app.allowSu -> stringResource(R.string.susfs_applications_root_allowed)
-                        !app.canManage -> stringResource(R.string.susfs_applications_system_disabled)
-                        else -> riskDetails
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (app.allowSu || !app.canManage) {
-                        MaterialTheme.colorScheme.error
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
+        }
+    }
+
+    state.preview?.let { plan ->
+        SusfsImportPreview(plan, state.busy, onDismiss = model::dismissPreview, onApply = model::applyPreview)
+    }
+    pendingChange?.let { (app, mode) ->
+        AlertDialog(
+            onDismissRequest = { pendingChange = null },
+            title = { Text(stringResource(R.string.susfs_apps_shared_title)) },
+            text = {
+                LazyColumn(Modifier.heightIn(max = 400.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    item { Text(stringResource(R.string.susfs_apps_shared_confirm, modeLabel(mode), app.uid)) }
+                    items(app.packageNames) { Text(it, style = MaterialTheme.typography.bodyMedium) }
+                }
+            },
+            confirmButton = {
+                TextButton(enabled = !state.busy, onClick = { pendingChange = null; model.change(app, mode) }) {
+                    Text(stringResource(R.string.confirm))
+                }
+            },
+            dismissButton = { TextButton(onClick = { pendingChange = null }) { Text(stringResource(R.string.close)) } },
+        )
+    }
+    if (showHelp) AlertDialog(
+        onDismissRequest = { showHelp = false },
+        title = { Text(stringResource(R.string.susfs_apps_help)) },
+        text = {
+            LazyColumn(Modifier.heightIn(max = 440.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                item { Text(stringResource(R.string.susfs_applications_summary)) }
+                item { Text(stringResource(R.string.susfs_apps_help_steps)) }
+                item { Text(stringResource(R.string.susfs_apps_backup_help)) }
+            }
+        },
+        confirmButton = { TextButton(onClick = { showHelp = false }) { Text(stringResource(R.string.close)) } },
+    )
+    if (showReport && state.preview == null && state.report != null) {
+        SusfsResultDialog(requireNotNull(state.report)) { showReport = false }
+    }
+}
+
+@Composable
+private fun SusfsApplicationRow(app: SusfsApplication, busy: Boolean, onChange: (SusfsHideMode) -> Unit) {
+    var expanded by rememberSaveable(app.uid, app.packageName) { mutableStateOf(false) }
+    val description = policyLabel(app.policy)
+    val switchDescription = stringResource(R.string.susfs_apps_switch, app.label)
+    val enabled = app.canManage && app.policy.known && !app.policy.allowSu && !busy
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = immersiveSurfaceColor(MaterialTheme.colorScheme.surfaceContainer),
+        contentColor = MaterialTheme.colorScheme.onSurface,
+    ) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                AppIconImage(packageInfo = app.packageInfo, label = app.label, modifier = Modifier.size(44.dp).clearAndSetSemantics { })
+                Column(
+                    Modifier.weight(1f).heightIn(min = 48.dp).clickable(role = Role.Button) { expanded = !expanded },
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(app.label, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(description, style = MaterialTheme.typography.bodySmall, color = if (app.policy.known) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error)
+                }
+                Switch(
+                    checked = app.policy.effectiveHidden == true,
+                    onCheckedChange = { onChange(if (it) SusfsHideMode.Enabled else SusfsHideMode.Disabled) },
+                    enabled = enabled,
+                    modifier = Modifier.heightIn(min = 48.dp).semantics {
+                        contentDescription = switchDescription
+                        stateDescription = description
                     },
                 )
             }
-        }
-    }
-}
-
-private suspend fun readSusfsApplicationHidingConfig(context: Context, uri: Uri): String =
-    withContext(Dispatchers.IO) {
-        val input = context.contentResolver.openInputStream(uri) ?: error("open_input_failed")
-        input.use { stream ->
-            val output = ByteArrayOutputStream()
-            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-            var total = 0
-            while (true) {
-                val count = stream.read(buffer)
-                if (count < 0) break
-                total += count
-                require(total <= SUSFS_APP_CONFIG_FILE_MAX_BYTES) { "config_too_large" }
-                output.write(buffer, 0, count)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    when {
+                        !app.canManage -> stringResource(R.string.susfs_apps_protected)
+                        app.policy.allowSu -> stringResource(R.string.susfs_apps_root)
+                        app.packageNames.size > 1 -> stringResource(R.string.susfs_apps_shared_count, app.packageNames.size)
+                        app.isRisk -> stringResource(R.string.susfs_apps_risk_hint)
+                        else -> app.packageName
+                    },
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                IconButton(onClick = { expanded = !expanded }) {
+                    Icon(if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, stringResource(if (expanded) R.string.susfs_apps_collapse else R.string.susfs_apps_details))
+                }
             }
-            output.toString(Charsets.UTF_8.name())
+            if (expanded) {
+                HorizontalDivider()
+                Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SelectionContainer {
+                        Text(app.packageNames.joinToString("\n"), style = MaterialTheme.typography.bodySmall)
+                    }
+                    Text(stringResource(if (app.isSystem) R.string.susfs_applications_uid_system else R.string.susfs_applications_uid, app.uid), style = MaterialTheme.typography.bodySmall)
+                    when {
+                        !app.canManage -> Text(stringResource(R.string.susfs_applications_system_disabled), style = MaterialTheme.typography.bodySmall)
+                        app.policy.allowSu -> Text(stringResource(R.string.susfs_applications_root_allowed), style = MaterialTheme.typography.bodySmall)
+                    }
+                    app.policy.error?.let { SelectionContainer { Text(policyFailureText(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) } }
+                    if (app.isRisk) {
+                        val reasons = app.riskSignals.map {
+                            stringResource(if (it == SusfsRiskSignal.RootOrIntegrityName) R.string.susfs_applications_risk_name else R.string.susfs_applications_risk_permission)
+                        }
+                        Text(reasons.joinToString(" · "), style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(R.string.susfs_apps_risk_disclaimer), style = MaterialTheme.typography.bodySmall)
+                    }
+                    Text(stringResource(R.string.susfs_apps_effect_note), style = MaterialTheme.typography.bodySmall)
+                    TextButton(onClick = { onChange(SusfsHideMode.Default) }, enabled = enabled && app.policy.mode != SusfsHideMode.Default) {
+                        Text(stringResource(R.string.susfs_apps_use_default))
+                    }
+                }
+            }
         }
-    }
-
-private suspend fun writeSusfsApplicationHidingConfig(
-    context: Context,
-    uri: Uri,
-    json: String,
-) = withContext(Dispatchers.IO) {
-    val output = context.contentResolver.openOutputStream(uri, "wt") ?: error("open_output_failed")
-    output.bufferedWriter(Charsets.UTF_8).use { writer ->
-        writer.write(json)
-        writer.newLine()
     }
 }
 
-private const val SUSFS_APP_CONFIG_FILE_MAX_BYTES = 512 * 1024
+@Composable
+private fun modeLabel(mode: SusfsHideMode): String = stringResource(when (mode) {
+    SusfsHideMode.Default -> R.string.susfs_apps_default
+    SusfsHideMode.Enabled -> R.string.susfs_apps_explicit_on
+    SusfsHideMode.Disabled -> R.string.susfs_apps_explicit_off
+})
+
+@Composable
+private fun policyLabel(policy: SusfsPolicyState): String = when {
+    !policy.known -> stringResource(R.string.susfs_apps_unknown)
+    policy.allowSu -> stringResource(R.string.susfs_apps_root)
+    policy.mode == SusfsHideMode.Default -> stringResource(
+        R.string.susfs_apps_default_state,
+        stringResource(if (policy.effectiveHidden == true) R.string.susfs_apps_enabled else R.string.susfs_apps_disabled),
+    )
+    else -> modeLabel(policy.mode)
+}
+
+@Composable
+private fun policyFailureText(detail: String): String {
+    val reason = detail.substringBefore(":")
+    val res = when (reason) {
+        "not_installed" -> R.string.susfs_apps_not_installed
+        "protected_app" -> R.string.susfs_applications_system_disabled
+        "root_allowed_app" -> R.string.susfs_applications_root_allowed
+        "package_uid_changed" -> R.string.susfs_apps_identity_changed
+        "shared_uid_conflict" -> R.string.susfs_apps_conflict
+        "policy_changed", "preview_expired" -> R.string.susfs_apps_stale
+        "unknown_policy", "export_unknown_policies", "refresh_failed", "inconsistent_policy_read" -> R.string.susfs_apps_read_failed
+        "profile_update_failed", "readback_failed", "readback_mismatch" -> R.string.susfs_apps_write_failed
+        else -> R.string.susfs_apps_operation_failed
+    }
+    return stringResource(res) + "\n" + detail
+}
+
+@Composable
+private fun SusfsImportPreview(plan: SusfsImportPlan, busy: Boolean, onDismiss: () -> Unit, onApply: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = { if (!busy) onDismiss() },
+        title = { Text(stringResource(if (plan.restoring) R.string.susfs_apps_restore else R.string.susfs_apps_preview)) },
+        text = {
+            LazyColumn(Modifier.heightIn(max = 440.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                item {
+                    Text(stringResource(
+                        R.string.susfs_apps_preview_counts,
+                        plan.changes.size,
+                        plan.items.count { it.action == SusfsPlanAction.Unchanged },
+                        plan.items.count { it.action == SusfsPlanAction.Skipped },
+                        plan.items.count { it.action == SusfsPlanAction.Conflict },
+                    ))
+                    Text(stringResource(R.string.susfs_apps_preview_note), style = MaterialTheme.typography.bodySmall)
+                }
+                items(plan.items) { item ->
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(item.packages.joinToString("\n"), style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            if (item.action == SusfsPlanAction.Change) stringResource(
+                                R.string.susfs_apps_mode_change, modeLabel(requireNotNull(item.target).state.mode), modeLabel(item.desired),
+                            ) else stringResource(when (item.action) {
+                                SusfsPlanAction.Unchanged -> R.string.susfs_apps_unchanged
+                                SusfsPlanAction.Conflict -> R.string.susfs_apps_conflict
+                                else -> R.string.susfs_apps_skipped
+                            }),
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                        if (item.reason.isNotEmpty()) Text(policyFailureText(item.reason), style = MaterialTheme.typography.bodySmall)
+                        HorizontalDivider()
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = onApply, enabled = plan.canApply && !busy) { Text(stringResource(R.string.susfs_apps_apply)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !busy) { Text(stringResource(R.string.close)) } },
+    )
+}
+
+@Composable
+private fun SusfsResultDialog(report: SusfsApplyReport, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.susfs_apps_results)) },
+        text = {
+            LazyColumn(Modifier.heightIn(max = 440.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                item {
+                    Text(DateFormat.getDateTimeInstance().format(Date(report.at)), style = MaterialTheme.typography.labelMedium)
+                    Text(stringResource(
+                        R.string.susfs_apps_result_counts,
+                        report.items.count { it.status == "applied" },
+                        report.items.count { it.status == "unchanged" },
+                        report.items.count { it.status == "skipped" },
+                        report.items.count { it.status == "failed" || it.status == "pending" },
+                    ))
+                }
+                items(report.items) { item ->
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        SelectionContainer { Text(item.packages.joinToString("\n"), style = MaterialTheme.typography.bodyMedium) }
+                        Text(stringResource(when (item.status) {
+                            "applied" -> R.string.susfs_apps_verified
+                            "unchanged" -> R.string.susfs_apps_unchanged
+                            "skipped" -> R.string.susfs_apps_skipped
+                            "pending" -> R.string.susfs_apps_pending
+                            else -> R.string.susfs_apps_failed
+                        }), style = MaterialTheme.typography.labelLarge)
+                        if (item.detail.isNotEmpty()) SelectionContainer { Text(policyFailureText(item.detail), style = MaterialTheme.typography.bodySmall) }
+                        HorizontalDivider()
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
+    )
+}

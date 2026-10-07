@@ -101,10 +101,6 @@ private const val GRAPHICS_RENDERER_SERVICE_ASSET = "graphics_renderer_service.s
 private const val GRAPHICS_RENDERER_VERIFICATION_ATTEMPTS = 8
 private const val GRAPHICS_RENDERER_VERIFICATION_DELAY_MILLIS = 250L
 
-internal fun isManagerHiddenModuleId(moduleId: String): Boolean {
-    return moduleId.equals(KPATCH_NEXT_MODULE_ID, ignoreCase = true)
-}
-
 private fun getKsuDaemonPath(): String {
     return ksuApp.applicationInfo.nativeLibraryDir + File.separator + "libksud.so"
 }
@@ -822,11 +818,6 @@ suspend fun getKPatchNextStatus(): KPatchNextStatus = withContext(Dispatchers.IO
             error = it.message.orEmpty().ifBlank { "KPatch-Next status is unavailable" },
         )
     }
-}
-
-fun setKPatchNextEnabled(enabled: Boolean): Boolean {
-    val command = if (enabled) "enable" else "disable"
-    return execKsud("kpatch-next $command", true)
 }
 
 private data class KsudCommandOutput(
@@ -3753,7 +3744,7 @@ fun getModuleCount(): Int {
         val array = JSONArray(result)
         return (0 until array.length()).count { index ->
             val id = array.optJSONObject(index)?.optString("id").orEmpty()
-            id.isNotBlank() && !isManagerHiddenModuleId(id)
+            id.isNotBlank()
         }
     }.getOrElse { return 0 }
 }
@@ -3985,7 +3976,7 @@ enum class BootPatchMode {
 
 internal fun BootPatchMode.cliArguments(): String = when (this) {
     BootPatchMode.Normal -> ""
-    BootPatchMode.HiddenPath -> " --pathmask-lkm"
+    BootPatchMode.HiddenPath -> ""
     BootPatchMode.NativeKpm -> error("Native GKI KPM requires boot-patch-kpimg")
 }
 

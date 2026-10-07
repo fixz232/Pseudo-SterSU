@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.security.KeyPairGenerator
 import java.security.MessageDigest
 import java.security.Signature
@@ -14,16 +15,87 @@ import java.util.zip.ZipOutputStream
 
 class InterfaceStyleStoreTest {
     @Test
+    fun bundledSidebarGlassMatchesSignedCatalogAndPinnedMetadata() {
+        val assets = File("src/main/assets/interface-style")
+        val catalogBytes = File(assets, "catalog-v2.json").readBytes()
+        verifyInterfaceStyleCatalogSignature(catalogBytes, File(assets, "catalog-v2.sig").readBytes())
+        val style = parseInterfaceStyleCatalog(catalogBytes.toString(Charsets.UTF_8))
+            .styles.single { it.id == "sidebar-widget" }
+
+        val packageBytes = File(assets, "packages/sidebar-widget.ksstyle").readBytes()
+        assertEquals(style.sizeBytes, packageBytes.size.toLong())
+        val hash = MessageDigest.getInstance("SHA-256").digest(packageBytes)
+            .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+        assertEquals(style.sha256, hash)
+        val bundle = parseInterfaceStyleBundle(packageBytes, style)
+        val theme = parseInterfaceStyleTheme(requireNotNull(bundle.resources["theme.json"]), style)
+        assertTrue(theme.glass.refraction)
+        assertEquals(12f, theme.glass.blurDp)
+        assertEquals(0f, theme.glass.chromaticAberration)
+        assertTrue(style.downloadUrl.endsWith("/sidebar-widget-glass-20261003.ksstyle"))
+    }
+
+    @Test
+    fun onlyOptionalStylesAppearInMergedStoreCatalog() {
+        val assets = File("src/main/assets/interface-style")
+        val signedCatalog = parseInterfaceStyleCatalog(File(assets, "catalog-v2.json").readText())
+        assertEquals(31, signedCatalog.styles.size)
+        assertTrue(signedCatalog.styles.any { it.id == "skrootpro" })
+        assertTrue(signedCatalog.styles.any { it.id == "alpha-delta" })
+        val catalog = signedCatalog.withApkTrustedStyles()
+        assertFalse(catalog.styles.any { it.id == "sidebar-widget" })
+        assertFalse(File(assets, "packages/windows-fluent.ksstyle").exists())
+        for (id in listOf("skrootpro", "alpha-delta")) {
+            val style = catalog.styles.single { it.id == id }
+            val bytes = File("../../interface-styles/packages/$id.ksstyle").readBytes()
+            assertEquals(style.sizeBytes, bytes.size.toLong())
+            val hash = MessageDigest.getInstance("SHA-256").digest(bytes)
+                .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+            assertEquals(style.sha256, hash)
+            val bundle = parseInterfaceStyleBundle(bytes, style)
+            assertEquals(style.engine, parseInterfaceStyleTheme(
+                requireNotNull(bundle.resources["theme.json"]), style,
+            ).engine)
+        }
+    }
+
+    @Test
+    fun legacyV1CatalogKeepsItsOriginalTrustRoot() {
+        val assets = File("src/main/assets/interface-style")
+        val bytes = File(assets, "catalog-v1.json").readBytes()
+        verifyInterfaceStyleCatalogSignature(
+            bytes,
+            File(assets, "catalog-v1.sig").readBytes(),
+            "MCowBQYDK2VwAyEAwGidBgSY/SZ25RAsBN3O2SpnFX0RuoMpE6wZqy/LaR0=",
+        )
+        val catalog = parseInterfaceStyleCatalog(bytes.toString(Charsets.UTF_8))
+        assertFalse(catalog.styles.any { it.id == "skrootpro" || it.id == "alpha-delta" })
+    }
+
+    @Test
     fun `catalog crypto provider excludes Android Keystore implementations`() {
         assertFalse(isUsableCatalogCryptoProvider("AndroidKeyStore"))
         assertFalse(isUsableCatalogCryptoProvider("AndroidKeyStoreBCWorkaround"))
         assertTrue(isUsableCatalogCryptoProvider("Conscrypt"))
         assertTrue(isUsableCatalogCryptoProvider("SunEC"))
     }
+
+    @Test
+    fun pureJavaEd25519FallbackVerifiesAProviderGeneratedSignature() {
+        val keyPair = KeyPairGenerator.getInstance("Ed25519").generateKeyPair()
+        val payload = "signed catalog".toByteArray()
+        val signature = Signature.getInstance("Ed25519").apply {
+            initSign(keyPair.private)
+            update(payload)
+        }.sign()
+
+        assertTrue(PureJavaEd25519.verify(signature, keyPair.public.encoded, payload))
+        assertFalse(PureJavaEd25519.verify(signature, keyPair.public.encoded, "tampered".toByteArray()))
+    }
     @Test
     fun defaultCatalogUsesCurrentThemeStoreRepository() {
         assertEquals(
-            "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/catalog-v1.json",
+            "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/catalog-v2.json",
             interfaceStyleCatalogUrl(),
         )
     }
@@ -122,6 +194,40 @@ class InterfaceStyleStoreTest {
     }
 
     @Test
+    fun emptyCustomProxyFallsBackToDirectGithub() {
+        val original = "https://raw.githubusercontent.com/fixz232/store/main/spring.ksstyle"
+        val urls = resolveInterfaceStyleUrls(
+            original,
+            InterfaceStyleDownloadPreferences(
+                mode = InterfaceStyleProxyMode.Custom,
+                customProxy = "",
+            ),
+        )
+
+        assertEquals(listOf(original), urls)
+    }
+
+    @Test
+    fun signedCatalogMetadataTakesPriorityOverApkFallback() {
+        val updated = packageFor("skrootpro", "skrootpro", null, 4284380326)
+            .copy(version = 4, sha256 = "f".repeat(64))
+
+        val merged = InterfaceStyleCatalog(1L, listOf(updated)).withApkTrustedStyles()
+
+        assertEquals(updated, merged.styles.single { it.id == "skrootpro" })
+        assertTrue(merged.styles.any { it.id == "alpha-delta" })
+    }
+
+    @Test
+    fun bundleWithNullVariantMatchesAStyleWithoutVariant() {
+        val expected = packageFor("sidebar-widget", "sidebar_widget", null, 4284380326)
+
+        val parsed = parseInterfaceStyleBundle(themeBundle(expected), expected)
+
+        assertTrue(parsed.resources.containsKey("theme.json"))
+    }
+
+    @Test
     fun declarativeBundleParsesAndVerifiesResourceHash() {
         val expected = packageFor("rain-light", "rain", "light_rain", 4284380326)
         val bundle = themeBundle(expected)
@@ -143,6 +249,19 @@ class InterfaceStyleStoreTest {
         assertEquals(1, theme.scene.motifs.size)
         assertEquals(14f, theme.chrome.cornerDp)
         assertEquals(12f, theme.glass.blurDp)
+    }
+
+    @Test
+    fun sidebarWidgetThemeAllowsZeroBlurRadius() {
+        val expected = packageFor("sidebar-widget", "sidebar_widget", null, 4284323039)
+        val theme = parseInterfaceStyleTheme(
+            themeJson(expected).toString(Charsets.UTF_8)
+                .replace("\"blurDp\":12.0", "\"blurDp\":0.0")
+                .toByteArray(),
+            expected,
+        )
+
+        assertEquals(0f, theme.glass.blurDp)
     }
 
     @Test

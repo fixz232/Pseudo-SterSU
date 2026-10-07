@@ -53,7 +53,9 @@ enum class UiDecorationSaveState {
 @Immutable
 data class SettingsUiState(
     val uiMode: String = UiMode.DEFAULT_VALUE,
+    val appearanceResolved: Boolean = false,
     val installedInterfaceStyles: List<InstalledInterfaceStyle> = emptyList(),
+    val activeInterfaceStyleId: String? = null,
     val installedPluginIds: Set<String> = emptySet(),
     /** IDs that were present locally but failed the current Manager/ksud check. */
     val incompatiblePluginIds: Set<String> = emptySet(),
@@ -159,19 +161,7 @@ data class SettingsUiState(
     // Umount Modules
     val isDefaultUmountModules: Boolean = false,
 
-    // Built-in KPatch Next
-    val isKPatchNextInstalled: Boolean = false,
-    val isKPatchNextEnabled: Boolean = false,
-    val isKPatchNextOperationRunning: Boolean = false,
-    val isKPatchNextPendingUpdate: Boolean = false,
-    val isKPatchNextPendingRemove: Boolean = false,
-    val isKPatchNextWebUiAvailable: Boolean = false,
-    val isKPatchNextUnresolved: Boolean = false,
-    val kPatchNextVersion: String = "",
-    val kPatchNextConflict: String? = null,
-
-    // Effective KPM backend reported by ksud. Keep this separate from the
-    // KPatch-Next installation lifecycle because GKI uses Native KPM.
+    // Effective KPM backend reported by ksud; GKI uses Native KPM.
     val kpmBackend: String = "none",
     val isKpmManagementAvailable: Boolean = false,
     val isKpmCapabilityResolved: Boolean = false,
@@ -205,7 +195,9 @@ internal fun SettingsUiState.hasIncompatiblePlugin(plugin: ManagerPlugin): Boole
     pluginCompatibilityResolved && plugin.id in incompatiblePluginIds
 
 internal fun SettingsUiState.isInterfaceStyleActive(style: InterfaceStylePackage): Boolean {
-    if (style.engine != uiMode) return false
+    if (style.engine != uiMode &&
+        !(style.id == "alpha-delta" && style.engine == InterfaceStyle.Alpha.value &&
+            uiMode == InterfaceStyle.Delta.value)) return false
     return when (style.engine) {
         InterfaceStyle.Snow.value -> style.variant == seasonStyle
         InterfaceStyle.Rain.value -> style.variant == rainStyle
@@ -215,17 +207,15 @@ internal fun SettingsUiState.isInterfaceStyleActive(style: InterfaceStylePackage
 }
 
 internal fun SettingsUiState.interfaceStyleSelectedIndex(): Int {
-    // A downloaded style can intentionally reuse a built-in renderer (for
-    // example Kernel Elite uses Alpha). Prefer that package while it is
-    // active so the picker reflects the actual appearance instead of hiding
-    // it behind the renderer's built-in entry.
-    val downloadedIndex = installedInterfaceStyles.indexOfFirst { isInterfaceStyleActive(it.style) }
-    if (downloadedIndex >= 0) return InterfaceStyle.selectableEntries.size + downloadedIndex
-
-    val builtInIndex = InterfaceStyle.selectableEntries.indexOfFirst { style ->
-        style == InterfaceStyle.Alpha && uiMode == InterfaceStyle.Delta.value || style.value == uiMode
-    }
+    val builtInIndex = InterfaceStyle.selectableEntries.indexOfFirst { it.value == uiMode }
     if (builtInIndex >= 0) return builtInIndex
+
+    // Multiple downloaded styles can share a renderer. Prefer the explicitly
+    // selected package over the first installed package for that renderer.
+    val downloadedIndex = installedInterfaceStyles.indexOfFirst {
+        it.style.id == activeInterfaceStyleId && isInterfaceStyleActive(it.style)
+    }.takeIf { it >= 0 } ?: installedInterfaceStyles.indexOfFirst { isInterfaceStyleActive(it.style) }
+    if (downloadedIndex >= 0) return InterfaceStyle.selectableEntries.size + downloadedIndex
     return 0
 }
 
@@ -262,7 +252,7 @@ data class SettingsScreenActions(
     val onOpenLauncherIcon: () -> Unit,
     val onEditHomeTitle: () -> Unit,
     val onOpenNavigationIcons: () -> Unit,
-    val onOpenHomeLayout: () -> Unit,
+    val onOpenSidebarDesign: () -> Unit,
     val onOpenHomeCardWallpapers: () -> Unit,
     val onOpenVisualEffects: () -> Unit,
     val onOpenUiDecorationLibrary: () -> Unit,
@@ -300,8 +290,6 @@ data class SettingsScreenActions(
     val onSetAdbRootEnabled: (Boolean) -> Unit,
     val onSetAvcSpoofEnabled: (Boolean) -> Unit,
     val onSetDefaultUmountModules: (Boolean) -> Unit,
-    val onSetKPatchNextEnabled: (Boolean) -> Unit,
-    val onOpenKPatchNextWebUi: () -> Unit,
     val onOpenHiddenPathConfig: () -> Unit,
     val onOpenAiChat: () -> Unit,
     val onOpenRescueProtection: () -> Unit,

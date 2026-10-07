@@ -12,7 +12,6 @@ class MiuixHomeLayoutTest {
             shouldUseClassicMiuixHomeLayout(
                 interfaceStyle = InterfaceStyle.Miuix.value,
                 requested = false,
-                customHomeLayoutEnabled = false,
             )
         )
     }
@@ -23,26 +22,14 @@ class MiuixHomeLayoutTest {
             shouldUseClassicMiuixHomeLayout(
                 interfaceStyle = InterfaceStyle.Miuix.value,
                 requested = true,
-                customHomeLayoutEnabled = false,
             )
         )
         assertFalse(
             shouldUseClassicMiuixHomeLayout(
                 interfaceStyle = InterfaceStyle.Pixel.value,
                 requested = true,
-                customHomeLayoutEnabled = false,
             )
         )
     }
 
-    @Test
-    fun customLayoutKeepsPriority() {
-        assertFalse(
-            shouldUseClassicMiuixHomeLayout(
-                interfaceStyle = InterfaceStyle.Miuix.value,
-                requested = true,
-                customHomeLayoutEnabled = true,
-            )
-        )
-    }
 }

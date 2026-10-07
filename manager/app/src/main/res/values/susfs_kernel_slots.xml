@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="susfs_slots_title">Kernel information from boot slots</string>
+    <string name="susfs_slots_refresh">Refresh slot kernel information</string>
+    <string name="susfs_slots_summary">Reads boot images only. Fill copies the kernel release and full build version into the fields below; Save and apply is still required. It does not flash images or switch slots. An image may contain a custom kernel, not the stock kernel.</string>
+    <string name="susfs_slots_loading">Reading boot images…</string>
+    <string name="susfs_slots_current">Currently booted slot: %1$s</string>
+    <string name="susfs_slots_current_unknown">Current slot is unknown; A and B are read independently.</string>
+    <string name="susfs_slots_single_device">No A/B slots detected. Reading the single boot partition.</string>
+    <string name="susfs_slots_single">Boot partition</string>
+    <string name="susfs_slots_slot">Slot %1$s</string>
+    <string name="susfs_slots_release">Kernel release: %1$s</string>
+    <string name="susfs_slots_time">Build time: %1$s</string>
+    <string name="susfs_slots_time_unknown">Not in a recognized date format; see the full build version.</string>
+    <string name="susfs_slots_version">Build version: %1$s</string>
+    <string name="susfs_slots_fill">Fill from %1$s</string>
+    <string name="susfs_slots_filled">Filled both fields. Tap Save and apply to use them.</string>
+    <string name="susfs_slots_fill_unavailable">Filling requires SUSFS to be enabled and uname spoofing to be supported. Wait for any save or import to finish.</string>
+    <string name="susfs_slots_not_loaded">Use refresh to read slot information when SUSFS is available.</string>
+    <string name="susfs_slots_error_root">Root access is required to read boot partitions.</string>
+    <string name="susfs_slots_error_missing">This boot partition is unavailable. No data from another slot will be substituted.</string>
+    <string name="susfs_slots_error_alias">A and B resolve to the same partition. Filling is blocked to avoid incorrect slot information.</string>
+    <string name="susfs_slots_error_header">The partition has no supported boot header or contains no kernel.</string>
+    <string name="susfs_slots_error_size">The kernel exceeds safe read or decompression limits.</string>
+    <string name="susfs_slots_error_compression">This kernel compression format is not supported.</string>
+    <string name="susfs_slots_error_ambiguous">Conflicting kernel versions were found. Automatic filling is disabled.</string>
+    <string name="susfs_slots_error_banner">No complete kernel version was found. This image cannot be filled automatically.</string>
+    <string name="susfs_slots_error_timeout">Reading timed out. Please retry.</string>
+    <string name="susfs_slots_error_space">Not enough cache space to read this kernel.</string>
+    <string name="susfs_slots_error_truncated">The kernel data is incomplete or damaged.</string>
+    <string name="susfs_slots_error_read">Unable to read this kernel. Check the details and retry.</string>
+</resources>

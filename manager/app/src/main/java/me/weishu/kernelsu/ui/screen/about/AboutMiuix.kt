@@ -352,6 +352,7 @@ private fun AboutContent(
                         state.links.forEach {
                             ArrowPreference(
                                 title = it.fullText,
+                                summary = it.summary,
                                 onClick = {
                                     actions.onOpenLink(it.url)
                                 }

@@ -17,7 +17,6 @@ import me.weishu.kernelsu.ui.util.MediaVisualSettings
 import me.weishu.kernelsu.ui.util.CustomPageBackgroundSet
 import me.weishu.kernelsu.ui.util.CustomPageBackgroundTarget
 import me.weishu.kernelsu.ui.util.CustomWallpaperCrop
-import me.weishu.kernelsu.ui.util.KPatchNextStatus
 import me.weishu.kernelsu.ui.util.KpmCaps
 import me.weishu.kernelsu.ui.util.StartupAnimationSettings
 import me.weishu.kernelsu.ui.webmanager.WEB_MANAGER_AUTO_START_KEY
@@ -29,6 +28,7 @@ const val SHOW_HOME_LEARN_CARD_KEY = "show_home_learn_card"
 const val MIUIX_CLASSIC_HOME_LAYOUT_KEY = "miuix_classic_home_layout"
 const val GRAPHICS_RENDERER_FEATURE_ENABLED_KEY = "graphics_renderer_feature_enabled"
 const val CUSTOM_HOME_TITLE_KEY = "custom_home_title"
+const val ACTIVE_INTERFACE_STYLE_ID_KEY = "active_interface_style_id"
 internal const val SOFT_REBOOT_KEY = "soft_reboot"
 
 /** Jailbreak mode requires a soft reboot; LKM mode can opt in through Settings. */
@@ -38,6 +38,7 @@ fun isSoftRebootPreferred(): Boolean =
 
 interface SettingsRepository {
     var uiMode: String
+    val activeInterfaceStyleId: String?
     var checkModuleUpdate: Boolean
     var showVersionMismatchWarning: Boolean
     var showGkiWarning: Boolean
@@ -164,8 +165,6 @@ interface SettingsRepository {
     fun isDefaultUmountModules(): Boolean
     fun setDefaultUmountModules(enabled: Boolean): Boolean
 
-    suspend fun getKPatchNextStatus(): KPatchNextStatus
-    fun setKPatchNextEnabled(enabled: Boolean): Boolean
     suspend fun getKpmCaps(): KpmCaps
 
     suspend fun getEpkesuHideStatus(): Boolean

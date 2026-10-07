@@ -9,28 +9,24 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.add
-import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.LibraryBooks
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.FontDownload
 import androidx.compose.material.icons.rounded.UploadFile
-import androidx.compose.material3.AlertDialog
+import me.weishu.kernelsu.ui.component.store.StoreAlertDialog as AlertDialog
+import me.weishu.kernelsu.ui.component.store.StoreScaffold
+import me.weishu.kernelsu.ui.component.store.StorePanel
+import me.weishu.kernelsu.ui.component.store.StoreSectionHeading
+import me.weishu.kernelsu.ui.component.store.StoreExpandableSection
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -40,14 +36,13 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -78,11 +73,6 @@ import me.weishu.kernelsu.ui.util.setAppFontOpacity
 import me.weishu.kernelsu.ui.util.setAppFontPreset
 import java.util.Locale
 import kotlin.math.roundToInt
-import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
-import top.yukonga.miuix.kmp.basic.IconButton as MiuixIconButton
-import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
-import top.yukonga.miuix.kmp.basic.TopAppBar as MiuixTopAppBar
-import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 private val APP_FONT_MIME_TYPES = arrayOf(
     "font/ttf",
@@ -215,28 +205,10 @@ fun AppFontScreen() {
         onPauseOrDispose { }
     }
 
-    MiuixScaffold(
-        containerColor = Color.Transparent,
-        popupHost = { },
-        contentWindowInsets = WindowInsets.systemBars
-            .add(WindowInsets.displayCutout)
-            .only(WindowInsetsSides.Horizontal),
-        topBar = {
-            MiuixTopAppBar(
-                title = stringResource(R.string.app_font_title),
-                color = Color.Transparent,
-                titleColor = MiuixTheme.colorScheme.onSurface,
-                navigationIcon = {
-                    MiuixIconButton(onClick = onBack) {
-                        MiuixIcon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            tint = MiuixTheme.colorScheme.onBackground,
-                            contentDescription = stringResource(R.string.back),
-                        )
-                    }
-                },
-            )
-        },
+    StoreScaffold(
+        title = stringResource(R.string.app_font_title),
+        onBack = onBack,
+        maxContentWidth = 720.dp,
     ) { innerPadding ->
         AppFontContent(
             state = state,
@@ -261,7 +233,7 @@ fun AppFontScreen() {
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = 20.dp, vertical = 16.dp),
         )
     }
 
@@ -379,265 +351,102 @@ private fun AppFontContent(
     onOpacityChange: (Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        TonalCard(modifier = Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier.padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.FontDownload,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        text = stringResource(R.string.app_font_current),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.weight(1f),
-                    )
-                    if (busy) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp,
-                        )
-                    }
-                }
-                Text(
-                    text = appFontStateName(state),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                Text(
-                    text = stringResource(R.string.app_font_preview_text),
-                    style = MaterialTheme.typography.headlineSmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = stringResource(R.string.app_font_summary),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
 
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        StorePanel {
+            StoreSectionHeading(
+                title = stringResource(R.string.app_font_current),
+                subtitle = appFontStateName(state),
+                action = {
+                    if (busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                },
+            )
+            Text(stringResource(R.string.app_font_preview_text),
+                style = MaterialTheme.typography.headlineSmall)
+            Text(stringResource(R.string.app_font_summary),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         message?.let { currentMessage ->
-            TonalCard(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier.padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Icon(
-                        imageVector = if (currentMessage.isError) {
-                            Icons.Rounded.ErrorOutline
-                        } else {
-                            Icons.Rounded.CheckCircle
-                        },
-                        contentDescription = null,
-                        tint = if (currentMessage.isError) {
-                            MaterialTheme.colorScheme.error
-                        } else {
-                            MaterialTheme.colorScheme.primary
-                        },
-                    )
-                    Text(
-                        text = currentMessage.text,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = if (currentMessage.isError) {
-                            MaterialTheme.colorScheme.error
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        },
-                    )
-                }
-            }
-        }
-
-        TonalCard(modifier = Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.LibraryBooks,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        text = stringResource(R.string.app_font_saved_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text(
-                        text = stringResource(R.string.app_font_saved_count, state.savedFonts.size),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                if (state.savedFonts.isEmpty()) {
-                    Text(
-                        text = stringResource(R.string.app_font_saved_empty),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        state.savedFonts.forEach { font ->
-                            SavedFontRow(
-                                font = font,
-                                selected = state.customId == font.id && state.isCustomActive,
-                                busy = busy,
-                                onSelect = { onSelectSavedFont(font) },
-                                onDelete = { onDeleteSavedFont(font) },
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        TonalCard(modifier = Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = stringResource(R.string.app_font_opacity_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text(
-                        text = "${(state.opacity * 100).roundToInt()}%",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
-                Text(
-                    text = stringResource(R.string.app_font_opacity_summary),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+            Row(verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Icon(
+                    if (currentMessage.isError) Icons.Rounded.ErrorOutline else Icons.Rounded.CheckCircle,
+                    contentDescription = null,
+                    tint = if (currentMessage.isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                 )
-                Slider(
-                    value = state.opacity,
-                    onValueChange = onOpacityChange,
-                    valueRange = MIN_APP_FONT_OPACITY..MAX_APP_FONT_OPACITY,
-                    enabled = !busy,
-                )
+                Text(currentMessage.text, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium,
+                    color = if (currentMessage.isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
             }
         }
-
         SegmentedColumn(
             title = stringResource(R.string.app_font_presets_title),
-            content = AppFontPreset.entries.map { preset ->
-                {
-                    SegmentedRadioItem(
-                        title = stringResource(preset.titleRes()),
-                        summary = stringResource(preset.summaryRes()),
-                        selected = state.preset == preset,
-                        enabled = !busy,
-                        onClick = { onSelectPreset(preset) },
-                    )
+            content = AppFontPreset.entries.map { preset -> {
+                SegmentedRadioItem(
+                    title = stringResource(preset.titleRes()),
+                    summary = stringResource(preset.summaryRes()),
+                    selected = state.preset == preset,
+                    enabled = !busy,
+                    onClick = { onSelectPreset(preset) },
+                )
+            } },
+        )
+        StoreSectionHeading(
+            title = stringResource(R.string.app_font_saved_title),
+            subtitle = stringResource(R.string.app_font_saved_count, state.savedFonts.size),
+            action = {
+                FilledTonalButton(enabled = !busy, onClick = onImport) {
+                    Icon(Icons.Rounded.UploadFile, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.app_font_import_action))
                 }
             },
         )
-
-        TonalCard(modifier = Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.app_font_custom_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                if (state.customFileAvailable) {
-                    Text(
-                        text = state.customDisplayName ?: stringResource(R.string.app_font_custom_unnamed),
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                    Text(
-                        text = stringResource(
-                            R.string.app_font_file_size,
-                            formatAppFontBytes(state.customSizeBytes),
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    state.customSha256?.let { sha256 ->
-                        Text(
-                            text = stringResource(R.string.app_font_sha256, sha256),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                } else {
-                    Text(
-                        text = stringResource(R.string.app_font_custom_empty),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+        if (state.savedFonts.isEmpty()) {
+            Text(stringResource(R.string.app_font_saved_empty),
+                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                state.savedFonts.forEach { font ->
+                    SavedFontRow(font = font,
+                        selected = state.customId == font.id && state.isCustomActive,
+                        busy = busy,
+                        onSelect = { onSelectSavedFont(font) },
+                        onDelete = { onDeleteSavedFont(font) })
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    FilledTonalButton(
-                        modifier = Modifier.weight(1f),
-                        enabled = !busy,
-                        onClick = onImport,
-                    ) {
-                        Icon(Icons.Rounded.UploadFile, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = stringResource(
-                                if (state.customFileAvailable) {
-                                    R.string.app_font_replace_action
-                                } else {
-                                    R.string.app_font_import_action
-                                }
-                            ),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                    if (state.customFileAvailable) {
-                        OutlinedButton(
-                            enabled = !busy,
-                            onClick = onRemove,
-                        ) {
-                            Icon(
-                                Icons.Rounded.DeleteOutline,
-                                contentDescription = stringResource(R.string.app_font_remove_action),
-                            )
-                        }
+            }
+        }
+        Text(stringResource(R.string.app_font_import_notice),
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        StoreExpandableSection(
+            title = stringResource(R.string.app_font_opacity_title),
+            summary = "${(state.opacity * 100).roundToInt()}%",
+        ) {
+            Text(stringResource(R.string.app_font_opacity_summary),
+                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Slider(value = state.opacity, onValueChange = onOpacityChange,
+                valueRange = MIN_APP_FONT_OPACITY..MAX_APP_FONT_OPACITY, enabled = !busy)
+        }
+        if (state.customFileAvailable) {
+            StoreExpandableSection(title = stringResource(R.string.app_font_custom_title),
+                summary = state.customDisplayName ?: stringResource(R.string.app_font_custom_unnamed)) {
+                Text(stringResource(R.string.app_font_file_size, formatAppFontBytes(state.customSizeBytes)),
+                    style = MaterialTheme.typography.bodyMedium)
+                state.customSha256?.let { sha256 ->
+                    androidx.compose.foundation.text.selection.SelectionContainer {
+                        Text(stringResource(R.string.app_font_sha256, sha256),
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-                Text(
-                    text = stringResource(R.string.app_font_import_notice),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                OutlinedButton(enabled = !busy, onClick = onRemove) {
+                    Icon(Icons.Rounded.DeleteOutline, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.app_font_remove_action))
+                }
             }
         }
     }
+
 }
 
 @Composable

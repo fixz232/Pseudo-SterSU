@@ -16,7 +16,9 @@ internal fun buildModuleAnalysisReport(
         if (!root.managerRegistered) {
             add("HIGH: This Manager is not registered with the kernel driver.")
         }
-        if (root.kernelUapi > 0 && root.managerUapi > 0 && root.kernelUapi != root.managerUapi) {
+        if (root.kernelUapi > 0 && root.managerUapi > 0 &&
+            !me.weishu.kernelsu.isCompatibleUapiVersion(root.kernelUapi, root.managerUapi)
+        ) {
             add("HIGH: Kernel UAPI ${root.kernelUapi} differs from Manager UAPI ${root.managerUapi}.")
         }
         if (

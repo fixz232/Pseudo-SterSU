@@ -65,6 +65,10 @@ def main() -> int:
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--build-log", type=Path)
     parser.add_argument("--module", type=Path)
+    parser.add_argument("--package-name")
+    parser.add_argument("--expected-size")
+    parser.add_argument("--expected-hash")
+    parser.add_argument("--pr-build", action="store_true")
     args = parser.parse_args()
 
     root = args.root.resolve()
@@ -98,10 +102,24 @@ def main() -> int:
         "Manager applicationId does not match kernel manager identity",
     )
 
+    # Always validate the release source above. CI can explicitly select a
+    # different package/certificate for its separately signed PR artifact.
+    build_identity = identity.copy()
+    build_identity["KSU_MANAGER_PACKAGE"] = args.package_name or (
+        f"{package}.dev" if args.pr_build else package
+    )
+    build_identity["KSU_EXPECTED_SIZE"] = args.expected_size or cert_size
+    build_identity["KSU_EXPECTED_HASH"] = args.expected_hash or cert_hash
+    require(
+        re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+", build_identity["KSU_MANAGER_PACKAGE"]) is not None,
+        "invalid build package name",
+    )
+    require(SIZE_RE.fullmatch(build_identity["KSU_EXPECTED_SIZE"]) is not None, "invalid build certificate size")
+    require(SHA256_RE.fullmatch(build_identity["KSU_EXPECTED_HASH"]) is not None, "invalid build certificate hash")
     if args.build_log:
-        verify_build_log(args.build_log, version_code, identity)
+        verify_build_log(args.build_log, version_code, build_identity)
     if args.module:
-        verify_module(args.module, identity)
+        verify_module(args.module, build_identity)
 
     print(
         "verified SterSU kernel identity: "

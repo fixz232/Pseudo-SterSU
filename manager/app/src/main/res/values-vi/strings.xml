@@ -85,8 +85,6 @@
     <string name="app_profile_import_export">Nhập/Xuất</string>
     <string name="app_profile_template_save_failed">Lưu mẫu thất bại</string>
     <string name="app_profile_template_edit">Chỉnh sửa mẫu</string>
-    <string name="settings_kpatch_next">KPatch Next</string>
-    <string name="settings_kpatch_next_summary">Triển khai hệ thống hỗ trợ KPM.</string>
     <string name="settings_profile_template">Mẫu Hồ sơ ứng dụng</string>
     <string name="app_profile_template_description">Mô tả</string>
     <string name="app_profile_template_save">Lưu</string>

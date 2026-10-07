@@ -5,21 +5,23 @@ import org.junit.Test
 
 class ThemeStoreNavigationTest {
     @Test
-    fun primaryDestinationsStayFocusedOnThreeTasks() {
+    fun primaryDestinationsKeepSavedOrdinalsAndGroupStoreCatalogs() {
         assertEquals(
             listOf(
                 ThemeStorePage.Overview,
                 ThemeStorePage.Customize,
                 ThemeStorePage.My,
                 ThemeStorePage.Plugins,
+                ThemeStorePage.Styles,
             ),
             ThemeStorePage.entries,
         )
         assertEquals(
             listOf(
                 ThemeStorePage.Overview,
-                ThemeStorePage.Customize,
+                ThemeStorePage.Styles,
                 ThemeStorePage.Plugins,
+                ThemeStorePage.Customize,
                 ThemeStorePage.My,
             ),
             themeStoreNavigationPages,

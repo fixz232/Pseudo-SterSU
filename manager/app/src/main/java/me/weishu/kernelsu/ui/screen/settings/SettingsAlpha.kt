@@ -161,12 +161,6 @@ fun SettingPagerAlpha(
                     icon = Icons.Rounded.EditNote,
                     onClick = actions.onEditHomeTitle,
                 )
-                AlphaActionRow(
-                    title = stringResource(R.string.home_layout_title),
-                    summary = stringResource(R.string.home_layout_settings_summary),
-                    icon = Icons.Rounded.Apps,
-                    onClick = actions.onOpenHomeLayout,
-                )
                 AlphaSwitchRow(
                     title = stringResource(R.string.settings_show_home_support_card),
                     summary = stringResource(R.string.settings_show_home_support_card_summary),
@@ -205,37 +199,15 @@ fun SettingPagerAlpha(
                     checked = uiState.isDefaultUmountModules,
                     onCheckedChange = actions.onSetDefaultUmountModules,
                 )
-                AlphaSwitchRow(
-                    title = stringResource(R.string.settings_kpatch_next),
-                    summary = kPatchNextSummary(uiState),
-                    checked = uiState.isKPatchNextSwitchChecked,
-                    enabled = uiState.canToggleKPatchNext,
-                    onCheckedChange = actions.onSetKPatchNextEnabled,
-                )
-                AlphaActionRow(
-                    title = stringResource(R.string.settings_kpatch_next_webui),
-                    summary = stringResource(
-                        if (uiState.canOpenKPatchNextWebUi) {
-                            R.string.settings_kpatch_next_webui_summary
-                        } else {
-                            R.string.settings_kpatch_next_webui_disabled_summary
-                        }
-                    ),
-                    icon = Icons.Rounded.Apps,
-                    enabled = uiState.canOpenKPatchNextWebUi,
-                    onClick = {
-                        if (uiState.canOpenKPatchNextWebUi) {
-                            actions.onOpenKPatchNextWebUi()
-                        }
-                    },
-                )
-                AlphaActionRow(
-                    title = pathConfigTitle(uiState),
-                    summary = pathConfigSummary(uiState),
-                    icon = Icons.Rounded.Visibility,
-                    enabled = uiState.canOpenPathConfig,
-                    onClick = actions.onOpenHiddenPathConfig,
-                )
+                if (uiState.isPathConfigEntryVisible) {
+                    AlphaActionRow(
+                        title = pathConfigTitle(uiState),
+                        summary = pathConfigSummary(uiState),
+                        icon = Icons.Rounded.Visibility,
+                        enabled = uiState.canOpenPathConfig,
+                        onClick = actions.onOpenHiddenPathConfig,
+                    )
+                }
                 AlphaSwitchRow(
                     title = stringResource(R.string.settings_epkesu_hide),
                     summary = stringResource(R.string.settings_epkesu_hide_summary),

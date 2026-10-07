@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import me.weishu.kernelsu.data.repository.SettingsRepository
 import me.weishu.kernelsu.data.repository.SettingsRepositoryImpl
+import me.weishu.kernelsu.data.repository.ACTIVE_INTERFACE_STYLE_ID_KEY
 import me.weishu.kernelsu.ksuApp
 import me.weishu.kernelsu.ui.InterfaceStyle
 import me.weishu.kernelsu.ui.UiMode
@@ -170,6 +171,7 @@ class MainActivityViewModel(
             pageTransitionEffect = settingRepo.pageTransitionEffect,
             uiMode = UiMode.fromValue(interfaceStyle),
             interfaceStyle = interfaceStyle,
+            activeInterfaceStyleId = settingRepo.activeInterfaceStyleId,
             customWallpaperUri = settingRepo.customWallpaperUri,
             customWallpaperOpacity = settingRepo.customWallpaperOpacity,
             customWallpaperVisualSettings = settingRepo.customWallpaperVisualSettings,
@@ -196,8 +198,9 @@ class MainActivityViewModel(
     }
 
     private fun normalizeUnavailableInterfaceStyle() {
-        val requested = settingRepo.uiMode
-        if (resolveInterfaceStyle(requested) == requested) return
+        val stored = prefs.getString("ui_mode", UiMode.DEFAULT_VALUE).orEmpty()
+        val requested = InterfaceStyle.normalizeValue(stored)
+        if (stored == requested && resolveInterfaceStyle(requested) == requested) return
         settingRepo.applyInterfaceStyle(
             UiMode.DEFAULT_VALUE,
             ThemePreset.CLEAN_TOOL,
@@ -207,17 +210,19 @@ class MainActivityViewModel(
 
     private fun resolveInterfaceStyle(requested: String): String {
         val normalized = InterfaceStyle.normalizeValue(requested)
-        if (normalized == InterfaceStyle.Delta.value ||
-            InterfaceStyle.builtInEntries.any { it.value == normalized }) {
+        if (InterfaceStyle.builtInEntries.any { it.value == normalized }) {
             return normalized
         }
+        val engine = if (normalized == InterfaceStyle.Delta.value) InterfaceStyle.Alpha.value else normalized
         val installed = interfaceStyleRegistry.list().any { item ->
-            item.style.engine == normalized && when (normalized) {
-                InterfaceStyle.Snow.value -> item.style.variant == settingRepo.seasonStyle
-                InterfaceStyle.Rain.value -> item.style.variant == settingRepo.rainStyle
-                InterfaceStyle.Pixel.value -> item.style.variant == settingRepo.pixelStyle
-                else -> true
-            }
+            item.style.engine == engine &&
+                (normalized != InterfaceStyle.Delta.value || item.style.id == "alpha-delta") &&
+                when (engine) {
+                    InterfaceStyle.Snow.value -> item.style.variant == settingRepo.seasonStyle
+                    InterfaceStyle.Rain.value -> item.style.variant == settingRepo.rainStyle
+                    InterfaceStyle.Pixel.value -> item.style.variant == settingRepo.pixelStyle
+                    else -> true
+                }
         }
         return if (installed) normalized else InterfaceStyle.Miuix.value
     }
@@ -324,6 +329,7 @@ class MainActivityViewModel(
             addAll(
                 listOf(
             "ui_mode",
+            ACTIVE_INTERFACE_STYLE_ID_KEY,
             SWITCH_STYLE_KEY,
             CUSTOM_CARD_STYLE_LIBRARY_KEY,
             CUSTOM_CARD_STYLE_ACTIVE_ID_KEY,

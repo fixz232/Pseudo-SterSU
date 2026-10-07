@@ -44,7 +44,8 @@ import me.weishu.kernelsu.ui.component.dialog.rememberLoadingDialog
 import me.weishu.kernelsu.ui.navigation3.Navigator
 import me.weishu.kernelsu.ui.navigation3.Route
 import me.weishu.kernelsu.ui.util.KernelStatusEvents
-import me.weishu.kernelsu.ui.util.readHomeLayoutState
+import me.weishu.kernelsu.ui.util.SidebarHomeLayout
+import me.weishu.kernelsu.ui.util.rememberSidebarWidgetConfig
 import me.weishu.kernelsu.ui.viewmodel.HomeViewModel
 
 @Composable
@@ -65,9 +66,6 @@ fun HomePager(
     val scope = rememberCoroutineScope()
     var installFeedbackActive by remember { mutableStateOf(false) }
     var jailbreakInProgress by remember { mutableStateOf(false) }
-    var customHomeLayoutEnabled by remember(context) {
-        mutableStateOf(readHomeLayoutState(context).enabled)
-    }
     val refreshTick by KernelStatusEvents.refreshTick.collectAsStateWithLifecycle()
     val displayState = if (stealthModeEnabled) uiState.asStealthModeState() else uiState
 
@@ -84,7 +82,6 @@ fun HomePager(
         if (hasActivated) {
             viewModel.refresh()
         }
-        customHomeLayoutEnabled = readHomeLayoutState(context).enabled
         onPauseOrDispose {}
     }
 
@@ -109,10 +106,14 @@ fun HomePager(
 
     val showInlineInstallFeedback = !displayState.isKernelActive && displayState.kernelVersion.isGKI()
     val interfaceStyle = LocalInterfaceStyle.current
+    val sidebarHomeLayout = if (interfaceStyle == InterfaceStyle.SidebarWidget.value && !stealthModeEnabled) {
+        rememberSidebarWidgetConfig().homeLayout
+    } else {
+        SidebarHomeLayout.Material
+    }
     val useClassicMiuixHomeLayout = shouldUseClassicMiuixHomeLayout(
         interfaceStyle = interfaceStyle,
         requested = uiState.miuixClassicHomeLayoutEnabled,
-        customHomeLayoutEnabled = customHomeLayoutEnabled,
     )
     val normalActions = HomeActions(
         onInstallClick = {
@@ -184,16 +185,10 @@ fun HomePager(
             interfaceStyle == InterfaceStyle.SidebarWidget.value
         ) {
             HomePagerMaterial(
-            state = displayState,
-                actions = actions,
-                bottomInnerPadding = bottomInnerPadding,
-            )
-        } else if (customHomeLayoutEnabled) {
-            HomePagerMiuix(
                 state = displayState,
                 actions = actions,
                 bottomInnerPadding = bottomInnerPadding,
-                installFeedbackActive = installFeedbackActive && showInlineInstallFeedback,
+                sidebarHomeLayout = sidebarHomeLayout,
             )
         } else when (interfaceStyle) {
             InterfaceStyle.Skrootpro.value -> HomePagerSkrootpro(
@@ -274,7 +269,5 @@ fun HomePager(
 internal fun shouldUseClassicMiuixHomeLayout(
     interfaceStyle: String,
     requested: Boolean,
-    customHomeLayoutEnabled: Boolean,
 ): Boolean = interfaceStyle == InterfaceStyle.Miuix.value &&
-    requested &&
-    !customHomeLayoutEnabled
+    requested

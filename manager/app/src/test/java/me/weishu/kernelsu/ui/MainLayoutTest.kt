@@ -124,6 +124,7 @@ class MainLayoutTest {
     fun retainedKpmWebViewDisablesLayeredNavigationTransitions() {
         assertTrue(shouldUseLayeredNavigationTransitions(kpmPageActive = false))
         assertFalse(shouldUseLayeredNavigationTransitions(kpmPageActive = true))
+        assertFalse(shouldUseLayeredNavigationTransitions(kpmPageActive = false, sidebarStyleActive = true))
     }
 
     @Test

@@ -96,6 +96,7 @@ fun SettingsWallpaperCropDialog(
     transform: MediaTransform = MediaTransform(),
     onTransformChange: (MediaTransform) -> Unit = {},
     onGenerateResponsiveCrops: ((ResponsiveCropSet) -> Unit)? = null,
+    allowTransforms: Boolean = true,
 ) {
     if (!show) return
 
@@ -162,6 +163,7 @@ fun SettingsWallpaperCropDialog(
                             cropAspectRatio = cropAspectRatio,
                             smartSubjectEnabled = smartSubjectEnabled,
                             canUndo = history.isNotEmpty(),
+                            allowTransforms = allowTransforms,
                             onSmartSubjectEnabledChange = { enabled ->
                                 smartSubjectEnabled = enabled
                                 cropEditorPreferences.edit()
@@ -433,6 +435,7 @@ private fun WallpaperCropTools(
     cropAspectRatio: Float?,
     smartSubjectEnabled: Boolean,
     canUndo: Boolean,
+    allowTransforms: Boolean,
     onSmartSubjectEnabledChange: (Boolean) -> Unit,
     onCommitBeforeChange: () -> Unit,
     onCropChange: (CustomWallpaperCrop) -> Unit,
@@ -501,22 +504,24 @@ private fun WallpaperCropTools(
                     )
                 },
             )
-            CropToolButton(
-                icon = Icons.AutoMirrored.Rounded.RotateRight,
-                label = stringResource(R.string.settings_wallpaper_rotate),
-                onClick = {
-                    onCommitBeforeChange()
-                    onTransformChange(transform.copy(quarterTurns = transform.quarterTurns + 1))
-                },
-            )
-            CropToolButton(
-                icon = Icons.Rounded.Flip,
-                label = stringResource(R.string.settings_wallpaper_flip),
-                onClick = {
-                    onCommitBeforeChange()
-                    onTransformChange(transform.copy(flipHorizontal = !transform.flipHorizontal))
-                },
-            )
+            if (allowTransforms) {
+                CropToolButton(
+                    icon = Icons.AutoMirrored.Rounded.RotateRight,
+                    label = stringResource(R.string.settings_wallpaper_rotate),
+                    onClick = {
+                        onCommitBeforeChange()
+                        onTransformChange(transform.copy(quarterTurns = transform.quarterTurns + 1))
+                    },
+                )
+                CropToolButton(
+                    icon = Icons.Rounded.Flip,
+                    label = stringResource(R.string.settings_wallpaper_flip),
+                    onClick = {
+                        onCommitBeforeChange()
+                        onTransformChange(transform.copy(flipHorizontal = !transform.flipHorizontal))
+                    },
+                )
+            }
             CropToolButton(
                 icon = Icons.AutoMirrored.Rounded.Undo,
                 label = stringResource(R.string.settings_wallpaper_undo),
