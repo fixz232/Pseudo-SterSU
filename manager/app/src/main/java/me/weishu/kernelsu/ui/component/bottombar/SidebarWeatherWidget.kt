@@ -61,6 +61,27 @@ import me.weishu.kernelsu.ui.util.weatherCondition
 import java.util.Date
 
 @Composable
+internal fun SidebarWeatherSummary(config: SidebarWidgetConfig, compact: Boolean) {
+    val state = rememberSidebarWeatherState(config.weatherApi)
+    val temperature = if (config.weatherApi.enabled) {
+        state.reading?.temperatureText()?.let { it + if (config.weatherApi.fahrenheit) "°F" else "°C" }.orEmpty()
+    } else config.weatherTemperature
+    val description = if (config.weatherApi.enabled) state.reading?.description.orEmpty() else config.weatherLabel
+    val text = listOf(description, temperature).filter(String::isNotBlank).joinToString(" ").ifBlank {
+        if (state.loading) stringResource(R.string.sidebar_weather_updating) else "—"
+    }
+    Text(
+        text = text,
+        fontSize = if (compact) 10.sp else 12.sp,
+        lineHeight = if (compact) 14.sp else 16.sp,
+        fontWeight = FontWeight.Medium,
+        textAlign = TextAlign.Center,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
+@Composable
 internal fun SidebarWeatherWidget(config: SidebarWidgetConfig, compact: Boolean) {
     val state = rememberSidebarWeatherState(config.weatherApi)
     val api = config.weatherApi.enabled
@@ -102,6 +123,7 @@ internal fun SidebarWeatherWidget(config: SidebarWidgetConfig, compact: Boolean)
         Text(
             temperature,
             fontSize = when { temperature.length > 4 -> 18.sp; compact -> 26.sp; else -> 30.sp },
+            lineHeight = if (compact) 32.sp else 36.sp,
             fontWeight = FontWeight.SemiBold,
             letterSpacing = (-0.5).sp,
             maxLines = 1,
@@ -116,11 +138,11 @@ internal fun SidebarWeatherWidget(config: SidebarWidgetConfig, compact: Boolean)
             overflow = TextOverflow.Ellipsis,
         )
         if (location.isNotBlank()) Text(
-            location, fontSize = 11.sp, color = ink.copy(alpha = 0.8f),
+            location, fontSize = 11.sp, lineHeight = 14.sp, color = ink.copy(alpha = 0.8f),
             maxLines = 1, overflow = TextOverflow.Ellipsis,
         )
         Text(
-            status, fontSize = 10.sp, color = ink.copy(alpha = 0.8f),
+            status, fontSize = 10.sp, lineHeight = 12.sp, color = ink.copy(alpha = 0.8f),
             textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis,
         )
     }

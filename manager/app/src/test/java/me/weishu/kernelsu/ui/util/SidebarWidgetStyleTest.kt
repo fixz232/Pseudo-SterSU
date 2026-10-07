@@ -7,6 +7,39 @@ import org.junit.Test
 
 class SidebarWidgetStyleTest {
     @Test
+    fun legacyImageWidgetBecomesClockWhileItsArtworkRemainsAvailableAsAvatar() {
+        val config = SidebarWidgetConfig(
+            widgetType = SidebarWidgetType.fromValue("image"),
+            imageUriString = "content://test/existing-avatar.png",
+            imageShape = SidebarImageShape.fromValue("star"),
+        ).normalized()
+        assertEquals(SidebarWidgetType.Clock, config.widgetType)
+        assertEquals("content://test/existing-avatar.png", config.imageUriString)
+        assertEquals(SidebarImageShape.Circle, config.imageShape)
+    }
+
+    @Test
+    fun homeLayoutDefaultsToMaterialAndFallsBackOnUnknownValue() {
+        assertEquals(SidebarHomeLayout.Material, SidebarWidgetConfig().homeLayout)
+        assertEquals(SidebarHomeLayout.Material, SidebarHomeLayout.fromValue(null))
+        assertEquals(SidebarHomeLayout.Material, SidebarHomeLayout.fromValue("unknown"))
+        assertEquals(SidebarHomeLayout.StatusCards, SidebarHomeLayout.fromValue("status_cards"))
+        assertTrue(isSidebarWidgetPreference("sidebar_widget_home_layout"))
+    }
+
+    @Test
+    fun changingHomeLayoutPreservesOtherSidebarOptions() {
+        val original = SidebarWidgetConfig(
+            widgetType = SidebarWidgetType.Clock,
+            side = SidebarSide.Right,
+            navigationOrder = SIDEBAR_NAVIGATION_IDS.reversed(),
+            glassEnabled = false,
+        ).normalized()
+        val updated = original.copy(homeLayout = SidebarHomeLayout.StatusCards).normalized()
+        assertEquals(original, updated.copy(homeLayout = SidebarHomeLayout.Material))
+    }
+
+    @Test
     fun sidebarGlassDefaultsToEnabledAndHasItsOwnPreference() {
         assertTrue(SidebarWidgetConfig().normalized().glassEnabled)
         assertTrue(isSidebarWidgetPreference("sidebar_widget_glass_enabled"))
@@ -33,7 +66,7 @@ class SidebarWidgetStyleTest {
         assertEquals(SidebarWidgetType.Clock, SidebarWidgetType.fromValue("broken"))
         assertEquals(SidebarClockStyle.Stacked, SidebarClockStyle.fromValue("broken"))
         assertEquals(SidebarImageShape.Circle, SidebarImageShape.fromValue("broken"))
-        assertEquals(SidebarNavigationPosition.Bottom, SidebarNavigationPosition.fromValue("broken"))
+        assertEquals(SidebarNavigationPosition.Center, SidebarNavigationPosition.fromValue("broken"))
         assertEquals(SidebarSide.Left, SidebarSide.fromValue(null))
         assertEquals(SidebarSide.Left, SidebarSide.fromValue("broken"))
     }
@@ -49,9 +82,9 @@ class SidebarWidgetStyleTest {
     @Test
     fun changingSidesPreservesWidgetAndNavigationCustomization() {
         val original = SidebarWidgetConfig(
-            widgetType = SidebarWidgetType.Image,
+            widgetType = SidebarWidgetType.Clock,
             imageUriString = "content://test/sidebar.png",
-            imageShape = SidebarImageShape.Star,
+            imageShape = SidebarImageShape.Diamond,
             navigationPosition = SidebarNavigationPosition.Center,
             navigationOrder = SIDEBAR_NAVIGATION_IDS.reversed(),
             weatherApi = SidebarWeatherConfig(enabled = true, url = "https://weather.test/current"),

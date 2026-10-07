@@ -17,7 +17,6 @@ import me.weishu.kernelsu.ui.util.MediaVisualSettings
 import me.weishu.kernelsu.ui.util.CustomPageBackgroundSet
 import me.weishu.kernelsu.ui.util.CustomPageBackgroundTarget
 import me.weishu.kernelsu.ui.util.CustomWallpaperCrop
-import me.weishu.kernelsu.ui.util.KPatchNextStatus
 import me.weishu.kernelsu.ui.util.KpmCaps
 import me.weishu.kernelsu.ui.util.StartupAnimationSettings
 import me.weishu.kernelsu.ui.webmanager.WEB_MANAGER_AUTO_START_KEY
@@ -164,8 +163,6 @@ interface SettingsRepository {
     fun isDefaultUmountModules(): Boolean
     fun setDefaultUmountModules(enabled: Boolean): Boolean
 
-    suspend fun getKPatchNextStatus(): KPatchNextStatus
-    fun setKPatchNextEnabled(enabled: Boolean): Boolean
     suspend fun getKpmCaps(): KpmCaps
 
     suspend fun getEpkesuHideStatus(): Boolean

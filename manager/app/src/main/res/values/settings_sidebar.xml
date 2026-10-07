@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_sidebar_intro">Your device. Your workspace.</string>
+    <string name="settings_sidebar_version">Sidebar widgets · Manager %1$s</string>
+    <string name="settings_sidebar_appearance">Appearance and themes</string>
+    <string name="settings_sidebar_appearance_summary">Interface styles, colors and sidebar design</string>
+    <string name="settings_sidebar_more">More settings</string>
+    <string name="settings_sidebar_more_summary">All categories, permissions and tools</string>
+    <string name="settings_device_unknown">Not reported</string>
+    <string name="settings_device_android">Android %1$s</string>
+    <string name="settings_device_processor">Processor</string>
+    <string name="settings_device_memory">System-reported memory</string>
+    <string name="settings_device_manager">Manager version</string>
+    <string name="settings_device_photo">Device image</string>
+    <string name="settings_device_photo_empty">No verified device image. Add your own.</string>
+    <string name="settings_device_photo_choose">Choose image</string>
+    <string name="settings_device_photo_edit">Edit image</string>
+    <string name="settings_device_photo_crop">Crop device image</string>
+    <string name="settings_device_photo_reset">Restore placeholder</string>
+    <string name="settings_device_photo_failed">Could not save this image. Choose a readable image under 20 MB. Your previous image is unchanged.</string>
+    <string name="settings_shortcut_biometrics">Biometrics</string>
+    <string name="settings_shortcut_color_mode">Appearance</string>
+    <string name="settings_shortcut_share">Share</string>
+    <string name="settings_shortcut_releases">Releases</string>
+    <string name="settings_shortcut_logs">Logs</string>
+    <string name="settings_shortcut_unavailable">No app is available to open this action.</string>
+    <string name="settings_shortcut_uninstall_unavailable">Root uninstall is available only when LKM mode is confirmed. In GKI mode, restore the original boot image from the install page.</string>
+</resources>

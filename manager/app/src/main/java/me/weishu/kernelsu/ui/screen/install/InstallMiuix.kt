@@ -284,12 +284,6 @@ private fun PatchModeSelector(
         checked = state.patchMode == BootPatchMode.Normal,
         onCheckedChange = { actions.onSelectPatchMode(BootPatchMode.Normal) },
     )
-    CheckboxPreference(
-        title = stringResource(R.string.install_patch_mode_hidden_path),
-        summary = stringResource(R.string.install_patch_mode_hidden_path_summary),
-        checked = state.patchMode == BootPatchMode.HiddenPath,
-        onCheckedChange = { actions.onSelectPatchMode(BootPatchMode.HiddenPath) },
-    )
 }
 
 @Composable

@@ -31,7 +31,7 @@ enum Commands {
         command: Module,
     },
 
-    /// Manage built-in KPatch Next
+    /// Inspect an independently installed KPatch-Next module
     KpatchNext {
         #[command(subcommand)]
         command: KpatchNext,
@@ -619,14 +619,8 @@ enum ModuleConfigCmd {
 
 #[derive(clap::Subcommand, Debug)]
 enum KpatchNext {
-    /// Print built-in KPatch Next status as JSON
+    /// Print external KPatch-Next status as JSON
     Status,
-
-    /// Install or enable built-in KPatch Next
-    Enable,
-
-    /// Disable built-in KPatch Next until it is enabled again
-    Disable,
 }
 
 #[derive(clap::Subcommand, Debug)]
@@ -895,7 +889,7 @@ pub fn run() -> Result<()> {
     log::info!("command: {:?}", cli.command);
 
     let result = match cli.command {
-        Commands::PostFsData => init_event::on_post_data_fs(),
+        Commands::PostFsData => init_event::on_post_fs_data(),
         Commands::BootCompleted => {
             init_event::on_boot_completed();
             Ok(())
@@ -1014,8 +1008,6 @@ pub fn run() -> Result<()> {
                     kpatch_next::print_status();
                     Ok(())
                 }
-                KpatchNext::Enable => kpatch_next::enable(),
-                KpatchNext::Disable => kpatch_next::disable(),
             }
         }
         Commands::Kpm { command } => {

@@ -319,10 +319,19 @@ bool disable_current_seccomp() {
 }
 
 bool uid_should_umount(int uid) {
+    bool should_umount = false;
+    uid_should_umount_checked(uid, &should_umount);
+    return should_umount;
+}
+
+int uid_should_umount_checked(int uid, bool *should_umount) {
     struct ksu_uid_should_umount_cmd cmd = {};
     cmd.uid = uid;
-    ksuctl_scan_only(KSU_IOCTL_UID_SHOULD_UMOUNT, &cmd);
-    return cmd.should_umount;
+    int ret = ksuctl_scan_only(KSU_IOCTL_UID_SHOULD_UMOUNT, &cmd);
+    if (ret == 0) {
+        *should_umount = cmd.should_umount;
+    }
+    return ret;
 }
 
 bool set_app_profile(const app_profile *profile) {

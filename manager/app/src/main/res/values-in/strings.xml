@@ -175,8 +175,6 @@
     <string name="settings_mode_enable_by_default">Aktif (Default)</string>
     <string name="settings_mode_disable_until_reboot">Nonaktif hingga mulai ulang</string>
     <string name="settings_mode_disable_always">Selalu nonaktif</string>
-    <string name="settings_kpatch_next">KPatch Next</string>
-    <string name="settings_kpatch_next_summary">Implementasi mandiri dukungan KPM</string>
     <string name="module_shortcut_title">Buat pintasan</string>
     <string name="module_shortcut_name_label">Nama pintasan</string>
     <string name="module_shortcut_icon_pick">Pilih ikon khusus</string>

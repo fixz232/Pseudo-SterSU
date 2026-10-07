@@ -103,7 +103,7 @@ ifneq ($(CONFIG_ARM64),y)
 $(error CONFIG_KPM requires CONFIG_ARM64=y)
 endif
 # Native KPM is a built-in GKI ABI bridge. It must never be linked into the
-# LKM variant, whose KPM backend is provided by KPatch-Next.
+# LKM variant, whose KPM backend requires an independently installed KPatch-Next.
 kernelsu-objs += kpm/kpm.o
 kernelsu-objs += kpm/compact.o
 kernelsu-objs += kpm/super_access.o
@@ -230,21 +230,28 @@ ifndef KSU_EXPECTED_HASH
 KSU_EXPECTED_HASH := 1c89980c03432844cfe195dab90bfaecbcd987d19309da648014164be78007d1
 endif
 
-ifdef KSU_MANAGER_PACKAGE
-ccflags-y += -DKSU_MANAGER_PACKAGE=\"$(KSU_MANAGER_PACKAGE)\"
-$(info -- KernelSU Manager package name: $(KSU_MANAGER_PACKAGE))
+KSU_IS_PR_BUILD ?= 0
+ifeq ($(KSU_IS_PR_BUILD),0)
+KSU_PACKAGE_NAME ?= $(KSU_MANAGER_PACKAGE)
+else
+KSU_PACKAGE_NAME ?= $(KSU_MANAGER_PACKAGE).dev
 endif
 
+ccflags-y += -DKSU_MANAGER_PACKAGE=\"$(KSU_MANAGER_PACKAGE)\"
 ifdef KSU_MANAGER_PACKAGE_LEGACY
 ccflags-y += -DKSU_MANAGER_PACKAGE_LEGACY=\"$(KSU_MANAGER_PACKAGE_LEGACY)\"
 $(info -- KernelSU legacy Manager package name: $(KSU_MANAGER_PACKAGE_LEGACY))
 endif
 
+$(info -- KernelSU Manager package name: $(KSU_PACKAGE_NAME))
 $(info -- KernelSU Manager signature size: $(KSU_EXPECTED_SIZE))
 $(info -- KernelSU Manager signature hash: $(KSU_EXPECTED_HASH))
+$(info -- KernelSU is PR Build: $(KSU_IS_PR_BUILD))
 
+ccflags-y += -DKSU_PACKAGE_NAME=\"$(KSU_PACKAGE_NAME)\"
 ccflags-y += -DEXPECTED_SIZE=$(KSU_EXPECTED_SIZE)
 ccflags-y += -DEXPECTED_HASH=\"$(KSU_EXPECTED_HASH)\"
+ccflags-y += -DKSU_IS_PR_BUILD=$(KSU_IS_PR_BUILD)
 
 ifdef KSU_EXPECTED_SIZE2
 ifndef KSU_EXPECTED_HASH2

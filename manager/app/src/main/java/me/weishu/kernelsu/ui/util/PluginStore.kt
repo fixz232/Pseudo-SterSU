@@ -39,6 +39,7 @@ enum class ManagerPlugin(
     ),
     AppIdManager("app-id-manager", setOf(PluginSlot.SuperuserAppIdManager)),
     AppFreeze("app-freeze", setOf(PluginSlot.SuperuserAppFreeze)),
+    PathmaskLkm("pathmask-lkm", setOf(PluginSlot.MountHidePathmaskLkm)),
     ;
 
     companion object {
@@ -57,6 +58,7 @@ enum class PluginSlot(val id: String) {
     MaintenanceStealthMode("maintenance.stealth-mode"),
     SuperuserAppIdManager("superuser.app-id-manager"),
     SuperuserAppFreeze("superuser.app-freeze"),
+    MountHidePathmaskLkm("mount-hide.pathmask-lkm"),
     ;
 
     companion object {
@@ -133,8 +135,8 @@ private const val PLUGIN_PACKAGE_SCHEMA = "io.github.fixz.apkesu.plugin"
 private const val PLUGIN_SCHEMA_VERSION = 1
 private const val CATALOG_ASSET = "plugin-store/catalog-v1.json"
 private const val SIGNATURE_ASSET = "plugin-store/catalog-v1.sig"
-private const val CATALOG_CACHE_NAME = "catalog-v1.json"
-private const val SIGNATURE_CACHE_NAME = "catalog-v1.sig"
+private const val CATALOG_CACHE_NAME = "catalog-v2.json"
+private const val SIGNATURE_CACHE_NAME = "catalog-v2.sig"
 private const val STATE_FILE_NAME = "installed-v1.json"
 private const val MAX_CATALOG_BYTES = 384L * 1024L
 private const val MAX_SIGNATURE_BYTES = 1024L
@@ -148,7 +150,7 @@ private const val ACTIVE_PLUGIN_STORE_BASE_URL =
 private const val LEGACY_PLUGIN_STORE_BASE_URL =
     "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main"
 private const val DEFAULT_CATALOG_URL =
-    "$ACTIVE_PLUGIN_STORE_BASE_URL/catalog-v1.json"
+    "$ACTIVE_PLUGIN_STORE_BASE_URL/catalog-v2.json"
 
 // This is an X.509 SubjectPublicKeyInfo encoding for the release catalog key.
 // The corresponding private key is deliberately kept outside source control.
@@ -551,17 +553,38 @@ internal fun resolveCompatiblePluginIds(
     .filter { it.isCompatibleWith(managerVersionCode, ksudStatus) }
     .mapTo(linkedSetOf()) { it.plugin.id }
 
-internal enum class PluginRemovalResult { Removed, NotInstalled, RequiresStealthDisabled, RemoteManagementStopFailed }
+internal enum class PluginRemovalResult {
+    Removed, NotInstalled, RequiresStealthDisabled, RemoteManagementStopFailed, PathmaskStopFailed,
+}
 
-internal fun removeManagerPlugin(
+internal suspend fun stopPathmaskPluginForRemoval(
+    readStatus: suspend () -> HiddenPathConfigReadResult,
+    disableAutoLoad: suspend () -> ToolCommandResult,
+    unload: suspend () -> ToolCommandResult,
+): Boolean {
+    val before = readStatus().config ?: return false
+    if (before.hasPendingCandidate) return false
+    if (!before.loaded && before.targetPaths.isEmpty()) return true
+    if (!before.loaded && !before.autoLoadEnabled) return true
+    if (before.autoLoadEnabled && !disableAutoLoad().success) return false
+    if (!unload().success) return false
+    val after = readStatus().config ?: return false
+    return !after.autoLoadEnabled && !after.loaded && !after.hasPendingCandidate
+}
+
+internal suspend fun removeManagerPlugin(
     pluginId: String,
     stealthEnabled: Boolean,
     stopRemoteManagement: () -> Boolean,
+    stopPathmask: suspend () -> Boolean,
     removeRecord: () -> Boolean,
 ): PluginRemovalResult {
     val remoteManagement = pluginId == ManagerPlugin.RemoteManagementSuite.id
     if (remoteManagement && stealthEnabled) return PluginRemovalResult.RequiresStealthDisabled
     if (remoteManagement && !stopRemoteManagement()) return PluginRemovalResult.RemoteManagementStopFailed
+    if (pluginId == ManagerPlugin.PathmaskLkm.id && !stopPathmask()) {
+        return PluginRemovalResult.PathmaskStopFailed
+    }
     return if (removeRecord()) PluginRemovalResult.Removed else PluginRemovalResult.NotInstalled
 }
 
@@ -571,13 +594,18 @@ internal fun parseManagerPluginCatalog(json: String): ManagerPluginCatalog {
     require(root.optString("schema") == PLUGIN_CATALOG_SCHEMA) { "Unsupported plugin catalog" }
     require(root.optInt("version") == PLUGIN_SCHEMA_VERSION) { "Unsupported plugin catalog version" }
     val items = root.optJSONArray("plugins") ?: error("Plugin catalog has no plugins")
-    require(items.length() == ManagerPlugin.entries.size) { "Plugin catalog is incomplete" }
+    require(items.length() in (ManagerPlugin.entries.size - 1)..ManagerPlugin.entries.size) {
+        "Plugin catalog size is invalid"
+    }
     val plugins = buildList {
         for (index in 0 until items.length()) {
             add(parsePlugin(items.optJSONObject(index) ?: error("Plugin catalog entry is invalid"), requireDownload = true))
         }
     }
-    require(plugins.map { it.id }.toSet() == ManagerPlugin.entries.map { it.id }.toSet()) {
+    val pluginIds = plugins.mapTo(linkedSetOf()) { it.id }
+    val expectedIds = ManagerPlugin.entries.mapTo(linkedSetOf()) { it.id }
+    require(pluginIds.size == plugins.size &&
+        (pluginIds == expectedIds || pluginIds == expectedIds - ManagerPlugin.PathmaskLkm.id)) {
         "Plugin catalog identifiers do not match the Manager"
     }
     return ManagerPluginCatalog(root.optLong("generatedAt").coerceAtLeast(0L), plugins)

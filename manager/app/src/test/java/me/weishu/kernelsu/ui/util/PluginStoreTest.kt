@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlinx.coroutines.runBlocking
 import java.security.KeyPairGenerator
 import java.security.MessageDigest
 import java.security.Signature
@@ -13,7 +14,7 @@ class PluginStoreTest {
     @Test
     fun defaultCatalogUsesActiveRepository() {
         assertEquals(
-            "https://raw.githubusercontent.com/fixz232/Pseudo-SterSU/main/plugin-store/catalog-v1.json",
+            "https://raw.githubusercontent.com/fixz232/Pseudo-SterSU/main/plugin-store/catalog-v2.json",
             managerPluginCatalogUrl(),
         )
     }
@@ -30,6 +31,28 @@ class PluginStoreTest {
         assertEquals(
             setOf(PluginSlot.MaintenanceWebManager, PluginSlot.MaintenanceStealthMode),
             catalog.plugins.first { it.id == ManagerPlugin.RemoteManagementSuite.id }.slots,
+        )
+        assertEquals(
+            setOf(PluginSlot.MountHidePathmaskLkm),
+            catalog.plugins.first { it.id == ManagerPlugin.PathmaskLkm.id }.slots,
+        )
+    }
+
+    @Test
+    fun olderSignedCatalogCanOmitNewPlugin() {
+        val catalog = parseManagerPluginCatalog(validCatalog(ManagerPlugin.entries.dropLast(1)))
+        assertEquals(ManagerPlugin.entries.size - 1, catalog.plugins.size)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun catalogRejectsArbitraryMissingPlugin() {
+        parseManagerPluginCatalog(validCatalog(ManagerPlugin.entries.drop(1)))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun catalogRejectsDuplicatePlugin() {
+        parseManagerPluginCatalog(
+            validCatalog(ManagerPlugin.entries.dropLast(1) + ManagerPlugin.RescueProtection)
         )
     }
 
@@ -79,10 +102,10 @@ class PluginStoreTest {
 
         assertEquals(2, pairs.size)
         assertTrue(pairs.first().first.startsWith("https://ghproxy.net/"))
-        assertTrue(pairs.first().second.endsWith("/catalog-v1.sig"))
+        assertTrue(pairs.first().second.endsWith("/catalog-v2.sig"))
         assertEquals(url, pairs.last().first)
         assertEquals(
-            "https://raw.githubusercontent.com/fixz232/Pseudo-SterSU/main/plugin-store/catalog-v1.sig",
+            "https://raw.githubusercontent.com/fixz232/Pseudo-SterSU/main/plugin-store/catalog-v2.sig",
             pairs.last().second,
         )
     }
@@ -159,13 +182,14 @@ class PluginStoreTest {
     }
 
     @Test
-    fun failedRemoteStopKeepsPluginRecord() {
+    fun failedRemoteStopKeepsPluginRecord() = runBlocking {
         var removed = false
         var stopAttempted = false
         val result = removeManagerPlugin(
             pluginId = ManagerPlugin.RemoteManagementSuite.id,
             stealthEnabled = false,
             stopRemoteManagement = { stopAttempted = true; false },
+            stopPathmask = { true },
             removeRecord = { removed = true; true },
         )
 
@@ -175,12 +199,13 @@ class PluginStoreTest {
     }
 
     @Test
-    fun stealthModeMustBeDisabledBeforeRemotePluginRemoval() {
+    fun stealthModeMustBeDisabledBeforeRemotePluginRemoval() = runBlocking {
         var stopAttempted = false
         val result = removeManagerPlugin(
             pluginId = ManagerPlugin.RemoteManagementSuite.id,
             stealthEnabled = true,
             stopRemoteManagement = { stopAttempted = true; true },
+            stopPathmask = { true },
             removeRecord = { true },
         )
 
@@ -189,15 +214,88 @@ class PluginStoreTest {
     }
 
     @Test
-    fun successfulRemoteStopAllowsRemoval() {
+    fun successfulRemoteStopAllowsRemoval() = runBlocking {
         val result = removeManagerPlugin(
             pluginId = ManagerPlugin.RemoteManagementSuite.id,
             stealthEnabled = false,
             stopRemoteManagement = { true },
+            stopPathmask = { true },
             removeRecord = { true },
         )
 
         assertEquals(PluginRemovalResult.Removed, result)
+    }
+
+    @Test
+    fun failedPathmaskShutdownKeepsPluginRecord() = runBlocking {
+        var removed = false
+        val result = removeManagerPlugin(
+            pluginId = ManagerPlugin.PathmaskLkm.id,
+            stealthEnabled = false,
+            stopRemoteManagement = { true },
+            stopPathmask = { false },
+            removeRecord = { removed = true; true },
+        )
+
+        assertEquals(PluginRemovalResult.PathmaskStopFailed, result)
+        assertFalse(removed)
+    }
+
+    @Test
+    fun pathmaskRemovalDisablesAutoLoadAndConfirmsUnload() = runBlocking {
+        var reads = 0
+        var disabled = false
+        var unloaded = false
+        val stopped = stopPathmaskPluginForRemoval(
+            readStatus = {
+                reads++
+                HiddenPathConfigReadResult(HiddenPathConfigState(
+                    targetPaths = listOf("/system/bin/su"),
+                    autoLoadEnabled = !disabled,
+                    loaded = !unloaded,
+                ))
+            },
+            disableAutoLoad = { disabled = true; ToolCommandResult(success = true) },
+            unload = { unloaded = true; ToolCommandResult(success = true) },
+        )
+
+        assertTrue(stopped)
+        assertTrue(disabled)
+        assertTrue(unloaded)
+        assertEquals(2, reads)
+    }
+
+    @Test
+    fun pathmaskRemovalRejectsUnverifiedShutdown() = runBlocking {
+        val stopped = stopPathmaskPluginForRemoval(
+            readStatus = { HiddenPathConfigReadResult(HiddenPathConfigState(
+                targetPaths = listOf("/system/bin/su"),
+                autoLoadEnabled = true,
+                loaded = true,
+            )) },
+            disableAutoLoad = { ToolCommandResult(success = true) },
+            unload = { ToolCommandResult(success = true) },
+        )
+
+        assertFalse(stopped)
+    }
+
+    @Test
+    fun pathmaskRemovalRejectsFailedStatusOrUnload() = runBlocking {
+        assertFalse(stopPathmaskPluginForRemoval(
+            readStatus = { HiddenPathConfigReadResult(error = "unavailable") },
+            disableAutoLoad = { ToolCommandResult(success = true) },
+            unload = { ToolCommandResult(success = true) },
+        ))
+        assertFalse(stopPathmaskPluginForRemoval(
+            readStatus = { HiddenPathConfigReadResult(HiddenPathConfigState(
+                targetPaths = listOf("/system/bin/su"),
+                autoLoadEnabled = true,
+                loaded = true,
+            )) },
+            disableAutoLoad = { ToolCommandResult(success = true) },
+            unload = { ToolCommandResult(errorCode = "pathmask.module_busy") },
+        ))
     }
 
     private fun pluginPackage(version: Int) = ManagerPluginPackage(
@@ -215,8 +313,8 @@ class PluginStoreTest {
         sizeBytes = 128,
     )
 
-    private fun validCatalog(): String {
-        val plugins = ManagerPlugin.entries.joinToString(",") { plugin ->
+    private fun validCatalog(pluginsToInclude: List<ManagerPlugin> = ManagerPlugin.entries): String {
+        val plugins = pluginsToInclude.joinToString(",") { plugin ->
             val slots = plugin.slots.joinToString(",") { "\"${it.id}\"" }
             """
                 {

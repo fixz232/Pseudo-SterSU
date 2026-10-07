@@ -556,27 +556,6 @@ fn unload_runtime(id: &str) -> Result<()> {
     Ok(())
 }
 
-/// Stop KPatch-owned KPMs before its module is disabled or removed. Without
-/// this handoff, the Manager would immediately switch back to the legacy
-/// backend while the old KPatch instances were still resident in the kernel.
-pub fn stop_kpatch_runtime() -> Result<()> {
-    ensure!(
-        backend() == KpmBackend::KpatchNext,
-        "KPatch-Next runtime is only available in LKM mode"
-    );
-    let _lock = acquire_operation_lock()?;
-    ensure_kpatch_runtime_ready()?;
-    for id in kpatch_live_names()? {
-        kpatch_command(&["kpm", "unload", &id])
-            .with_context(|| format!("failed to unload KPatch KPM '{id}'"))?;
-    }
-    remove_marker(
-        Path::new(KPATCH_BOOT_PENDING_PATH),
-        "KPatch Next KPM pending marker",
-    )?;
-    Ok(())
-}
-
 // The policy is deliberately kept next to the imported images so it survives
 // Manager updates while remaining outside the module enumeration.
 fn read_policy() -> Result<bool> {
@@ -1523,24 +1502,6 @@ fn unsync_all_kpatch_images() -> Result<()> {
         failures.join("; ")
     );
     Ok(())
-}
-
-pub fn migrate_to_kpatch_next() -> Result<()> {
-    let _lock = acquire_operation_lock()?;
-    migrate_to_kpatch_next_inner()
-}
-
-/// Remove synchronized KPM files when KPatch-Next installation fails before
-/// its service can own them.
-pub fn cleanup_kpatch_after_install_failure() -> Result<()> {
-    if backend() != KpmBackend::KpatchNext {
-        return Ok(());
-    }
-    let _lock = acquire_operation_lock()?;
-    let unsync_result = unsync_all_kpatch_images();
-    let marker_result = clear_pending();
-    unsync_result?;
-    marker_result
 }
 
 fn recover_boot_state_inner() {

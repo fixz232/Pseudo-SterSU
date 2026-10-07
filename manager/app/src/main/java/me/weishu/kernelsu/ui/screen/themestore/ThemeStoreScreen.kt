@@ -78,6 +78,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
@@ -112,6 +113,8 @@ import me.weishu.kernelsu.BuildConfig
 import me.weishu.kernelsu.ui.InterfaceStyle
 import me.weishu.kernelsu.ui.LocalInterfaceStyle
 import me.weishu.kernelsu.ui.UiMode
+import me.weishu.kernelsu.ui.component.material.ExpressiveScaffold
+import me.weishu.kernelsu.ui.component.material.expressiveTopAppBarColors
 import me.weishu.kernelsu.ui.component.skrootpro.SkrootproColors
 import me.weishu.kernelsu.ui.component.skrootpro.SkrootproScreen
 import me.weishu.kernelsu.ui.navigation3.LocalNavigator
@@ -444,6 +447,46 @@ fun ThemeStoreScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues),
+                onBack = actions.onBack,
+                content = content,
+            )
+        }
+    } else if (LocalInterfaceStyle.current == InterfaceStyle.SidebarWidget.value) {
+        ExpressiveScaffold(
+            contentWindowInsets = WindowInsets.systemBars.add(WindowInsets.displayCutout)
+                .only(WindowInsetsSides.Horizontal),
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text(
+                            stringResource(if (interfaceStyleStore) R.string.interface_style_store_title else selectedPage.titleRes),
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = actions.onBack) {
+                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.back))
+                        }
+                    },
+                    actions = {
+                        if (selectedPage == ThemeStorePage.My) {
+                            IconButton(onClick = actions.onOpenProfile) {
+                                Icon(Icons.Rounded.Person, stringResource(R.string.theme_store_my_title))
+                            }
+                        }
+                    },
+                    colors = expressiveTopAppBarColors(),
+                )
+            },
+        ) { paddingValues ->
+            ThemeStoreResponsiveLayout(
+                selectedPage = selectedPage,
+                onSelected = onSelectedPage,
+                showNavigation = !interfaceStyleStore,
+                showBackButton = false,
+                modifier = Modifier.fillMaxSize().padding(paddingValues),
                 onBack = actions.onBack,
                 content = content,
             )
@@ -2171,7 +2214,9 @@ private fun ThemeStoreSurface(
     content: @Composable () -> Unit,
 ) {
     val palette = themeStorePalette()
-    val shape = RoundedCornerShape(12.dp)
+    val shape = if (LocalInterfaceStyle.current == InterfaceStyle.SidebarWidget.value) {
+        MaterialTheme.shapes.large
+    } else RoundedCornerShape(12.dp)
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -2211,6 +2256,17 @@ private data class ThemeStorePalette(
 
 @Composable
 private fun themeStorePalette(): ThemeStorePalette {
+    if (LocalInterfaceStyle.current == InterfaceStyle.SidebarWidget.value) {
+        val colors = MaterialTheme.colorScheme
+        return ThemeStorePalette(
+            surface = colors.surfaceContainer,
+            navigationSurface = colors.surface,
+            text = colors.onSurface,
+            mutedText = colors.onSurfaceVariant,
+            accent = colors.primary,
+            accentContainer = colors.primaryContainer,
+        )
+    }
     if (LocalInterfaceStyle.current == InterfaceStyle.Skrootpro.value) {
         return ThemeStorePalette(
             surface = SkrootproColors.BarSurface,

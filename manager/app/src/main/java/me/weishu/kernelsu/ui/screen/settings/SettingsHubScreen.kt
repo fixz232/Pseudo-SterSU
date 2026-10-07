@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ViewSidebar
 import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.DashboardCustomize
@@ -32,7 +33,9 @@ import androidx.compose.material.icons.rounded.FolderSpecial
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.SettingsApplications
+import androidx.compose.material.icons.rounded.VpnLock
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -86,6 +89,11 @@ enum class SettingsCategory(
         titleRes = R.string.settings_hub_toolbox,
         summaryRes = R.string.settings_hub_toolbox_summary,
     ),
+    WebAndPrivacy(
+        routeValue = "web_privacy",
+        titleRes = R.string.settings_hub_web_privacy,
+        summaryRes = R.string.settings_hub_web_privacy_summary,
+    ),
     AppAndMaintenance(
         routeValue = "app_maintenance",
         titleRes = R.string.settings_hub_app_maintenance,
@@ -105,6 +113,7 @@ fun SettingsHubScreen(
     onOpenCategory: (SettingsCategory) -> Unit,
     onPageModeChange: (SettingsPageMode) -> Unit,
     onOpenSidebarDesign: () -> Unit,
+    onNavigateBack: (() -> Unit)? = null,
 ) {
     val sidebar = uiState.uiMode == InterfaceStyle.SidebarWidget.value
     val scrollBehavior = if (sidebar) TopAppBarDefaults.pinnedScrollBehavior() else TopAppBarDefaults.enterAlwaysScrollBehavior()
@@ -118,6 +127,13 @@ fun SettingsHubScreen(
             .only(WindowInsetsSides.Top),
         topBar = {
             TopAppBar(
+                navigationIcon = {
+                    onNavigateBack?.let { onBack ->
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.back))
+                        }
+                    }
+                },
                 title = {
                     Text(
                         text = stringResource(R.string.settings),
@@ -283,6 +299,7 @@ internal fun categoryAccent(category: SettingsCategory): Color = when (category)
     SettingsCategory.RootAndPermissions -> MaterialTheme.colorScheme.error
     SettingsCategory.MountAndHide -> MaterialTheme.colorScheme.secondary
     SettingsCategory.Toolbox -> MaterialTheme.colorScheme.primary
+    SettingsCategory.WebAndPrivacy -> MaterialTheme.colorScheme.tertiary
     SettingsCategory.AppAndMaintenance -> MaterialTheme.colorScheme.onSurfaceVariant
 }
 
@@ -292,6 +309,7 @@ internal fun SettingsCategory.icon(): ImageVector = when (this) {
     SettingsCategory.RootAndPermissions -> Icons.Rounded.Security
     SettingsCategory.MountAndHide -> Icons.Rounded.FolderSpecial
     SettingsCategory.Toolbox -> Icons.Rounded.Build
+    SettingsCategory.WebAndPrivacy -> Icons.Rounded.VpnLock
     SettingsCategory.AppAndMaintenance -> Icons.Rounded.SettingsApplications
 }
 
@@ -307,5 +325,6 @@ private fun categoryStatus(category: SettingsCategory, uiState: SettingsUiState)
     }
     SettingsCategory.MountAndHide -> null
     SettingsCategory.Toolbox -> null
+    SettingsCategory.WebAndPrivacy -> null
     SettingsCategory.AppAndMaintenance -> null
 }

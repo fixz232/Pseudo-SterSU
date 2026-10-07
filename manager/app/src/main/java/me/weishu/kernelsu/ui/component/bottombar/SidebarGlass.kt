@@ -50,9 +50,9 @@ internal fun canCaptureSidebarWallpaper(
 internal object SidebarGlassColors {
     val LightInk = Color(0xFF161616)
     val DarkInk = Color(0xFFF5F5F5)
-    val LightTint = Color.White.copy(alpha = 0.68f)
+    val LightTint = Color(0xFFBFBFBF).copy(alpha = 0.82f)
     val DarkTint = Color.Black.copy(alpha = 0.76f)
-    val LightFallback = Color(0xFFE8E8E8)
+    val LightFallback = Color(0xFFBFBFBF)
     val DarkFallback = Color(0xFF202020)
 }
 

@@ -46,6 +46,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
@@ -59,7 +60,6 @@ import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.CheckCircleOutline
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.WarningAmber
-import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -94,7 +94,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.edit
-import androidx.lifecycle.compose.LifecycleResumeEffect
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -139,7 +138,6 @@ import me.weishu.kernelsu.ui.util.persistCustomImageReference
 import me.weishu.kernelsu.ui.util.releasePersistableVideoBackgroundReadPermission
 import me.weishu.kernelsu.ui.util.releaseCustomImageReference
 import me.weishu.kernelsu.ui.util.rememberBlurBackdrop
-import me.weishu.kernelsu.ui.util.readHomeLayoutState
 import me.weishu.kernelsu.ui.util.sanitizeCustomWallpaperCrop
 import me.weishu.kernelsu.ui.util.suggestedHomeLayoutHeight
 import me.weishu.kernelsu.ui.util.takePersistableImageReadPermission
@@ -182,17 +180,11 @@ fun HomePagerMiuix(
     classicHomeLayoutEnabled: Boolean = false,
 ) {
     val enableBlur = LocalEnableBlur.current
-    val context = LocalContext.current
     val homeTitle = state.customHomeTitle.ifBlank { stringResource(R.string.app_name) }
-    var homeLayoutState by remember(context) { mutableStateOf(readHomeLayoutState(context)) }
     val backdrop = rememberBlurBackdrop(enableBlur)
     val blurActive = backdrop != null
     val barColor = if (blurActive) Color.Transparent else colorScheme.surface
     val topBarColors = skrootproTopBarColors(barColor, colorScheme.onSurface)
-    LifecycleResumeEffect(Unit) {
-        homeLayoutState = readHomeLayoutState(context)
-        onPauseOrDispose { }
-    }
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
@@ -242,10 +234,9 @@ fun HomePagerMiuix(
                                 .widthIn(max = 300.dp),
                         )
                         val warningMessages = homeWarningMessages(state)
-                        val effectiveHomeLayout = homeLayoutOverride ?: homeLayoutState
-                        if (homeLayoutOverride != null || effectiveHomeLayout.enabled) {
+                        if (homeLayoutOverride != null) {
                             HomeCustomLayoutContent(
-                                layoutState = effectiveHomeLayout,
+                                layoutState = homeLayoutOverride,
                                 state = state,
                                 actions = actions,
                                 warningMessages = warningMessages,
@@ -459,7 +450,7 @@ private fun TopBar(
                     onClick = onSusfsClick,
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.VisibilityOff,
+                        imageVector = Icons.Rounded.Apps,
                         contentDescription = stringResource(R.string.home_susfs_path),
                         tint = contentColor,
                     )

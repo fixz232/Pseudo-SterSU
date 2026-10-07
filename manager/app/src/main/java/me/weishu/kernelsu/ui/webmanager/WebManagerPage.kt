@@ -512,13 +512,6 @@ private const val WEB_MANAGER_PAGE_MARKUP: String = """
       </div>
       <div class="card">
         <div class="row">
-          <div class="row-main"><div class="row-title">KPatch-Next</div><div class="row-detail">内嵌 KPatch-Next 内核补丁模块</div></div>
-          <button class="btn small" type="button" id="refreshKPatch">刷新</button>
-        </div>
-        <div class="tool-rows" id="kpatchBody"><div class="state">读取中……</div></div>
-      </div>
-      <div class="card">
-        <div class="row">
           <div class="row-main"><div class="row-title">隐藏路径</div><div class="row-detail">pathmask：对指定路径做隐藏（需 pathmask LKM）</div></div>
           <button class="btn small" type="button" id="refreshPathmask">刷新</button>
         </div>
@@ -766,7 +759,8 @@ private const val WEB_MANAGER_PAGE_SCRIPT_HEAD: String = """<script>
     var managerCode = Number(device.managerVersionCode || 0);
     var kernelUapi = Number(kernel.kernelUapi || 0);
     var managerUapi = Number(kernel.managerUapi || 0);
-    var uapiMismatch = kernelUapi > 0 && managerUapi > 0 && kernelUapi !== managerUapi;
+    var uapiMismatch = kernelUapi > 0 && managerUapi > 0 && kernelUapi !== managerUapi &&
+      !(kernelUapi === 4 && managerUapi === 5);
     var versionMismatch = driverVersion > 0 && managerCode > 0 && driverVersion !== managerCode;
 
     /* 判定顺序对齐原生 RootRuntimeState：驱动未连接 → 版本不匹配 → 守护进程异常 → 正常运行 */
@@ -1880,7 +1874,7 @@ private const val WEB_MANAGER_PAGE_SCRIPT_TOOLS: String = """  // --------------
       return state.tools;
     }).catch(function (error) {
       state.toolsLoaded = false;
-      ["kpatchBody", "pathmaskBody", "cpuSpoofBody"].forEach(function (nodeId) {
+      ["pathmaskBody", "cpuSpoofBody"].forEach(function (nodeId) {
         el(nodeId).innerHTML = '<div class="state error">工具状态读取失败：' +
           esc(error.message || "未知错误") + '</div>';
       });
@@ -1890,7 +1884,6 @@ private const val WEB_MANAGER_PAGE_SCRIPT_TOOLS: String = """  // --------------
 
   function renderTools() {
     var tools = state.tools || {};
-    renderKPatch(tools.kpatchNext);
     renderPathmask(tools.pathmask);
     renderCpuSpoof(tools.cpuSpoof);
     renderLanguage(tools.language);
@@ -1908,24 +1901,6 @@ private const val WEB_MANAGER_PAGE_SCRIPT_TOOLS: String = """  // --------------
 
   function truthText(value) {
     return value ? "是" : "否";
-  }
-
-  function renderKPatch(kpatch) {
-    var node = el("kpatchBody");
-    if (!node) return;
-    if (!kpatch || kpatch.available === false) {
-      node.innerHTML = '<div class="state">读取不到 KPatch-Next 状态（ksud 不可用？）</div>';
-      return;
-    }
-    var rows = toolRow("安装状态", (kpatch.installed ? "已安装" : "未安装") +
-      (kpatch.version ? " · 版本 " + esc(kpatch.version) : ""), "");
-    rows += toolRow("启用", kpatch.enabled ? "已启用" : "未启用", toolCheckbox("data-tool-toggle", "kpatch", kpatch.enabled));
-    if (kpatch.pendingUpdate) rows += toolRow("待更新", "重启后应用新版本", "");
-    if (kpatch.pendingRemove) rows += toolRow("待移除", "重启后移除", "");
-    if (kpatch.unresolved) rows += toolRow("解析失败", "模块目录不完整，建议重装", "");
-    if (kpatch.conflict) rows += '<div class="tool-hint">冲突：' + esc(String(kpatch.conflict)) + "</div>";
-    if (kpatch.error) rows += '<div class="tool-hint">错误：' + esc(String(kpatch.error)) + "</div>";
-    node.innerHTML = rows;
   }
 
   function renderPathmask(pathmask) {
@@ -2935,9 +2910,7 @@ private const val WEB_MANAGER_PAGE_SCRIPT_TAIL: String = """
       if (toolToggle) {
         var toggleKind = toolToggle.dataset.toolToggle;
         var toggleOn = toolToggle.checked;
-        if (toggleKind === "kpatch") {
-          runToolAction("kpatch", { enabled: toggleOn }, null).then(afterToolAction).catch(afterToolAction);
-        } else if (toggleKind === "pathmaskAutoLoad") {
+        if (toggleKind === "pathmaskAutoLoad") {
           var delay = "0";
           if (toggleOn) {
             delay = window.prompt("开机延迟多少秒后应用？（0 = 立即）", "0");
@@ -3086,8 +3059,7 @@ private const val WEB_MANAGER_PAGE_SCRIPT_TAIL: String = """
           .finally(function () { button.disabled = false; });
       });
     });
-    [["refreshKPatch", "kpatchBody"],
-      ["refreshPathmask", "pathmaskBody"], ["refreshCpuSpoof", "cpuSpoofBody"]].forEach(function (pair) {
+    [["refreshPathmask", "pathmaskBody"], ["refreshCpuSpoof", "cpuSpoofBody"]].forEach(function (pair) {
       var button = el(pair[0]);
       if (!button) return;
       button.addEventListener("click", function () {

@@ -21,7 +21,6 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import androidx.core.net.toUri
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
@@ -33,14 +32,12 @@ import me.weishu.kernelsu.ui.navigation3.Navigator
 import me.weishu.kernelsu.ui.navigation3.Route
 import me.weishu.kernelsu.ui.util.CUSTOM_BACKGROUND_MIME_TYPES
 import me.weishu.kernelsu.ui.util.CUSTOM_WALLPAPER_URI_KEY
-import me.weishu.kernelsu.ui.util.KPATCH_NEXT_MODULE_ID
 import me.weishu.kernelsu.ui.util.INTERFACE_STYLE_RESULT_KEY
 import me.weishu.kernelsu.ui.util.isCustomVideoBackground
 import me.weishu.kernelsu.ui.util.persistCustomImageReference
 import me.weishu.kernelsu.ui.util.takePersistableImageReadPermission
 import me.weishu.kernelsu.ui.util.takePersistableVideoBackgroundReadPermission
 import me.weishu.kernelsu.ui.viewmodel.SettingsViewModel
-import me.weishu.kernelsu.ui.webui.WebUIActivity
 import me.weishu.kernelsu.ui.webmanager.WebManagerService
 
 @Composable
@@ -69,17 +66,41 @@ fun SettingPager(
         }
     }
 
-    if (pageMode.value == SettingsPageMode.Categories) {
-        SettingsHubScreen(
+    val onOpenCategory: (SettingsCategory) -> Unit = { category ->
+        navigator.push(Route.SettingsCategory(category.routeValue))
+    }
+    if (uiState.uiMode == InterfaceStyle.SidebarWidget.value && pageMode.value == SettingsPageMode.Categories) {
+        SettingsSidebarScreen(
             uiState = uiState,
+            navigator = navigator,
             bottomInnerPadding = bottomInnerPadding,
-            onOpenCategory = { category ->
-                navigator.push(Route.SettingsCategory(category.routeValue))
-            },
+            onOpenCategory = onOpenCategory,
             onPageModeChange = onPageModeChange,
-            onOpenSidebarDesign = { navigator.push(Route.SidebarWidgetSettings) },
+            onSetColorMode = viewModel::setColorMode,
         )
         return
+    }
+    when (pageMode.value) {
+        SettingsPageMode.Categories -> {
+            SettingsHubScreen(
+                uiState = uiState,
+                bottomInnerPadding = bottomInnerPadding,
+                onOpenCategory = onOpenCategory,
+                onPageModeChange = onPageModeChange,
+                onOpenSidebarDesign = { navigator.push(Route.SidebarWidgetSettings) },
+            )
+            return
+        }
+        SettingsPageMode.Overview -> {
+            SettingsOverviewScreen(
+                uiState = uiState,
+                bottomInnerPadding = bottomInnerPadding,
+                onOpenCategory = onOpenCategory,
+                onPageModeChange = onPageModeChange,
+            )
+            return
+        }
+        SettingsPageMode.Collapsed -> Unit
     }
 
     val showWallpaperPreview = rememberSaveable { mutableStateOf(false) }
@@ -159,7 +180,6 @@ fun SettingPager(
         onEditHomeTitle = { showHomeTitleDialog.value = true },
         onOpenNavigationIcons = { navigator.push(Route.NavigationIcons) },
         onOpenSidebarDesign = { navigator.push(Route.SidebarWidgetSettings) },
-        onOpenHomeLayout = { navigator.push(Route.HomeLayout) },
         onOpenHomeCardWallpapers = { navigator.push(Route.HomeCardWallpapers) },
         onOpenVisualEffects = { navigator.push(Route.VisualEffects) },
         onOpenUiDecorationLibrary = { navigator.push(Route.UiDecorationLibrary) },
@@ -212,20 +232,6 @@ fun SettingPager(
         onSetAdbRootEnabled = viewModel::setAdbRootEnabled,
         onSetAvcSpoofEnabled = viewModel::setAvcSpoofEnabled,
         onSetDefaultUmountModules = viewModel::setDefaultUmountModules,
-        onSetKPatchNextEnabled = { enabled ->
-            if (uiState.canToggleKPatchNext) {
-                viewModel.setKPatchNextEnabled(enabled)
-            }
-        },
-        onOpenKPatchNextWebUi = {
-            if (uiState.canOpenKPatchNextWebUi) {
-                context.startActivity(
-                    Intent(context, WebUIActivity::class.java)
-                        .setData("kernelsu://webui/$KPATCH_NEXT_MODULE_ID".toUri())
-                        .putExtra("id", KPATCH_NEXT_MODULE_ID)
-                )
-            }
-        },
         onOpenHiddenPathConfig = {
             when (uiState.pathConfigBackend) {
                 PathConfigBackend.PathmaskLkm -> navigator.push(Route.HiddenPathConfig)

@@ -32,19 +32,12 @@ import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.Image
-import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -246,7 +239,6 @@ private fun DeltaModuleCard(
     val wallpaperState = rememberModuleCardWallpaperState(module.id)
     val wallpaperEntry = rememberModuleCardWallpaperFrame(wallpaperState, paused = wallpaperPaused)
     val wallpaperBitmap = rememberModuleCardWallpaperLoadState(wallpaperEntry).bitmap
-    var actionsExpanded by remember(module.id) { mutableStateOf(false) }
 
     DeltaCard(
         contentPadding = PaddingValues(0.dp),
@@ -329,6 +321,13 @@ private fun DeltaModuleCard(
                     }
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    IconButton(onClick = { actions.onOpenWallpaperEditor(module) }) {
+                        Icon(
+                            imageVector = Icons.Rounded.Image,
+                            contentDescription = stringResource(R.string.module_wallpaper_editor_open),
+                            tint = DeltaColors.Muted,
+                        )
+                    }
                     DeltaSwitch(
                         checked = module.enabled && !module.remove,
                         enabled = !pending,
@@ -343,8 +342,6 @@ private fun DeltaModuleCard(
                 module = module,
                 updateInfo = updateInfo,
                 actions = actions,
-                expanded = actionsExpanded,
-                onExpandedChange = { actionsExpanded = it },
             )
         }
     }
@@ -355,14 +352,8 @@ private fun DeltaModuleActions(
     module: Module,
     updateInfo: ModuleUpdateInfo?,
     actions: ModuleActions,
-    expanded: Boolean,
-    onExpandedChange: (Boolean) -> Unit,
 ) {
     val pending = module.update || module.remove
-    val primaryAction = resolveModulePrimaryAction(
-        module = module,
-        hasUpdate = !updateInfo?.downloadUrl.isNullOrEmpty(),
-    )
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -370,98 +361,44 @@ private fun DeltaModuleActions(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        when (primaryAction) {
-            ModulePrimaryAction.UndoUninstall -> DeltaPillButton(
-                text = stringResource(R.string.undo),
-                onClick = { actions.onUndoUninstallModule(module) },
-                icon = Icons.AutoMirrored.Rounded.Undo,
-                modifier = Modifier.weight(1f).height(48.dp),
-            )
-
-            ModulePrimaryAction.Update -> DeltaPillButton(
+        if (updateInfo != null && !module.remove) {
+            DeltaPillButton(
                 text = stringResource(R.string.module_update),
-                onClick = { actions.onRequestUpdateConfirmation(module, checkNotNull(updateInfo)) },
+                onClick = { actions.onRequestUpdateConfirmation(module, updateInfo) },
                 icon = Icons.Rounded.Add,
-                modifier = Modifier.weight(1f).height(48.dp),
+                modifier = Modifier.weight(1f),
             )
-
-            ModulePrimaryAction.WebUi -> DeltaPillButton(
-                text = "WebUI",
-                onClick = { actions.onOpenWebUi(module) },
-                icon = Icons.Rounded.Code,
-                modifier = Modifier.weight(1f).height(48.dp),
-            )
-
-            ModulePrimaryAction.Action -> DeltaPillButton(
+        }
+        if (module.hasActionScript && module.enabled && !pending) {
+            DeltaPillButton(
                 text = stringResource(R.string.action),
                 onClick = { actions.onExecuteModuleAction(module) },
                 icon = Icons.Rounded.PlayArrow,
-                modifier = Modifier.weight(1f).height(48.dp),
+                modifier = Modifier.weight(1f),
             )
-
-            ModulePrimaryAction.None -> Spacer(modifier = Modifier.weight(1f))
         }
-        Box {
-            IconButton(
-                onClick = { onExpandedChange(true) },
-                modifier = Modifier.size(48.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.MoreVert,
-                    contentDescription = stringResource(R.string.module_more_actions),
-                    tint = DeltaColors.Muted,
-                )
-            }
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { onExpandedChange(false) },
-            ) {
-                if (module.enabled && !pending && module.hasWebUi && primaryAction != ModulePrimaryAction.WebUi) {
-                    DropdownMenuItem(
-                        text = { Text("WebUI") },
-                        leadingIcon = { Icon(Icons.Rounded.Code, contentDescription = null) },
-                        onClick = {
-                            onExpandedChange(false)
-                            actions.onOpenWebUi(module)
-                        },
-                    )
-                }
-                if (module.enabled && !pending && module.hasActionScript && primaryAction != ModulePrimaryAction.Action) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.action)) },
-                        leadingIcon = { Icon(Icons.Rounded.PlayArrow, contentDescription = null) },
-                        onClick = {
-                            onExpandedChange(false)
-                            actions.onExecuteModuleAction(module)
-                        },
-                    )
-                }
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.module_wallpaper_editor_open)) },
-                    leadingIcon = { Icon(Icons.Rounded.Image, contentDescription = null) },
-                    onClick = {
-                        onExpandedChange(false)
-                        actions.onOpenWallpaperEditor(module)
-                    },
-                )
-                if (!module.remove) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.uninstall), color = DeltaColors.Danger) },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Rounded.Delete,
-                                contentDescription = null,
-                                tint = DeltaColors.Danger,
-                            )
-                        },
-                        onClick = {
-                            onExpandedChange(false)
-                            actions.onRequestUninstallConfirmation(module)
-                        },
-                    )
-                }
-            }
+        if (module.hasWebUi && module.enabled && !pending) {
+            DeltaPillButton(
+                text = "WebUI",
+                onClick = { actions.onOpenWebUi(module) },
+                icon = Icons.Rounded.Code,
+                modifier = Modifier.weight(1f),
+            )
         }
+        DeltaPillButton(
+            text = stringResource(if (module.remove) R.string.undo else R.string.uninstall),
+            onClick = {
+                if (module.remove) {
+                    actions.onUndoUninstallModule(module)
+                } else {
+                    actions.onRequestUninstallConfirmation(module)
+                }
+            },
+            icon = if (module.remove) Icons.AutoMirrored.Rounded.Undo else Icons.Rounded.Delete,
+            background = if (module.remove) DeltaColors.AccentMuted else DeltaColors.Danger.copy(alpha = 0.18f),
+            foreground = if (module.remove) DeltaColors.Ink else DeltaColors.Danger,
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 

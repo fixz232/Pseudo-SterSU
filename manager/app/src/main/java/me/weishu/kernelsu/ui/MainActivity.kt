@@ -219,7 +219,6 @@ import me.weishu.kernelsu.ui.screen.settings.SusfsApplicationsScreen
 import me.weishu.kernelsu.ui.screen.settings.SusfsGuideScreen
 import me.weishu.kernelsu.ui.screen.settings.RescueProtectionScreen
 import me.weishu.kernelsu.ui.screen.settings.HomeCardWallpaperScreen
-import me.weishu.kernelsu.ui.screen.settings.HomeLayoutScreen
 import me.weishu.kernelsu.ui.screen.settings.InstallCardWallpaperScreen
 import me.weishu.kernelsu.ui.screen.settings.LanguageSettingsScreen
 import me.weishu.kernelsu.ui.screen.settings.PreInstallStyleSettingsScreen
@@ -649,7 +648,6 @@ class MainActivity : ComponentActivity() {
                                 entry<Route.SoundEffects> { SoundEffectsScreen() }
                                 entry<Route.StartupAnimation> { StartupAnimationScreen() }
                                 entry<Route.HomeCardWallpapers> { HomeCardWallpaperScreen() }
-                                entry<Route.HomeLayout> { HomeLayoutScreen() }
                                 entry<Route.InstallCardWallpapers> { InstallCardWallpaperScreen() }
                                 entry<Route.LanguageSettings> { LanguageSettingsScreen() }
                                 entry<Route.PreInstallStyleSettings> { PreInstallStyleSettingsScreen() }
@@ -661,7 +659,7 @@ class MainActivity : ComponentActivity() {
                                     if (!Natives.isLkmMode && !Natives.isLateLoadMode) {
                                         SusfsPathConfigScreen()
                                     } else {
-                                        HiddenPathConfigScreen()
+                                        PluginRouteGate(ManagerPlugin.PathmaskLkm) { HiddenPathConfigScreen() }
                                     }
                                 }
                                 entry<Route.SusfsPathConfig> { SusfsPathConfigScreen() }

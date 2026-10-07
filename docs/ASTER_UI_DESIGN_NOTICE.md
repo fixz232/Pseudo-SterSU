@@ -9,6 +9,7 @@ SterSU 的侧栏导航及相关页面布局设计参考了开源项目
 - 查阅内容：README、`app/src/main/java/me/bmax/apatch/ui/shell/GlobalLayout.kt` 和 `app/src/main/java/me/bmax/apatch/ui/shell/AsterAppShell.kt`。
 - 设计参考范围：导航与内容区域的分离、统一的页面顶部结构，以及清晰的设置层级。
 - SterSU 的具体适配：黑白玻璃侧栏、左侧/右侧切换、中部组件定制、导航按钮排序与自定义图标，以及 Material 内容区域和手机/平板布局。
+- 2026-10-07 的统一适配：侧栏导航标签与焦点反馈、大字体/短屏滚动、明暗及 AMOLED 中性表面、主页状态卡、设备设置卡、固定搜索页头、二级页内容宽度与重启菜单。保留自定义强调色、真实状态和原有操作确认，不改动其他界面风格。
 
 本次侧栏改动未导入 Aster 的源码文件、图片资源、新依赖或 Root 后端，
 而是在 SterSU 现有管理器实现中进行设计适配。此说明仅描述本次改动的来源范围，
@@ -35,6 +36,11 @@ project's contributors.
 - SterSU adaptations: a monochrome glass sidebar, left/right placement,
   center-widget customization, navigation order and custom icons, Material
   content, and phone/tablet layouts.
+- The 2026-10-07 consistency pass covers labeled navigation and focus feedback,
+  large-text/short-window scrolling, neutral light/dark/AMOLED surfaces, home
+  status cards, device settings, pinned search headers, secondary-page widths,
+  and the reboot menu. User accents, real status, and existing action
+  confirmations are retained; other interface styles are not redesigned.
 
 This sidebar update does not import Aster source files, image assets, new
 dependencies, or its root backend. It adapts design ideas within SterSU's

@@ -26,7 +26,6 @@ class SettingsCatalogTest {
                 base.copy(
                     runtimeModeResolved = true,
                     isLkmMode = true,
-                    isKPatchNextEnabled = true,
                     kpmBackend = "kpatch-next",
                     isKpmManagementAvailable = true,
                     isKpmCapabilityResolved = true,
@@ -38,16 +37,16 @@ class SettingsCatalogTest {
     @Test
     fun appearanceCountTracksInterfaceSpecificEntry() {
         val base = SettingsUiState(uiMode = InterfaceStyle.Material.value)
-        assertEquals(5, SettingsCatalog.visibleEntryCount(SettingsCategory.Appearance, base))
+        assertEquals(3, SettingsCatalog.visibleEntryCount(SettingsCategory.Appearance, base))
         assertEquals(
-            6,
+            4,
             SettingsCatalog.visibleEntryCount(
                 SettingsCategory.Appearance,
                 base.copy(uiMode = InterfaceStyle.Miuix.value),
             ),
         )
         assertEquals(
-            6,
+            4,
             SettingsCatalog.visibleEntryCount(
                 SettingsCategory.Appearance,
                 base.copy(uiMode = InterfaceStyle.Pixel.value),
@@ -64,18 +63,86 @@ class SettingsCatalogTest {
     }
 
     @Test
-    fun rootCountIncludesSoftReboot() {
+    fun rootAndMountControlsUseTheirOwnCategories() {
+        val base = SettingsUiState()
         assertEquals(
-            9,
-            SettingsCatalog.visibleEntryCount(SettingsCategory.RootAndPermissions, SettingsUiState()),
+            setOf("profile_template", "su_compat", "su_log", "adb_root", "soft_reboot", "auto_jailbreak"),
+            SettingsCatalog.entriesFor(SettingsCategory.RootAndPermissions, base).map { it.key }.toSet(),
+        )
+        assertEquals(
+            setOf("kernel_umount", "webview_umount", "default_umount", "selinux_hide", "avc_spoof", "path_config", "apkesu_hide"),
+            SettingsCatalog.entriesFor(SettingsCategory.MountAndHide, base).map { it.key }.toSet(),
+        )
+    }
+
+    @Test
+    fun webAndStealthEntriesFollowPluginAvailability() {
+        val base = SettingsUiState()
+        assertEquals(
+            listOf("web_debugging"),
+            SettingsCatalog.entriesFor(SettingsCategory.WebAndPrivacy, base).map { it.key },
+        )
+        val installed = base.copy(installedPluginIds = setOf(ManagerPlugin.RemoteManagementSuite.id))
+        assertEquals(5, SettingsCatalog.visibleEntryCount(SettingsCategory.WebAndPrivacy, installed))
+        assertEquals(
+            false,
+            SettingsCatalog.entriesFor(SettingsCategory.AppAndMaintenance, installed)
+                .any { it.key.startsWith("web_") || it.key.startsWith("stealth_") },
+        )
+    }
+
+    @Test
+    fun unifiedStoreHasOneCategoryEntry() {
+        val base = SettingsUiState()
+        assertEquals(
+            listOf("store"),
+            SettingsCategory.entries.flatMap { SettingsCatalog.entriesFor(it, base) }
+                .filter { it.key == "store" }
+                .map { it.key },
+        )
+        assertEquals(
+            SettingsCategory.Toolbox,
+            SettingsCatalog.entriesFor(SettingsCategory.Toolbox, base)
+                .single { it.key == "store" }.category,
         )
     }
 
     @Test
     fun homeAndManagerCountIncludesDynamicManager() {
         assertEquals(
-            6,
+            5,
             SettingsCatalog.visibleEntryCount(SettingsCategory.HomeAndManager, SettingsUiState()),
+        )
+        assertEquals(
+            false,
+            SettingsCatalog.entriesFor(SettingsCategory.HomeAndManager, SettingsUiState())
+                .any { it.key == "home_layout" },
+        )
+    }
+
+    @Test
+    fun mountAndHideDoesNotOfferBundledKpatchNext() {
+        val entries = SettingsCatalog.entriesFor(SettingsCategory.MountAndHide, SettingsUiState())
+        assertEquals(false, entries.any { it.key == "kpatch_next" || it.key == "kpatch_webui" })
+    }
+
+    @Test
+    fun lkmPathConfigAppearsOnlyAfterInstallingItsPlugin() {
+        val lkm = SettingsUiState(isLkmMode = true, runtimeModeResolved = true)
+        assertEquals(false, SettingsCatalog.entriesFor(SettingsCategory.MountAndHide, lkm).any { it.key == "path_config" })
+        assertEquals(
+            true,
+            SettingsCatalog.entriesFor(
+                SettingsCategory.MountAndHide,
+                lkm.copy(installedPluginIds = setOf(ManagerPlugin.PathmaskLkm.id)),
+            ).any { it.key == "path_config" },
+        )
+        assertEquals(
+            true,
+            SettingsCatalog.entriesFor(
+                SettingsCategory.MountAndHide,
+                lkm.copy(isLkmMode = false),
+            ).any { it.key == "path_config" },
         )
     }
 }

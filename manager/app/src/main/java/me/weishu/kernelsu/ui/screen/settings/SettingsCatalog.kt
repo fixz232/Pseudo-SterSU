@@ -38,34 +38,30 @@ internal object SettingsCatalog {
         entry("pixel_motion", SettingsCategory.Appearance, R.string.settings_pixel_card_motion, R.string.settings_pixel_card_motion_summary) {
             it.uiMode == InterfaceStyle.Pixel.value
         },
-        // Kept as a searchable compatibility alias; the visible action is the unified Store entry below.
-        entry("interface_style_store", SettingsCategory.Appearance, R.string.store_title, R.string.store_summary),
         entry("day_night", SettingsCategory.Appearance, R.string.settings_day_night_switch, R.string.settings_day_night_switch_summary),
-        entry("theme_store", SettingsCategory.Appearance, R.string.store_title, R.string.store_summary),
-        // Kept for category counts and older settings search indexes; it resolves to the same Store route.
-        entry("plugin_store", SettingsCategory.Toolbox, R.string.store_title, R.string.store_summary),
+        entry("store", SettingsCategory.Toolbox, R.string.store_title, R.string.store_summary),
 
         entry("manager_identity", SettingsCategory.HomeAndManager, R.string.settings_manager_identity, R.string.settings_manager_identity_summary),
         entry("dynamic_manager", SettingsCategory.HomeAndManager, R.string.dynamic_manager_title, R.string.dynamic_manager_settings_summary),
         entry("home_title", SettingsCategory.HomeAndManager, R.string.settings_home_title, R.string.settings_home_title_default_summary),
-        entry("home_layout", SettingsCategory.HomeAndManager, R.string.home_layout_title, R.string.home_layout_settings_summary),
         entry("support_card", SettingsCategory.HomeAndManager, R.string.settings_show_home_support_card, R.string.settings_show_home_support_card_summary),
         entry("learn_card", SettingsCategory.HomeAndManager, R.string.settings_show_home_learn_card, R.string.settings_show_home_learn_card_summary),
 
         entry("profile_template", SettingsCategory.RootAndPermissions, R.string.settings_profile_template, R.string.settings_profile_template_summary),
         entry("su_compat", SettingsCategory.RootAndPermissions, R.string.settings_sucompat, R.string.settings_sucompat_summary),
-        entry("kernel_umount", SettingsCategory.RootAndPermissions, R.string.settings_kernel_umount, R.string.settings_kernel_umount_summary),
-        entry("webview_umount", SettingsCategory.RootAndPermissions, R.string.settings_webview_zygote_umount, R.string.settings_webview_zygote_umount_summary),
-        entry("selinux_hide", SettingsCategory.RootAndPermissions, R.string.settings_selinux_hide, R.string.settings_selinux_hide_summary),
         entry("su_log", SettingsCategory.RootAndPermissions, R.string.settings_sulog, R.string.settings_sulog_summary),
         entry("adb_root", SettingsCategory.RootAndPermissions, R.string.settings_adb_root, R.string.settings_adb_root_summary),
-        entry("avc_spoof", SettingsCategory.RootAndPermissions, R.string.settings_avc_spoof, R.string.settings_avc_spoof_summary),
         entry("soft_reboot", SettingsCategory.RootAndPermissions, R.string.settings_soft_reboot, R.string.settings_soft_reboot_summary),
+        entry("auto_jailbreak", SettingsCategory.RootAndPermissions, R.string.settings_auto_jailbreak, R.string.settings_auto_jailbreak_summary),
 
+        entry("kernel_umount", SettingsCategory.MountAndHide, R.string.settings_kernel_umount, R.string.settings_kernel_umount_summary),
+        entry("webview_umount", SettingsCategory.MountAndHide, R.string.settings_webview_zygote_umount, R.string.settings_webview_zygote_umount_summary),
         entry("default_umount", SettingsCategory.MountAndHide, R.string.settings_umount_modules_default, R.string.settings_umount_modules_default_summary),
-        entry("kpatch_next", SettingsCategory.MountAndHide, R.string.settings_kpatch_next, R.string.settings_kpatch_next_summary),
-        entry("kpatch_webui", SettingsCategory.MountAndHide, R.string.settings_kpatch_next_webui, R.string.settings_kpatch_next_webui_disabled_summary),
-        entry("path_config", SettingsCategory.MountAndHide, R.string.hidden_path_lkm_builtin_title),
+        entry("selinux_hide", SettingsCategory.MountAndHide, R.string.settings_selinux_hide, R.string.settings_selinux_hide_summary),
+        entry("avc_spoof", SettingsCategory.MountAndHide, R.string.settings_avc_spoof, R.string.settings_avc_spoof_summary),
+        entry("path_config", SettingsCategory.MountAndHide, R.string.hidden_path_lkm_builtin_title) {
+            it.isPathConfigEntryVisible
+        },
         entry("apkesu_hide", SettingsCategory.MountAndHide, R.string.settings_epkesu_hide, R.string.settings_epkesu_hide_summary),
 
         entry("rescue", SettingsCategory.Toolbox, R.string.rescue_protection, R.string.rescue_protection_summary) { it.hasPlugin(me.weishu.kernelsu.ui.util.ManagerPlugin.RescueProtection) },
@@ -81,16 +77,16 @@ internal object SettingsCatalog {
             it.isKpmSettingsEntryVisible
         },
 
+        entry("web_debugging", SettingsCategory.WebAndPrivacy, R.string.enable_web_debugging, R.string.enable_web_debugging_summary),
+        entry("web_manager_auto_start", SettingsCategory.WebAndPrivacy, R.string.web_manager_auto_start, R.string.web_manager_auto_start_summary) { it.hasPlugin(me.weishu.kernelsu.ui.util.ManagerPlugin.RemoteManagementSuite) },
+        entry("web_manager_open", SettingsCategory.WebAndPrivacy, R.string.web_manager_open, R.string.web_manager_open_summary) { it.hasPlugin(me.weishu.kernelsu.ui.util.ManagerPlugin.RemoteManagementSuite) },
+        entry("stealth_mode", SettingsCategory.WebAndPrivacy, R.string.stealth_mode_title, R.string.stealth_mode_summary) { it.hasPlugin(me.weishu.kernelsu.ui.util.ManagerPlugin.RemoteManagementSuite) },
+        entry("stealth_mode_code", SettingsCategory.WebAndPrivacy, R.string.stealth_mode_code_title, R.string.stealth_mode_code_format) { it.hasPlugin(me.weishu.kernelsu.ui.util.ManagerPlugin.RemoteManagementSuite) },
+
         entry("language", SettingsCategory.AppAndMaintenance, R.string.settings_language, R.string.settings_language_summary),
         entry("module_updates", SettingsCategory.AppAndMaintenance, R.string.settings_module_check_update, R.string.settings_module_check_update_summary),
         entry("version_warning", SettingsCategory.AppAndMaintenance, R.string.settings_version_mismatch_warning, R.string.settings_version_mismatch_warning_summary),
         entry("gki_warning", SettingsCategory.AppAndMaintenance, R.string.settings_gki_warning, R.string.settings_gki_warning_summary),
-        entry("web_debugging", SettingsCategory.AppAndMaintenance, R.string.enable_web_debugging, R.string.enable_web_debugging_summary),
-        entry("web_manager_auto_start", SettingsCategory.AppAndMaintenance, R.string.web_manager_auto_start, R.string.web_manager_auto_start_summary) { it.hasPlugin(me.weishu.kernelsu.ui.util.ManagerPlugin.RemoteManagementSuite) },
-        entry("web_manager_open", SettingsCategory.AppAndMaintenance, R.string.web_manager_open, R.string.web_manager_open_summary) { it.hasPlugin(me.weishu.kernelsu.ui.util.ManagerPlugin.RemoteManagementSuite) },
-        entry("stealth_mode", SettingsCategory.AppAndMaintenance, R.string.stealth_mode_title, R.string.stealth_mode_summary) { it.hasPlugin(me.weishu.kernelsu.ui.util.ManagerPlugin.RemoteManagementSuite) },
-        entry("stealth_mode_code", SettingsCategory.AppAndMaintenance, R.string.stealth_mode_code_title, R.string.stealth_mode_code_format) { it.hasPlugin(me.weishu.kernelsu.ui.util.ManagerPlugin.RemoteManagementSuite) },
-        entry("auto_jailbreak", SettingsCategory.AppAndMaintenance, R.string.settings_auto_jailbreak, R.string.settings_auto_jailbreak_summary),
         entry("uninstall", SettingsCategory.AppAndMaintenance, R.string.settings_uninstall) { it.isLkmMode },
         entry("send_log", SettingsCategory.AppAndMaintenance, R.string.send_log),
         entry("about", SettingsCategory.AppAndMaintenance, R.string.about),
@@ -137,7 +133,7 @@ internal val SettingsUiState.isKpmSettingsEntryVisible: Boolean
         !isLateLoadMode &&
         when (kpmBackend) {
             "native-gki" -> !isLkmMode
-            "kpatch-next" -> isLkmMode && isKPatchNextEnabled && !isKPatchNextPendingRemove
+            "kpatch-next" -> isLkmMode
             else -> false
         }
 

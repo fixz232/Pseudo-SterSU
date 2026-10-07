@@ -71,7 +71,8 @@ fun InstallScreen() {
     var selectedPartitionName by rememberSaveable { mutableStateOf<String?>(null) }
     val showChooseKmiDialog = rememberSaveable { mutableStateOf(false) }
     var installAfterKmiSelection by rememberSaveable { mutableStateOf(false) }
-    var patchMode by rememberSaveable { mutableStateOf(BootPatchMode.Normal) }
+    var savedPatchMode by rememberSaveable { mutableStateOf(BootPatchMode.Normal) }
+    val patchMode = if (savedPatchMode == BootPatchMode.HiddenPath) BootPatchMode.Normal else savedPatchMode
     var detectedImageKmi by rememberSaveable { mutableStateOf("") }
     var manualKmi by rememberSaveable { mutableStateOf("") }
     var imageKmiSource by rememberSaveable { mutableStateOf(InstallKmiSource.None) }
@@ -471,7 +472,7 @@ fun InstallScreen() {
             selectImageLauncher.launch(BOOT_IMAGE_MIME_TYPES)
         },
         onSelectPatchMode = { selectedMode ->
-            patchMode = selectedMode
+            savedPatchMode = if (selectedMode == BootPatchMode.HiddenPath) BootPatchMode.Normal else selectedMode
             if (selectedMode == BootPatchMode.NativeKpm) {
                 replaceLkmSelection(LkmSelection.KmiNone)
                 allowShell = false

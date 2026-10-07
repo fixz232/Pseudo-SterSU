@@ -1,5 +1,6 @@
 package me.weishu.kernelsu.ui.screen.settings
 
+import me.weishu.kernelsu.ui.util.ManagerPlugin
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -7,27 +8,27 @@ import org.junit.Test
 
 class SettingsFeatureAvailabilityTest {
     @Test
-    fun lateLoadModeDisablesPathConfigAndKpatchNext() {
+    fun lateLoadModeDisablesPathConfig() {
         val state = SettingsUiState(
             isLkmMode = false,
             isLateLoadMode = true,
             runtimeModeResolved = true,
-            isKPatchNextEnabled = true,
-            isKPatchNextWebUiAvailable = true,
         )
 
         assertEquals(PathConfigBackend.Disabled, state.pathConfigBackend)
         assertFalse(state.canOpenPathConfig)
-        assertFalse(state.canToggleKPatchNext)
-        assertFalse(state.canOpenKPatchNextWebUi)
     }
 
     @Test
-    fun lkmModeUsesPathmaskConfig() {
+    fun lkmModeNeedsPathmaskPlugin() {
         val state = SettingsUiState(isLkmMode = true, runtimeModeResolved = true)
 
         assertEquals(PathConfigBackend.PathmaskLkm, state.pathConfigBackend)
-        assertTrue(state.canOpenPathConfig)
+        assertFalse(state.canOpenPathConfig)
+        assertFalse(state.isPathConfigEntryVisible)
+        val installed = state.copy(installedPluginIds = setOf(ManagerPlugin.PathmaskLkm.id))
+        assertTrue(installed.canOpenPathConfig)
+        assertTrue(installed.isPathConfigEntryVisible)
         assertFalse(state.isGkiMode)
     }
 
@@ -37,12 +38,10 @@ class SettingsFeatureAvailabilityTest {
             isLkmMode = true,
             isLateLoadMode = true,
             runtimeModeResolved = true,
-            isKPatchNextEnabled = true,
         )
 
         assertEquals(PathConfigBackend.Disabled, state.pathConfigBackend)
         assertFalse(state.canOpenPathConfig)
-        assertFalse(state.canToggleKPatchNext)
     }
 
     @Test
@@ -55,21 +54,8 @@ class SettingsFeatureAvailabilityTest {
 
         assertEquals(PathConfigBackend.SusfsGki, state.pathConfigBackend)
         assertTrue(state.canOpenPathConfig)
+        assertTrue(state.isPathConfigEntryVisible)
         assertTrue(state.isGkiMode)
-    }
-
-    @Test
-    fun builtInGkiModeDisablesKpatchNextControls() {
-        val state = SettingsUiState(
-            isLkmMode = false,
-            isLateLoadMode = false,
-            runtimeModeResolved = true,
-            isKPatchNextEnabled = true,
-            isKPatchNextWebUiAvailable = true,
-        )
-
-        assertFalse(state.canToggleKPatchNext)
-        assertFalse(state.canOpenKPatchNextWebUi)
     }
 
     @Test
@@ -87,18 +73,30 @@ class SettingsFeatureAvailabilityTest {
     }
 
     @Test
-    fun staleKpatchStateCannotExposeKpmEntryInGkiMode() {
+    fun lkmKpmBackendCannotExposeEntryInGkiMode() {
         val state = SettingsUiState(
             isLkmMode = false,
             isLateLoadMode = false,
             runtimeModeResolved = true,
-            isKPatchNextEnabled = true,
             kpmBackend = "kpatch-next",
             isKpmManagementAvailable = true,
             isKpmCapabilityResolved = true,
         )
 
         assertFalse(state.isKpmSettingsEntryVisible)
+    }
+
+    @Test
+    fun independentlyInstalledLkmBackendExposesKpmEntry() {
+        val state = SettingsUiState(
+            isLkmMode = true,
+            runtimeModeResolved = true,
+            kpmBackend = "kpatch-next",
+            isKpmManagementAvailable = true,
+            isKpmCapabilityResolved = true,
+        )
+
+        assertTrue(state.isKpmSettingsEntryVisible)
     }
 
     @Test
@@ -120,43 +118,5 @@ class SettingsFeatureAvailabilityTest {
 
         assertEquals(PathConfigBackend.Unknown, state.pathConfigBackend)
         assertFalse(state.canOpenPathConfig)
-        assertFalse(state.canToggleKPatchNext)
-    }
-
-    @Test
-    fun kpatchNextOperationLocksTheSwitch() {
-        val state = SettingsUiState(
-            runtimeModeResolved = true,
-            isKPatchNextOperationRunning = true,
-        )
-
-        assertFalse(state.canToggleKPatchNext)
-    }
-
-    @Test
-    fun kpatchNextSwitchRepresentsEffectiveLifecycle() {
-        assertTrue(
-            SettingsUiState(
-                isKPatchNextInstalled = true,
-                isKPatchNextEnabled = true,
-            ).isKPatchNextSwitchChecked
-        )
-        assertTrue(
-            SettingsUiState(
-                isKPatchNextPendingUpdate = true,
-            ).isKPatchNextSwitchChecked
-        )
-        assertFalse(
-            SettingsUiState(
-                isKPatchNextInstalled = true,
-                isKPatchNextPendingRemove = true,
-            ).isKPatchNextSwitchChecked
-        )
-        assertFalse(
-            SettingsUiState(
-                isKPatchNextInstalled = true,
-                isKPatchNextEnabled = false,
-            ).isKPatchNextSwitchChecked
-        )
     }
 }

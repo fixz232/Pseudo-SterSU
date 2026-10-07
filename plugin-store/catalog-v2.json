@@ -1,0 +1,200 @@
+{
+  "schema": "io.github.fixz.apkesu.plugin-catalog",
+  "version": 1,
+  "generatedAt": 1791335646736,
+  "plugins": [
+    {
+      "id": "rescue-protection",
+      "version": 1,
+      "name": "救砖保护",
+      "summary": "备份、验证并恢复启动镜像，降低连续启动失败风险。",
+      "description": "提供启动镜像备份、深度校验、恢复事务和救援日志。所有操作仍由版本化 ksud 接口执行。",
+      "instructions": [
+        "先确认 boot/init_boot 备份完整并保留可用恢复路径。",
+        "启用保护后重启验证；恢复操作会显示校验结果和事务状态。"
+      ],
+      "slots": [
+        "toolbox.rescue"
+      ],
+      "minManagerVersionCode": 32800,
+      "minKsudVersionCode": 32800,
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/packages/rescue-protection.ksplugin",
+      "sha256": "6fde0d6b81156f172630ca7f0929a33cc36ef160a46cee2d5758c8c209bea648",
+      "sizeBytes": 816
+    },
+    {
+      "id": "image-tools",
+      "version": 1,
+      "name": "镜像工具",
+      "summary": "检查、导入和刷写受支持的 boot/init_boot 镜像。",
+      "description": "面向受支持分区的镜像检查与安全操作工具，执行前会校验路径、大小、哈希和当前模式。",
+      "instructions": [
+        "选择来源镜像并先运行检查。",
+        "仅对明确匹配当前设备和槽位的镜像执行操作。"
+      ],
+      "slots": [
+        "toolbox.image-tools"
+      ],
+      "minManagerVersionCode": 32800,
+      "minKsudVersionCode": 32800,
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/packages/image-tools.ksplugin",
+      "sha256": "a21b43bbe8d9c058f13d707a47b9eccd752a14543cc051b626f4e97f3f1f3a6b",
+      "sizeBytes": 752
+    },
+    {
+      "id": "cpu-spoof",
+      "version": 1,
+      "name": "CPU 自定义伪装",
+      "summary": "配置并验证持久化 CPU 型号伪装。",
+      "description": "使用受限的 ksud CPU 属性接口配置目标值，支持启动后验证、失败回滚和恢复默认。",
+      "instructions": [
+        "先保存当前真实 CPU 值。",
+        "应用后检查验证结果；失败时使用恢复默认并重启。"
+      ],
+      "slots": [
+        "toolbox.cpu-spoof"
+      ],
+      "minManagerVersionCode": 32800,
+      "minKsudVersionCode": 32800,
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/packages/cpu-spoof.ksplugin",
+      "sha256": "8f2855ae972d0116ce2c442be02c49e34b50e81a5ac03d9f36c5794ee7d60f0f",
+      "sizeBytes": 724
+    },
+    {
+      "id": "device-identity",
+      "version": 1,
+      "name": "标识修改",
+      "summary": "安全修改受支持的设备标识并保留恢复备份。",
+      "description": "管理序列号、Android ID、MAC 和 OAID 等受支持标识，带格式校验、备份、读回验证和回滚。",
+      "instructions": [
+        "导出或确认自动备份已成功。",
+        "一次只修改一种标识，验证通过后再重启。"
+      ],
+      "slots": [
+        "toolbox.device-identity"
+      ],
+      "minManagerVersionCode": 32800,
+      "minKsudVersionCode": 32800,
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/packages/device-identity.ksplugin",
+      "sha256": "cf07342459fdcd470ef5fcf337d162be718590e24d46e62fbbc7219994999fd4",
+      "sizeBytes": 753
+    },
+    {
+      "id": "graphics-renderer",
+      "version": 1,
+      "name": "内置图像渲染器",
+      "summary": "在系统默认、Skia Vulkan 和 Skia OpenGL 之间切换。",
+      "description": "检测设备 Vulkan 能力和 HWUI 属性，只写入白名单属性并在报告成功前读回验证。",
+      "instructions": [
+        "先刷新环境诊断并确认 Vulkan 能力。",
+        "应用后按提示重启，出现异常时恢复系统默认。"
+      ],
+      "slots": [
+        "toolbox.graphics-renderer"
+      ],
+      "minManagerVersionCode": 32800,
+      "minKsudVersionCode": 32800,
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/packages/graphics-renderer.ksplugin",
+      "sha256": "d19c1952a22aa84ac1e931a14fa26b077ca0a2164f693d2d864ab8d902554813",
+      "sizeBytes": 771
+    },
+    {
+      "id": "ai-chat",
+      "version": 1,
+      "name": "AI 聊天",
+      "summary": "使用用户配置的 HTTPS AI API 进行对话和模块分析。",
+      "description": "支持加密保存 API 配置、流式回答、附件分析和受控模块建议；不会自动执行模型生成的命令。",
+      "instructions": [
+        "在 AI 设置中配置 HTTPS API 和密钥。",
+        "发送涉及 root 的建议前人工检查，工具调用必须逐项确认。"
+      ],
+      "slots": [
+        "toolbox.ai-chat"
+      ],
+      "minManagerVersionCode": 32800,
+      "minKsudVersionCode": 32800,
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/packages/ai-chat.ksplugin",
+      "sha256": "ddcd079c5430437ddbc2b8bf42c9f131d8933775320fe7746e23a0aa0f91a6b3",
+      "sizeBytes": 767
+    },
+    {
+      "id": "remote-management-suite",
+      "version": 1,
+      "name": "网页管理器与隐身模式",
+      "summary": "本机网页管理器、PWA、签名鉴权和隐身模式配套套件。",
+      "description": "网页资源由 ksud 本机服务提供，默认只监听回环地址；隐身状态持久化在 /data/adb/ksu/，管理器退出后仍有效。网页管理器和隐身模式必须同时安装。",
+      "instructions": [
+        "首次使用先确认服务只绑定 127.0.0.1 并设置签名密钥。",
+        "开启隐身后只能通过网页密令或拨号密令关闭。",
+        "卸载前必须关闭隐身模式并停止网页服务。"
+      ],
+      "slots": [
+        "maintenance.web-manager",
+        "maintenance.stealth-mode"
+      ],
+      "minManagerVersionCode": 32800,
+      "minKsudVersionCode": 32800,
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/packages/remote-management-suite.ksplugin",
+      "sha256": "235f67f75abc107c7d4bcd25d1603ee7582e51f532b0db88c81c86dd946778bd",
+      "sizeBytes": 1015
+    },
+    {
+      "id": "app-id-manager",
+      "version": 1,
+      "name": "应用 ID 修改",
+      "summary": "查看、暂存、应用和恢复应用 SSAID。",
+      "description": "为选定应用管理 App ID，提供 XML 校验、备份、启动脚本暂存和重启后验证。",
+      "instructions": [
+        "先选择目标应用并读取当前 ID。",
+        "应用修改前确认备份存在，完成后按提示重启。"
+      ],
+      "slots": [
+        "superuser.app-id-manager"
+      ],
+      "minManagerVersionCode": 32800,
+      "minKsudVersionCode": 32800,
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/packages/app-id-manager.ksplugin",
+      "sha256": "bc6114851e53546486bca7de4b817fa3ea79acad613a10e5731ffc72e592a4d1",
+      "sizeBytes": 736
+    },
+    {
+      "id": "app-freeze",
+      "version": 1,
+      "name": "应用 ID 冻结",
+      "summary": "冻结或解冻应用并查看当前状态。",
+      "description": "通过受限的包管理操作冻结应用，保留状态查询、失败原因和恢复入口。",
+      "instructions": [
+        "确认目标包名和应用名称一致。",
+        "系统关键包不要冻结；出现异常时立即解冻并重启。"
+      ],
+      "slots": [
+        "superuser.app-freeze"
+      ],
+      "minManagerVersionCode": 32800,
+      "minKsudVersionCode": 32800,
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/packages/app-freeze.ksplugin",
+      "sha256": "415cb075a234f7e3e7ee97bdc90486d2ff062c75dfff57a960e580fc6ce3b149",
+      "sizeBytes": 724
+    },
+    {
+      "id": "pathmask-lkm",
+      "version": 1,
+      "name": "LKM 隐藏路径配置",
+      "summary": "在 LKM 模式配置 Pathmask 的隐藏路径、应用范围与自动加载。",
+      "description": "解锁管理器中的 LKM 隐藏路径配置页面，包括路径与应用列表、导入导出、运行诊断和自动加载控制。插件是经过校验的能力描述文件；实际 Pathmask 运行时由设备上的 ksud 提供，不会在修补镜像时附加隐藏路径模块。GKI 模式请使用原有的 SUSFS 管理页面。",
+      "instructions": [
+        "确认设备为 LKM 模式、非后加载模式，并已安装 33000 或更高版本的 ksud。",
+        "安装后打开设置 > 挂载与隐藏 > 隐藏路径配置，添加目标路径与应用后应用，并检查诊断结果。",
+        "移除插件时管理器会关闭自动加载并卸载正在运行的 Pathmask；若无法确认已停止，则保留插件。已保存的路径配置会保留。"
+      ],
+      "slots": [
+        "mount-hide.pathmask-lkm"
+      ],
+      "minManagerVersionCode": 33000,
+      "minKsudVersionCode": 33000,
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/Pseudo-SterSU/main/plugin-store/packages/pathmask-lkm.ksplugin",
+      "sha256": "64de504f4b2c65d77c655340f82c675621b92c23f0a69913ff4061610b8c036d",
+      "sizeBytes": 1277
+    }
+  ]
+}

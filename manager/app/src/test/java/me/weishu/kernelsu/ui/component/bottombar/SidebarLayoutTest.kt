@@ -31,29 +31,31 @@ class SidebarLayoutTest {
     }
 
     @Test
-    fun textWidgetsReserveMoreHeightForLargerFontsButImagesDoNot() {
-        assertEquals(224.dp, sidebarMinimumWidgetHeight(SidebarWidgetType.Clock, false, 2f))
-        assertEquals(288.dp, sidebarMinimumWidgetHeight(SidebarWidgetType.Alarm, true, 2f))
-        assertEquals(352.dp, sidebarMinimumWidgetHeight(SidebarWidgetType.Weather, false, 2f))
-        assertEquals(112.dp, sidebarMinimumWidgetHeight(SidebarWidgetType.Image, false, 2f))
-        assertEquals(112.dp, sidebarMinimumWidgetHeight(SidebarWidgetType.Clock, false, 0.8f))
+    fun avatarAndTextWidgetsHaveRoomAtLargeFontSizes() {
+        assertEquals(420.dp, sidebarMinimumWidgetHeight(SidebarWidgetType.Clock, false, 2f))
+        assertEquals(404.dp, sidebarMinimumWidgetHeight(SidebarWidgetType.Alarm, true, 2f))
+        assertEquals(484.dp, sidebarMinimumWidgetHeight(SidebarWidgetType.Weather, false, 2f))
+        assertEquals(260.dp, sidebarMinimumWidgetHeight(SidebarWidgetType.Clock, false, 0.8f))
     }
 
     @Test
     fun shortLandscapeRailScrollsWithoutClippingWidgetsOrDestinations() {
         for (position in SidebarNavigationPosition.entries) {
             val sizing = sidebarRailSizing(240.dp, 176.dp, 5, position)
-            assertEquals(436.dp, sizing.contentHeight)
+            assertEquals(496.5.dp, sizing.contentHeight)
             assertEquals(176.dp, sizing.widgetHeight)
-            assertTrue(sizing.contentHeight - sizing.widgetHeight >= 260.dp)
+            assertTrue(sizing.contentHeight - sizing.widgetHeight >= 320.dp)
         }
     }
 
     @Test
-    fun noHeightIsReservedForRemovedRebootButton() {
-        val sizing = sidebarRailSizing(600.dp, 112.dp, 4, SidebarNavigationPosition.Bottom)
-        assertEquals(600.dp, sizing.contentHeight)
-        assertEquals((600f - 208f) * 0.85f, sizing.widgetHeight.value, 0.001f)
+    fun bodyRemainsScrollableAfterTheFixedPowerFooterIsReserved() {
+        val availableBody = 600.dp - 76.dp
+        val minimumHeader = sidebarMinimumWidgetHeight(SidebarWidgetType.Clock, false, 2f)
+        val sizing = sidebarRailSizing(availableBody, minimumHeader, 5, SidebarNavigationPosition.Center, fontScale = 2f)
+        assertTrue(sizing.contentHeight > availableBody)
+        assertTrue(sizing.widgetHeight >= minimumHeader)
+        assertTrue(sizing.contentHeight - sizing.widgetHeight >= 400.dp)
     }
 
     @Test
@@ -69,7 +71,21 @@ class SidebarLayoutTest {
             for (position in SidebarNavigationPosition.entries) {
                 val sizing = sidebarRailSizing(400.dp, 400.dp, count, position)
                 assertTrue(sizing.widgetHeight >= 400.dp)
-                assertTrue(sizing.contentHeight - sizing.widgetHeight >= 52.dp * count)
+                assertTrue(sizing.contentHeight - sizing.widgetHeight >= 64.dp * count)
+            }
+        }
+    }
+
+    @Test
+    fun navigationLabelsScaleWithoutShrinkingTouchTargets() {
+        assertEquals(64.dp, sidebarNavigationItemHeight(0.85f))
+        assertEquals(64.dp, sidebarNavigationItemHeight(1f))
+        assertEquals(80.dp, sidebarNavigationItemHeight(2f))
+        for (fontScale in listOf(1f, 1.3f, 2f, 3f)) {
+            for (position in SidebarNavigationPosition.entries) {
+                val sizing = sidebarRailSizing(320.dp, 260.dp, 5, position, fontScale)
+                assertTrue(sizing.widgetHeight >= 260.dp)
+                assertTrue(sizing.contentHeight - sizing.widgetHeight >= sidebarNavigationItemHeight(fontScale) * 5)
             }
         }
     }

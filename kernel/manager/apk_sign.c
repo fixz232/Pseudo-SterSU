@@ -419,6 +419,7 @@ module_param_cb(ksu_debug_manager_appid, &debug_manager_appid_param_ops,
 
 #endif
 
+// /data/app/XXXXX/<PACKAGE_NAME>-YYY/base.apk
 int get_pkg_from_apk_path(char *pkg, const char *path)
 {
     const char *last_slash;
@@ -485,6 +486,22 @@ bool is_manager_apk(char *path, u8 *signature_index)
     unsigned certificate_size = 0;
     char certificate_sha256[65] = { 0 };
     int matched_index;
+    char package[KSU_MAX_PACKAGE_NAME];
+
+    if (get_pkg_from_apk_path(package, path) < 0)
+        return false;
+
+    /* Filter before opening APKs, while retaining randomized managers. */
+    if (!ksu_is_dynamic_manager_enabled() &&
+        strcmp(package, KSU_PACKAGE_NAME) != 0
+#ifdef KSU_MANAGER_PACKAGE_LEGACY
+        && strcmp(package, KSU_MANAGER_PACKAGE_LEGACY) != 0
+#endif
+#ifdef ABK_MANAGER_PACKAGE
+        && strcmp(package, ABK_MANAGER_PACKAGE) != 0
+#endif
+    )
+        return false;
 
     if (!get_v2_signature(path, &certificate_size, certificate_sha256))
         return false;
@@ -494,7 +511,7 @@ bool is_manager_apk(char *path, u8 *signature_index)
     if (matched_index < 0)
         return false;
 
-#if defined(KSU_MANAGER_PACKAGE) || defined(ABK_MANAGER_PACKAGE)
+#if defined(KSU_PACKAGE_NAME) || defined(ABK_MANAGER_PACKAGE)
     if (matched_index != KSU_SIGNATURE_INDEX_DYNAMIC_MANAGER) {
     char pkg[KSU_MAX_PACKAGE_NAME];
 
@@ -511,8 +528,8 @@ bool is_manager_apk(char *path, u8 *signature_index)
         return false;
 #endif
     } else {
-#ifdef KSU_MANAGER_PACKAGE
-        if (strcmp(pkg, KSU_MANAGER_PACKAGE) != 0
+#ifdef KSU_PACKAGE_NAME
+        if (strcmp(pkg, KSU_PACKAGE_NAME) != 0
 #ifdef KSU_MANAGER_PACKAGE_LEGACY
             && strcmp(pkg, KSU_MANAGER_PACKAGE_LEGACY) != 0
 #endif

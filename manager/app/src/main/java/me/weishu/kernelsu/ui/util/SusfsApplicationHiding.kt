@@ -6,14 +6,13 @@ import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.os.Build
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
-import me.weishu.kernelsu.Natives
-import org.json.JSONArray
-import org.json.JSONObject
 
 /**
  * Risk is a recommendation only. It never enables hiding automatically.
- * The actual hiding state is stored in the kernel app profile for the UID.
+ * The configured policy is stored in the kernel app profile for the UID.
  */
 internal enum class SusfsRiskSignal {
     RootOrIntegrityName,
@@ -45,7 +44,7 @@ internal fun isProtectedSusfsPackage(
     packageName: String,
     uid: Int,
     managerPackage: String,
-): Boolean = uid < FIRST_APPLICATION_UID || packageName in setOf(
+): Boolean = uid < 0 || uid % 100_000 < FIRST_APPLICATION_UID || packageName in setOf(
     managerPackage,
     "android",
     "com.android.systemui",
@@ -59,224 +58,64 @@ internal data class SusfsApplication(
     val packageNames: List<String>,
     val uid: Int,
     val riskSignals: Set<SusfsRiskSignal>,
-    val hidden: Boolean,
-    val allowSu: Boolean,
+    val policy: SusfsPolicyState,
     val canManage: Boolean,
     val isSystem: Boolean,
 ) {
-    val packageName: String
-        get() = packageInfo.packageName
-
-    val isRisk: Boolean
-        get() = riskSignals.isNotEmpty()
+    val packageName: String get() = packageInfo.packageName
+    val isRisk: Boolean get() = riskSignals.isNotEmpty()
+    val target: SusfsPolicyTarget get() = SusfsPolicyTarget(uid, packageNames, !canManage, policy)
 }
 
-internal suspend fun loadSusfsApplications(context: Context): List<SusfsApplication> = withContext(Dispatchers.IO) {
-    val packageManager = context.packageManager
-    val queryFlags = PackageManager.GET_PERMISSIONS or
-        PackageManager.MATCH_DISABLED_COMPONENTS or
-        PackageManager.MATCH_UNINSTALLED_PACKAGES
-    val packageInfos = runCatching {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            packageManager.getInstalledPackages(
-                PackageManager.PackageInfoFlags.of(queryFlags.toLong()),
-            )
-        } else {
-            @Suppress("DEPRECATION")
-            packageManager.getInstalledPackages(queryFlags)
-        }
-    }.getOrDefault(emptyList())
-
-    packageInfos
-        .asSequence()
-        .mapNotNull { info ->
-            val appInfo = info.applicationInfo ?: return@mapNotNull null
-            if (appInfo.flags and ApplicationInfo.FLAG_INSTALLED == 0) return@mapNotNull null
-            if (appInfo.isResourceOverlay) return@mapNotNull null
-            if (info.packageName == context.packageName) return@mapNotNull null
-            val label = runCatching { appInfo.loadLabel(packageManager).toString() }
-                .getOrDefault(info.packageName)
-            val assessment = assessSusfsAppRisk(
-                packageName = info.packageName,
-                requestedPermissions = info.requestedPermissions.orEmpty().asList(),
-            )
-            SusfsPackageCandidate(
-                packageInfo = info,
-                label = label,
-                assessment = assessment,
-                isSystem = appInfo.flags and
-                    (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0,
-            )
-        }
-        .groupBy { it.packageInfo.applicationInfo?.uid ?: -1 }
-        .values
-        .flatMap { candidates ->
-            val primary = candidates.minWithOrNull(
-                compareBy(String.CASE_INSENSITIVE_ORDER) { it.label },
-            ) ?: return@flatMap emptyList()
-            val uid = primary.packageInfo.applicationInfo?.uid ?: return@flatMap emptyList()
-            val profile = runCatching {
-                Natives.getAppProfile(primary.packageInfo.packageName, uid)
-            }.getOrNull()
-            val defaultHidden = runCatching { Natives.uidShouldUmount(uid) }.getOrDefault(true)
-            val allowSu = profile?.allowSu == true
-            val sharedPackageNames = candidates.map { it.packageInfo.packageName }.sorted()
-            candidates.map { candidate ->
-                SusfsApplication(
-                    label = candidate.label,
-                    packageInfo = candidate.packageInfo,
-                    packageNames = sharedPackageNames,
-                    uid = uid,
-                    riskSignals = candidate.assessment.signals,
-                    hidden = !allowSu && (profile?.umountModules ?: defaultHidden),
-                    allowSu = allowSu,
-                    canManage = !isProtectedSusfsPackage(
-                        candidate.packageInfo.packageName,
-                        uid,
-                        context.packageName,
-                    ),
-                    isSystem = candidate.isSystem,
-                )
-            }
-        }
-        .sortedWith(
-            compareByDescending<SusfsApplication> { it.isRisk }
-                .thenBy(String.CASE_INSENSITIVE_ORDER) { it.label },
-        )
-}
-
-internal suspend fun setSusfsApplicationHidden(
-    app: SusfsApplication,
-    hidden: Boolean,
-): Result<Unit> = withContext(Dispatchers.IO) {
-    runCatching {
-        check(app.canManage) { "protected_app" }
-        check(!app.allowSu) { "root_allowed_app" }
-        val current = Natives.getAppProfile(app.packageName, app.uid)
-            ?: Natives.Profile(app.packageName, app.uid)
-        val desired = current.copy(
-            name = app.packageName,
-            currentUid = app.uid,
-            nonRootUseDefault = false,
-            umountModules = hidden,
-        )
-        val updated = Natives.setAppProfile(desired) ||
-            (ensureManagerRegistered() && Natives.setAppProfile(desired))
-        check(updated) { "profile_update_failed" }
-    }
-}
-
-internal data class SusfsApplicationHidingConfigEntry(
-    val packageName: String,
-    val hidden: Boolean,
-)
-
-internal data class SusfsApplicationHidingImportResult(
-    val updated: Int,
-    val unchanged: Int,
-    val skipped: Int,
-    val failed: Int,
-)
-
-internal fun encodeSusfsApplicationHidingConfig(
-    entries: Iterable<SusfsApplicationHidingConfigEntry>,
-    exportedAt: Long = System.currentTimeMillis(),
-): String {
-    val normalized = entries
-        .distinctBy { it.packageName }
-        .sortedBy { it.packageName }
-        .toList()
-    require(normalized.size <= SUSFS_APP_CONFIG_MAX_ENTRIES) { "too_many_entries" }
-    val applications = JSONArray()
-    normalized.forEach { entry ->
-        require(isValidSusfsPackageName(entry.packageName)) { "invalid_package_name" }
-        applications.put(
-            JSONObject()
-                .put("packageName", entry.packageName)
-                .put("hidden", entry.hidden),
-        )
-    }
-    return JSONObject()
-        .put("schema", SUSFS_APP_CONFIG_SCHEMA)
-        .put("version", SUSFS_APP_CONFIG_VERSION)
-        .put("exportedAt", exportedAt.coerceAtLeast(0L))
-        .put("applications", applications)
-        .toString(2)
-}
-
-internal fun parseSusfsApplicationHidingConfig(json: String): List<SusfsApplicationHidingConfigEntry> {
-    require(json.toByteArray(Charsets.UTF_8).size <= SUSFS_APP_CONFIG_MAX_BYTES) { "config_too_large" }
-    val root = JSONObject(json)
-    require(root.optString("schema") == SUSFS_APP_CONFIG_SCHEMA) { "invalid_schema" }
-    require(root.optInt("version") == SUSFS_APP_CONFIG_VERSION) { "unsupported_version" }
-    val applications = root.optJSONArray("applications") ?: error("missing_applications")
-    require(applications.length() <= SUSFS_APP_CONFIG_MAX_ENTRIES) { "too_many_entries" }
-    val seen = hashSetOf<String>()
-    return buildList {
-        for (index in 0 until applications.length()) {
-            val item = applications.optJSONObject(index) ?: error("invalid_entry")
-            val packageName = item.optString("packageName").trim()
-            require(isValidSusfsPackageName(packageName)) { "invalid_package_name" }
-            require(seen.add(packageName)) { "duplicate_package" }
-            require(item.has("hidden")) { "missing_hidden_state" }
-            add(SusfsApplicationHidingConfigEntry(packageName, item.getBoolean("hidden")))
-        }
-    }
-}
-
-internal suspend fun importSusfsApplicationHidingConfig(
+internal suspend fun loadSusfsApplications(
     context: Context,
-    json: String,
-): SusfsApplicationHidingImportResult = withContext(Dispatchers.IO) {
-    val entries = parseSusfsApplicationHidingConfig(json)
-    val applications = loadSusfsApplications(context)
-    val byPackage = applications.associateBy { it.packageName }
-    val desiredByUid = linkedMapOf<Int, Pair<SusfsApplication, Boolean>>()
-    var skipped = 0
-
-    entries.forEach { entry ->
-        val application = byPackage[entry.packageName]
-        if (application == null || !application.canManage || application.allowSu) {
-            skipped++
-            return@forEach
-        }
-        val existing = desiredByUid[application.uid]
-        require(existing == null || existing.second == entry.hidden) { "shared_uid_conflict" }
-        desiredByUid[application.uid] = application to entry.hidden
+    controller: SusfsPolicyController,
+): List<SusfsApplication> = withContext(Dispatchers.IO) {
+    val pm = context.packageManager
+    val flags = PackageManager.GET_PERMISSIONS or PackageManager.MATCH_DISABLED_COMPONENTS or
+        PackageManager.MATCH_UNINSTALLED_PACKAGES
+    // A failed query is not an empty device. Let the caller show a retryable load error.
+    val infos = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        pm.getInstalledPackages(PackageManager.PackageInfoFlags.of(flags.toLong()))
+    } else {
+        @Suppress("DEPRECATION")
+        pm.getInstalledPackages(flags)
     }
-
-    var updated = 0
-    var unchanged = 0
-    var failed = 0
-    desiredByUid.values.forEach { (application, hidden) ->
-        if (application.hidden == hidden) {
-            unchanged++
-        } else if (setSusfsApplicationHidden(application, hidden).isSuccess) {
-            updated++
-        } else {
-            failed++
-        }
+    infos.filter { info ->
+        info.applicationInfo?.let { it.flags and ApplicationInfo.FLAG_INSTALLED != 0 } == true
     }
-    SusfsApplicationHidingImportResult(updated, unchanged, skipped, failed)
+        .groupBy { requireNotNull(it.applicationInfo).uid }
+        .flatMap { (uid, group) ->
+            currentCoroutineContext().ensureActive()
+            // Include manager and overlays in group protection, even if their rows are hidden.
+            val packages = (pm.getPackagesForUid(uid)?.toList().orEmpty() +
+                group.map { it.packageName }).distinct().sorted()
+            val protected = packages.any { isProtectedSusfsPackage(it, uid, context.packageName) }
+            val policy = controller.read(uid, packages.first())
+            group.filter { it.packageName != context.packageName && it.applicationInfo?.isResourceOverlay != true }
+                .map { info ->
+                    val appInfo = requireNotNull(info.applicationInfo)
+                    SusfsApplication(
+                        label = runCatching { appInfo.loadLabel(pm).toString() }.getOrDefault(info.packageName),
+                        packageInfo = info,
+                        packageNames = packages,
+                        uid = uid,
+                        riskSignals = assessSusfsAppRisk(info.packageName, info.requestedPermissions.orEmpty().asList()).signals,
+                        policy = policy,
+                        canManage = !protected,
+                        isSystem = appInfo.flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0,
+                    )
+                }
+        }.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.label })
 }
 
-private data class SusfsPackageCandidate(
-    val packageInfo: PackageInfo,
-    val label: String,
-    val assessment: SusfsRiskAssessment,
-    val isSystem: Boolean,
-)
+internal fun updateSusfsUid(
+    applications: List<SusfsApplication>,
+    uid: Int,
+    policy: SusfsPolicyState,
+): List<SusfsApplication> = applications.map { if (it.uid == uid) it.copy(policy = policy) else it }
 
 private const val FIRST_APPLICATION_UID = 10_000
-private const val SUSFS_APP_CONFIG_SCHEMA = "io.github.fixz.stersu.susfs-app-hiding"
-private const val SUSFS_APP_CONFIG_VERSION = 1
-private const val SUSFS_APP_CONFIG_MAX_BYTES = 512 * 1024
-private const val SUSFS_APP_CONFIG_MAX_ENTRIES = 5_000
-
-private val SUSFS_PACKAGE_NAME_PATTERN = Regex("[A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)+")
-
-private fun isValidSusfsPackageName(packageName: String): Boolean =
-    packageName.length in 3..255 && SUSFS_PACKAGE_NAME_PATTERN.matches(packageName)
 
 private val RISK_PACKAGE_MARKERS = setOf(
     "bank",

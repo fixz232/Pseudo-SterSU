@@ -34,7 +34,6 @@
       kpm: null,
       susfs: null,
       pathmask: null,
-      kpatchNext: null,
     },
     apiMeta: null,
     pwaPrompt: null,
@@ -1714,48 +1713,21 @@
     }
   }
 
-  function renderKpatchNext(data) {
-    state.tools.kpatchNext = data;
-    const status = data.status || {};
-    $('kpatch-next-enabled').disabled = false;
-    $('kpatch-next-enabled').checked = Boolean(status.enabled);
-    $('kpatch-next-detail').textContent = `${status.moduleName || 'KPatch-Next'} ${status.version || ''}`.trim();
-    const states = [status.installed ? '已安装' : '未安装', status.enabled ? '已启用' : '已停用'];
-    if (status.pendingUpdate) states.push('更新待重启');
-    if (status.pendingRemove) states.push('卸载待重启');
-    if (status.unresolved) states.push('存在未解析状态');
-    $('kpatch-next-status').innerHTML = `<div class="badges">${states.map((item, index) => `<span class="badge ${index === 1 && status.enabled ? 'ok' : item.includes('待重启') || item.includes('未解析') ? 'warn' : ''}">${esc(item)}</span>`).join('')}</div><div class="row-detail">KPM 的 LKM 后端；安装、更新或停用后可能需要重启。</div>`;
-  }
-
-  async function loadKpatchNext() {
-    try {
-      const data = await api('/api/kpatch-next', { timeout: 20000 });
-      renderKpatchNext(data);
-      return data;
-    } catch (error) {
-      state.tools.kpatchNext = null;
-      $('kpatch-next-enabled').disabled = true;
-      $('kpatch-next-status').textContent = `无法读取：${errorMessage(error)}`;
-      throw error;
-    }
-  }
-
   async function loadTools() {
     const mode = toolMode();
     const lateLoad = mode === 'late-load';
     const gki = mode === 'gki';
     const lkm = mode === 'lkm';
-    $('tools-summary').textContent = lateLoad ? 'Late-load 模式 · 内核扩展管理不可用' : gki ? 'GKI 模式 · 原生 KPM 与 SUSFS' : lkm ? 'LKM 模式 · KPatch-Next 与 PathMask' : '内核模式未知';
+    $('tools-summary').textContent = lateLoad ? 'Late-load 模式 · 内核扩展管理不可用' : gki ? 'GKI 模式 · 原生 KPM 与 SUSFS' : lkm ? 'LKM 模式 · KPM 与 PathMask' : '内核模式未知';
     $('tools-runtime').innerHTML = `<b>${gki ? 'GKI' : lkm ? 'LKM' : lateLoad ? 'Late-load' : '未知模式'}</b><span>${lateLoad ? '当前加载方式不支持持久内核扩展。' : '页面只显示当前模式支持的真实能力；所有更改均由 ksud 执行。'}</span>`;
     $('tools-runtime').className = `notice${lateLoad || (!gki && !lkm) ? ' warn' : ''}`;
     showToolPanel('kpm-panel', gki || lkm);
     showToolPanel('susfs-panel', gki);
     showToolPanel('pathmask-panel', lkm);
-    showToolPanel('kpatch-next-panel', lkm);
     const jobs = [];
     if (gki || lkm) jobs.push(loadKpm());
     if (gki) jobs.push(loadSusfs());
-    if (lkm) jobs.push(loadPathmask(), loadKpatchNext());
+    if (lkm) jobs.push(loadPathmask());
     const results = await Promise.allSettled(jobs);
     const failures = results.filter((result) => result.status === 'rejected').length;
     if (failures && jobs.length && failures === jobs.length) throw new Error('当前模式的内核工具均无法读取');
@@ -1995,7 +1967,6 @@
     else if (event.target.id === 'theme-select') { applyTheme(event.target.value); }
     else if (event.target.id === 'auto-start') { changeAutoStart(event.target); }
     else if (event.target.id === 'kpm-policy') { postTool('/api/kpm/policy', { enabled: event.target.checked }, event.target, 'KPM 策略已更新'); }
-    else if (event.target.id === 'kpatch-next-enabled') { postTool('/api/kpatch-next', { action: event.target.checked ? 'enable' : 'disable' }, event.target, 'KPatch-Next 状态已更新'); }
   });
 
   $('module-search').addEventListener('input', (event) => { state.moduleQuery = event.target.value; renderModules(); });

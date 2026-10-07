@@ -53,7 +53,6 @@ import me.weishu.kernelsu.ui.util.getKpmExcludedApps
 import me.weishu.kernelsu.ui.util.getKpmList
 import me.weishu.kernelsu.ui.util.getNativeWebManagerUrl
 import me.weishu.kernelsu.ui.util.importKpm
-import me.weishu.kernelsu.ui.util.isManagerHiddenModuleId
 import me.weishu.kernelsu.ui.util.listModulesWithTimeout
 import me.weishu.kernelsu.ui.util.loadKpm
 import me.weishu.kernelsu.ui.util.parseKpmEntries
@@ -518,7 +517,6 @@ internal object WebManagerServer {
             method == "GET" && path == "/api/features" -> HttpResponse(200, featuresJson())
             method == "GET" && path == "/api/tools" -> HttpResponse(200, toolsJson())
             method == "GET" && path == "/api/tools/reboot" -> HttpResponse(200, rebootStatusJson())
-            method == "POST" && path == "/api/tools/kpatch" -> handleKPatchAction(body)
             method == "POST" && path == "/api/tools/pathmask" -> handlePathmaskAction(body)
             method == "POST" && path == "/api/tools/cpu-spoof" -> handleCpuSpoofAction(body)
             method == "POST" && path == "/api/tools/reboot" -> handleRebootAction(body)
@@ -605,7 +603,7 @@ internal object WebManagerServer {
         return (0 until array.length()).mapNotNull { index -> array.optJSONObject(index) }
             .filter { module ->
                 val id = module.optString("id").trim()
-                id.isNotBlank() && !isManagerHiddenModuleId(id)
+                id.isNotBlank()
             }
     }
 
@@ -663,9 +661,6 @@ internal object WebManagerServer {
         ?.firstOrNull { it.optString("id").trim() == moduleId }
 
     private fun handleModuleAction(action: WebManagerRoutes.ModuleApiPath): HttpResponse {
-        if (isManagerHiddenModuleId(action.moduleId)) {
-            return HttpResponse(400, jsonError("module cannot be managed", "module_cannot_be_managed"))
-        }
         val success = when (action.action) {
             "enable" -> toggleModule(action.moduleId, true)
             "disable" -> toggleModule(action.moduleId, false)
@@ -689,9 +684,6 @@ internal object WebManagerServer {
     }
 
     private fun startModuleAction(moduleId: String): HttpResponse {
-        if (isManagerHiddenModuleId(moduleId)) {
-            return HttpResponse(400, jsonError("module cannot be managed", "module_cannot_be_managed"))
-        }
         val module = findModule(moduleId) ?: run {
             diagnostics.warn("action", "module not found for action: $moduleId")
             return errorResponse(404, "module_not_found", "模块不存在或尚未加载")
@@ -830,9 +822,6 @@ internal object WebManagerServer {
     }
 
     private fun moduleIconResponse(moduleId: String): HttpResponse {
-        if (isManagerHiddenModuleId(moduleId)) {
-            return HttpResponse(404, jsonError("module icon unavailable"))
-        }
         val module = findModule(moduleId) ?: return HttpResponse(404, jsonError("module icon unavailable"))
         val iconPath = module.optString("webuiIcon").trim()
             .takeIf { WebManagerRoutes.isModuleIconPath("$MODULES_ROOT/$moduleId", it) }
@@ -1902,37 +1891,11 @@ internal object WebManagerServer {
 
     /**
      * 与原生「设置 → 挂载与隐藏 / 工具箱」同一套工具：
-     * KPatch-Next、隐藏路径（pathmask）、CPU 伪装、语言、软重启。
+     * 隐藏路径（pathmask）、CPU 伪装、语言、软重启。
      * 状态全部来自原生仓库/`ksud`，失败写诊断而不是编数据。
      */
     private fun toolsJson(): String {
         val root = JSONObject()
-
-        val kpatch = runWithDeadline(TOOLS_QUERY_DEADLINE_MILLIS, "tool-kpatch") {
-            runBlocking { settingsRepository.getKPatchNextStatus() }
-        }
-        root.put(
-            "kpatchNext",
-            if (kpatch == null) {
-                diagnostics.warn("tools", "kpatch-next status unavailable")
-                JSONObject().put("available", false)
-            } else {
-                JSONObject()
-                    .put("available", true)
-                    .put("installed", kpatch.installed)
-                    .put("enabled", kpatch.enabled)
-                    .put("version", kpatch.version)
-                    .put("versionCode", kpatch.versionCode)
-                    .put("moduleName", kpatch.moduleName)
-                    .put("pendingUpdate", kpatch.pendingUpdate)
-                    .put("pendingRemove", kpatch.pendingRemove)
-                    .put("unresolved", kpatch.unresolved)
-                    .put("webUi", kpatch.webUi)
-                    .put("builtinAvailable", kpatch.builtinAvailable)
-                    .put("conflict", kpatch.conflict ?: JSONObject.NULL)
-                    .put("error", kpatch.error)
-            },
-        )
 
         val cpu = runWithDeadline(TOOLS_QUERY_DEADLINE_MILLIS, "tool-cpu-spoof") {
             runBlocking { getCpuSpoofStatus() }
@@ -2024,21 +1987,6 @@ internal object WebManagerServer {
             HttpResponse(200, JSONObject().put("ok", true).put("url", url).toString())
         } else {
             errorResponse(503, "native_web_manager_unavailable", "无法启动 ksud 网页管理器")
-        }
-    }
-
-    private fun handleKPatchAction(body: String?): HttpResponse {
-        val payload = runCatching { JSONObject(body.orEmpty()) }.getOrNull()
-            ?: return errorResponse(400, "bad_request", "请求内容不是合法 JSON")
-        val enabled = payload.optBoolean("enabled", false)
-        val ok = runWithDeadline(TOOLS_ACTION_DEADLINE_MILLIS, "tool-kpatch-set") {
-            runBlocking { settingsRepository.setKPatchNextEnabled(enabled) }
-        } == true
-        diagnostics.info("tools", "kpatch-next enabled=$enabled -> $ok")
-        return if (ok) {
-            HttpResponse(200, JSONObject().put("ok", true).put("enabled", enabled).toString())
-        } else {
-            errorResponse(500, "tool_failed", "KPatch-Next 开关写入失败或超时")
         }
     }
 
@@ -2766,14 +2714,6 @@ internal object WebManagerServer {
             )
         }
         val asset = resolution as WebManagerRoutes.AssetResolution.Asset
-        if (isManagerHiddenModuleId(asset.moduleId)) {
-            return webUiUnavailableResponse(
-                moduleId = asset.moduleId,
-                reason = "该模块的 WebUI 不被网页管理器提供服务（隐藏模块 ID）",
-                status = 404,
-                wantsHtml = wantsHtml,
-            )
-        }
         // Relative script tags inside the module resolve to this namespace, so
         // the bridge is served here as well as from its absolute path.
         if (WebManagerRoutes.isBridgePath(asset.relativePath)) {
@@ -2840,8 +2780,8 @@ internal object WebManagerServer {
     }
 
     private fun activeWebModuleRecord(id: String): JSONObject? {
-        if (!WebManagerSecurity.isValidModuleId(id) || isManagerHiddenModuleId(id)) {
-            diagnostics.warn("webui", "invalid or hidden module id: $id")
+        if (!WebManagerSecurity.isValidModuleId(id)) {
+            diagnostics.warn("webui", "invalid module id: $id")
             return null
         }
         val module = findModule(id) ?: run {

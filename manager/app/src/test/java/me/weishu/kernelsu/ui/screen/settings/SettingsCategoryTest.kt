@@ -22,7 +22,15 @@ class SettingsCategoryTest {
         SettingsPageMode.entries.forEach { mode ->
             assertEquals(mode, SettingsPageMode.fromValue(mode.value))
         }
+        assertEquals(SettingsPageMode.entries.size, SettingsPageMode.entries.map { it.value }.distinct().size)
         assertEquals(SettingsPageMode.Categories, SettingsPageMode.fromValue(null))
         assertEquals(SettingsPageMode.Categories, SettingsPageMode.fromValue("unknown"))
+    }
+
+    @Test
+    fun overviewProvidesExactlyOneEntryForEveryCategory() {
+        val overviewCategories = overviewPrimaryCategories + overviewQuickCategories
+        assertEquals(SettingsCategory.entries.size, overviewCategories.size)
+        assertEquals(SettingsCategory.entries.toSet(), overviewCategories.toSet())
     }
 }

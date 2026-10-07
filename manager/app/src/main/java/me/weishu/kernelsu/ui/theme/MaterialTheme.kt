@@ -13,6 +13,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.view.WindowInsetsControllerCompat
+import me.weishu.kernelsu.ui.InterfaceStyle
+import me.weishu.kernelsu.ui.LocalInterfaceStyle
 import me.weishu.kernelsu.ui.util.AppFontState
 import me.weishu.kernelsu.ui.util.resolveAppFontFamily
 import me.weishu.kernelsu.ui.webui.MonetColorsProvider
@@ -45,7 +47,11 @@ fun MaterialKernelSUTheme(
         }
     }
 
-    val animatedColorScheme = colorScheme.animateAsState()
+    val sidebar = LocalInterfaceStyle.current == InterfaceStyle.SidebarWidget.value
+    val effectiveColorScheme = if (sidebar) {
+        sidebarColorScheme(colorScheme, dark = darkTheme, amoled = amoledMode)
+    } else colorScheme
+    val animatedColorScheme = effectiveColorScheme.animateAsState()
     val appFontFamily = remember(appFontState) {
         resolveAppFontFamily(context, appFontState)
     }
@@ -57,6 +63,7 @@ fun MaterialKernelSUTheme(
         colorScheme = animatedColorScheme,
         motionScheme = MotionScheme.expressive(),
         typography = materialTypography,
+        shapes = if (sidebar) SidebarUiTokens.Shapes else null,
         content = {
             CompositionLocalProvider(
                 LocalContentColor provides animatedColorScheme.onBackground.copy(

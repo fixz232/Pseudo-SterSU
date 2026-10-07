@@ -227,14 +227,6 @@ fun SettingPagerMaterial(
                         },
                         {
                             MaterialSettingsLink(
-                                title = stringResource(R.string.home_layout_title),
-                                summary = stringResource(R.string.home_layout_settings_summary),
-                                icon = Icons.Rounded.Dashboard,
-                                onClick = actions.onOpenHomeLayout,
-                            )
-                        },
-                        {
-                            MaterialSettingsLink(
                                 title = stringResource(R.string.settings_navigation_icons),
                                 summary = stringResource(R.string.settings_navigation_icons_summary),
                                 icon = Icons.Rounded.Apps,
@@ -408,34 +400,7 @@ fun SettingPagerMaterial(
                                     onCheckedChange = actions.onSetDefaultUmountModules,
                                 )
                             }
-                            add {
-                                SegmentedSwitchItem(
-                                    icon = Icons.Filled.DeveloperMode,
-                                    title = stringResource(R.string.settings_kpatch_next),
-                                    summary = kPatchNextSummary(uiState),
-                                    enabled = uiState.canToggleKPatchNext,
-                                    checked = uiState.isKPatchNextSwitchChecked,
-                                    onCheckedChange = actions.onSetKPatchNextEnabled,
-                                )
-                            }
-                            if (uiState.isKPatchNextEnabled || uiState.canOpenKPatchNextWebUi) {
-                                add {
-                                    MaterialSettingsLink(
-                                        title = stringResource(R.string.settings_kpatch_next_webui),
-                                        summary = stringResource(
-                                            if (uiState.canOpenKPatchNextWebUi) {
-                                                R.string.settings_kpatch_next_webui_summary
-                                            } else {
-                                                R.string.settings_kpatch_next_webui_disabled_summary
-                                            },
-                                        ),
-                                        icon = Icons.Rounded.Apps,
-                                        enabled = uiState.canOpenKPatchNextWebUi,
-                                        onClick = actions.onOpenKPatchNextWebUi,
-                                    )
-                                }
-                            }
-                            add {
+                            if (uiState.isPathConfigEntryVisible) add {
                                 MaterialSettingsLink(
                                     title = pathConfigTitle(uiState),
                                     summary = pathConfigSummary(uiState),

@@ -1,4 +1,4 @@
-use crate::module::{handle_updated_modules, prune_modules};
+use crate::module::{ScriptWait, handle_updated_modules, prune_modules};
 use crate::utils::{is_safe_mode, switch_mnt_ns};
 use crate::{
     assets, defs, ksucalls, metamodule, restorecon,
@@ -6,14 +6,14 @@ use crate::{
 };
 use anyhow::{Context, Result};
 use libc::_exit;
-use log::{info, warn};
+use log::{error, info, warn};
 use prop_rs_android::resetprop::ResetProp;
 use prop_rs_android::sys_prop;
 use rustix::process::chdir;
-use std::path::Path;
 use std::process::Command;
+use std::{path::Path, time::Instant};
 
-pub fn on_post_data_fs() -> Result<()> {
+pub fn on_post_fs_data() -> Result<()> {
     if ksucalls::is_uapi_version_mismatch() {
         warn!(
             "Kernel and userspace uapi version mismatch; continue post-fs-data with compatible paths"
@@ -37,9 +37,7 @@ pub fn on_post_data_fs() -> Result<()> {
         warn!("clear temp configs failed: {e}");
     }
 
-    #[cfg(unix)]
     let _ = catch_bootlog("logcat", &["logcat", "-b", "all"]);
-    #[cfg(unix)]
     let _ = catch_bootlog("dmesg", &["dmesg", "-w", "-r"]);
 
     if rescue_skip_modules {
@@ -66,6 +64,7 @@ pub fn on_post_data_fs() -> Result<()> {
     }
 
     let safe_mode = crate::utils::is_safe_mode();
+    let wait = ScriptWait::Until(Instant::now() + defs::BOOT_STAGE_TIMEOUT);
 
     if safe_mode {
         // we should still ensure module directory exists in safe mode
@@ -73,7 +72,7 @@ pub fn on_post_data_fs() -> Result<()> {
         warn!("safe mode, skip common post-fs-data.d scripts");
     } else {
         // Then exec common post-fs-data scripts
-        if let Err(e) = crate::module::exec_common_scripts("post-fs-data.d", true) {
+        if let Err(e) = crate::module::exec_common_scripts("post-fs-data.d", wait) {
             warn!("exec common post-fs-data scripts failed: {e}");
         }
     }
@@ -135,13 +134,12 @@ pub fn on_post_data_fs() -> Result<()> {
     crate::pathmask::apply_if_configured();
 
     // execute metamodule post-fs-data script first (priority)
-    if let Err(e) = metamodule::exec_stage_script("post-fs-data", true) {
+    if let Err(e) = metamodule::exec_stage_script("post-fs-data", wait) {
         warn!("exec metamodule post-fs-data script failed: {e}");
     }
 
     // exec modules post-fs-data scripts
-    // TODO: Add timeout
-    if let Err(e) = crate::module::exec_stage_script("post-fs-data", true) {
+    if let Err(e) = crate::module::exec_stage_script("post-fs-data", wait) {
         warn!("exec post-fs-data scripts failed: {e}");
     }
 
@@ -158,14 +156,14 @@ pub fn on_post_data_fs() -> Result<()> {
         warn!("execute metamodule mount failed: {e}");
     }
 
-    run_stage("post-mount", true);
+    run_stage("post-mount", wait);
 
     std::env::set_current_dir("/").with_context(|| "failed to chdir to /")?;
 
     Ok(())
 }
 
-pub fn run_stage(stage: &str, block: bool) {
+pub fn run_stage(stage: &str, wait: ScriptWait) {
     utils::umask(0);
 
     if crate::rescue::should_skip_modules_this_boot() {
@@ -197,7 +195,7 @@ pub fn run_stage(stage: &str, block: bool) {
         }
     }
 
-    if let Err(e) = crate::module::exec_common_scripts(&format!("{stage}.d"), block) {
+    if let Err(e) = crate::module::exec_common_scripts(&format!("{stage}.d"), wait) {
         warn!("Failed to exec common {stage} scripts: {e}");
     }
 
@@ -206,12 +204,12 @@ pub fn run_stage(stage: &str, block: bool) {
     }
 
     // execute metamodule stage script first (priority)
-    if let Err(e) = metamodule::exec_stage_script(stage, block) {
+    if let Err(e) = metamodule::exec_stage_script(stage, wait) {
         warn!("Failed to exec metamodule {stage} script: {e}");
     }
 
     // execute regular modules stage scripts
-    if let Err(e) = crate::module::exec_stage_script(stage, block) {
+    if let Err(e) = crate::module::exec_stage_script(stage, wait) {
         warn!("Failed to exec {stage} scripts: {e}");
     }
 }
@@ -223,11 +221,23 @@ pub fn on_services() {
         );
     }
 
+    match ksucalls::report_services() {
+        Ok(true) => {}
+        Ok(false) => {
+            info!("services already started, skipping");
+            return;
+        }
+        Err(e) => {
+            error!("Failed to report services: {e:#}");
+            return;
+        }
+    }
+
     info!("on_services triggered!");
     if let Err(e) = utils::daemonize(true) {
         warn!("failed to daemonize services runner: {e}");
     }
-    run_stage("service", false);
+    run_stage("service", ScriptWait::NoWait);
 }
 
 pub fn on_boot_completed() {
@@ -248,7 +258,7 @@ pub fn on_boot_completed() {
     crate::rescue::mark_boot_completed();
     crate::kpm::mark_boot_completed();
 
-    run_stage("boot-completed", false);
+    run_stage("boot-completed", ScriptWait::NoWait);
     // post-fs-data is the preferred early window. Retry here for devices whose
     // property service was not ready during that stage.
     crate::epkesu_hide::apply_if_enabled();
@@ -289,7 +299,6 @@ fn wait_for_boot_completed() -> Result<()> {
     Ok(())
 }
 
-#[cfg(unix)]
 fn catch_bootlog(logname: &str, command: &[&str]) -> Result<()> {
     use std::os::unix::process::CommandExt;
     use std::process::Stdio;
@@ -305,7 +314,7 @@ fn catch_bootlog(logname: &str, command: &[&str]) -> Result<()> {
 
     let bootlog = std::fs::File::create(bootlog)?;
 
-    let mut args = vec!["-s", "9", "30s"];
+    let mut args = vec!["-s", "9", defs::BOOTLOG_TIMEOUT];
     args.extend_from_slice(command);
     // timeout -s 9 30s logcat > boot.log
     let result = unsafe {
@@ -345,14 +354,17 @@ pub fn soft_reboot() -> Result<()> {
     if let Err(e) = reset_boot_completed() {
         warn!("reset boot completed failed: {e}");
     }
-    run_stage("emulated-soft-reboot", true);
+    run_stage(
+        "emulated-soft-reboot",
+        ScriptWait::Until(Instant::now() + defs::BOOT_STAGE_TIMEOUT),
+    );
     info!("stop");
     let status = Command::new("stop").status().context("stop failed")?;
     if !status.success() {
         warn!("stop exited with status: {status}");
     }
     info!("post-fs-data");
-    on_post_data_fs()?;
+    on_post_fs_data()?;
     info!("start");
     let status = Command::new("start").status().context("start failed")?;
     if !status.success() {

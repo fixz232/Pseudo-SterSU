@@ -25,7 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Warning
-import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -52,6 +52,8 @@ import androidx.compose.ui.unit.dp
 import me.weishu.kernelsu.KernelVersion
 import me.weishu.kernelsu.Natives
 import me.weishu.kernelsu.R
+import me.weishu.kernelsu.ui.InterfaceStyle
+import me.weishu.kernelsu.ui.LocalInterfaceStyle
 import me.weishu.kernelsu.ui.component.WarningLevel
 import me.weishu.kernelsu.ui.component.dialog.rememberConfirmDialog
 import me.weishu.kernelsu.ui.component.material.ExpressiveScaffold
@@ -60,6 +62,7 @@ import me.weishu.kernelsu.ui.component.material.rememberExpressivePageScrollBeha
 import me.weishu.kernelsu.ui.component.material.TonalCard
 import me.weishu.kernelsu.ui.component.material.expressiveTopAppBarColors
 import me.weishu.kernelsu.ui.component.rebootlistpopup.RebootListPopup
+import me.weishu.kernelsu.ui.util.SidebarHomeLayout
 import me.weishu.kernelsu.ui.component.statustag.StatusTag
 
 @Composable
@@ -67,6 +70,7 @@ fun HomePagerMaterial(
     state: HomeUiState,
     actions: HomeActions,
     bottomInnerPadding: Dp,
+    sidebarHomeLayout: SidebarHomeLayout = SidebarHomeLayout.Material,
 ) {
     val scrollBehavior = rememberExpressivePageScrollBehavior()
 
@@ -136,14 +140,15 @@ fun HomePagerMaterial(
             if (state.showRootWarning) {
                 WarningCard(stringResource(id = R.string.grant_root_failed))
             }
-            StatusCard(
-                state = state,
-                actions = actions,
-            )
-            if (state.isKernelActive) {
-                MaterialMetricCards(state = state, actions = actions)
+            if (sidebarHomeLayout == SidebarHomeLayout.StatusCards) {
+                SidebarStatusCards(state = state, actions = actions)
+            } else {
+                StatusCard(state = state, actions = actions)
+                if (state.isKernelActive) {
+                    MaterialMetricCards(state = state, actions = actions)
+                }
+                InfoCard(systemInfo = state.systemInfo)
             }
-            InfoCard(systemInfo = state.systemInfo)
             if (state.showHomeSupportCard) {
                 DonateCard(onOpenUrl = actions.onOpenUrl)
             }
@@ -167,12 +172,14 @@ private fun TopBar(
             if (showSusfs) {
                 IconButton(onClick = onSusfsClick) {
                     Icon(
-                        Icons.Rounded.VisibilityOff,
+                        Icons.Rounded.Apps,
                         contentDescription = stringResource(R.string.home_susfs_path),
                     )
                 }
             }
-            RebootListPopup()
+            if (LocalInterfaceStyle.current != InterfaceStyle.SidebarWidget.value) {
+                RebootListPopup()
+            }
         },
         colors = expressiveTopAppBarColors(),
         windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),

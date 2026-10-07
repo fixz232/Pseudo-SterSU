@@ -54,7 +54,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -82,6 +81,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.dropUnlessResumed
 import me.weishu.kernelsu.R
+import me.weishu.kernelsu.ui.InterfaceStyle
+import me.weishu.kernelsu.ui.LocalInterfaceStyle
+import me.weishu.kernelsu.ui.component.material.ExpressiveScaffold
 import me.weishu.kernelsu.ui.component.bottombar.SidebarRailItem
 import me.weishu.kernelsu.ui.component.bottombar.SidebarRailLayout
 import me.weishu.kernelsu.ui.component.bottombar.LocalSidebarGlassBackdrop
@@ -91,6 +93,7 @@ import me.weishu.kernelsu.ui.component.bottombar.sidebarPaneShape
 import me.weishu.kernelsu.ui.component.bottombar.MainDestination
 import me.weishu.kernelsu.ui.component.bottombar.NavigationDestinationIcon
 import me.weishu.kernelsu.ui.component.bottombar.mainDestinations
+import me.weishu.kernelsu.ui.component.bottombar.labelFor
 import me.weishu.kernelsu.ui.component.bottombar.orderSidebarDestinations
 import me.weishu.kernelsu.ui.component.bottombar.stateFor
 import me.weishu.kernelsu.ui.theme.isInDarkTheme
@@ -106,6 +109,7 @@ import me.weishu.kernelsu.ui.util.SIDEBAR_NAV_SUPERUSER
 import me.weishu.kernelsu.ui.util.SIDEBAR_WIDGET_IMAGE_STORAGE_KEY
 import me.weishu.kernelsu.ui.util.SidebarClockStyle
 import me.weishu.kernelsu.ui.util.SidebarImageShape
+import me.weishu.kernelsu.ui.util.SidebarHomeLayout
 import me.weishu.kernelsu.ui.util.SidebarNavigationPosition
 import me.weishu.kernelsu.ui.util.SidebarSide
 import me.weishu.kernelsu.ui.util.SidebarWidgetConfig
@@ -144,11 +148,11 @@ fun SidebarWidgetSettingsScreen() {
             storageKey = SIDEBAR_WIDGET_IMAGE_STORAGE_KEY,
             maxBytes = 12L * 1024L * 1024L,
         ) ?: uri.toString().also { takePersistableImageReadPermission(context, uri) }
-        update(config.copy(imageUriString = stored, widgetType = SidebarWidgetType.Image))
+        update(config.copy(imageUriString = stored))
         if (previous != stored) releaseCustomImageReference(context, previous)
     }
 
-    Scaffold(
+    ExpressiveScaffold(
         containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets.navigationBars,
         topBar = {
@@ -159,7 +163,11 @@ fun SidebarWidgetSettingsScreen() {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = if (LocalInterfaceStyle.current == InterfaceStyle.SidebarWidget.value) {
+                        MaterialTheme.colorScheme.surface
+                    } else Color.Transparent,
+                ),
             )
         },
     ) { innerPadding ->
@@ -270,6 +278,26 @@ private fun SidebarWidgetControls(
             }
         }
         if (selectedSection == 1) {
+            SettingsSection(
+                title = stringResource(R.string.sidebar_home_layout_title),
+                icon = Icons.Rounded.Home,
+            ) {
+                Text(
+                    stringResource(R.string.sidebar_home_layout_summary),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SidebarHomeLayout.entries.forEach { layout ->
+                        FilterChip(
+                            selected = config.homeLayout == layout,
+                            onClick = { onUpdate(config.copy(homeLayout = layout)) },
+                            label = { Text(stringResource(layout.labelRes())) },
+                            modifier = Modifier.heightIn(min = 48.dp),
+                        )
+                    }
+                }
+            }
             Row(
                 modifier = Modifier.fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
@@ -307,6 +335,17 @@ private fun SidebarWidgetControls(
         }
         if (selectedSection == 0) {
             SettingsSection(
+                title = stringResource(R.string.sidebar_avatar_title),
+                icon = Icons.Rounded.Image,
+            ) {
+                Text(
+                    stringResource(R.string.sidebar_avatar_summary),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                AvatarOptions(config, onUpdate, onPickImage, onClearImage)
+            }
+            SettingsSection(
                 title = stringResource(R.string.sidebar_widget_component_title),
                 icon = Icons.Rounded.Tune,
             ) {
@@ -328,7 +367,6 @@ private fun SidebarWidgetControls(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    SidebarWidgetType.Image -> ImageOptions(config, onUpdate, onPickImage, onClearImage)
                 }
             }
         }
@@ -417,18 +455,18 @@ private fun ClockOptions(config: SidebarWidgetConfig, onUpdate: (SidebarWidgetCo
 }
 
 @Composable
-private fun ImageOptions(
+private fun AvatarOptions(
     config: SidebarWidgetConfig,
     onUpdate: (SidebarWidgetConfig) -> Unit,
     onPickImage: () -> Unit,
     onClearImage: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilledTonalButton(onClick = onPickImage, modifier = Modifier.weight(1f)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilledTonalButton(onClick = onPickImage) {
                 Icon(Icons.Rounded.ImageSearch, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.sidebar_widget_choose_image))
+                Text(stringResource(R.string.sidebar_avatar_choose))
             }
             if (config.imageUriString != null) {
                 OutlinedButton(onClick = onClearImage) {
@@ -439,7 +477,7 @@ private fun ImageOptions(
             }
         }
         Text(
-            text = stringResource(R.string.sidebar_widget_image_shape_title),
+            text = stringResource(R.string.sidebar_avatar_shape),
             style = MaterialTheme.typography.labelLarge,
         )
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -514,18 +552,25 @@ private fun SidebarWidgetPreviewPanes(config: SidebarWidgetConfig, railAtStart: 
                     navigationCount = destinations.size,
                 ) {
                     destinations.forEach { destination ->
-                        SidebarRailItem(selected = destination == MainDestination.Home) {
+                        SidebarRailItem(
+                            selected = destination == MainDestination.Home,
+                            label = customIcons.labelFor(destination, stringResource(destination.label)),
+                        ) {
                             NavigationDestinationIcon(
                                 destination = destination,
                                 state = customIcons.stateFor(destination),
-                                contentDescription = stringResource(destination.label),
+                                contentDescription = null,
                                 tint = if (dark) Color(0xFFF5F5F5) else Color(0xFF161616),
                             )
                         }
                     }
                 }
             } else {
-                SidebarMaterialPreviewContent(railAtStart, Modifier.weight(1f))
+                if (config.homeLayout == SidebarHomeLayout.StatusCards) {
+                    SidebarStatusPreviewContent(railAtStart, Modifier.weight(1f))
+                } else {
+                    SidebarMaterialPreviewContent(railAtStart, Modifier.weight(1f))
+                }
             }
         }
     }
@@ -577,6 +622,58 @@ private fun SidebarMaterialPreviewContent(railAtStart: Boolean, modifier: Modifi
     }
 }
 
+@Composable
+private fun SidebarStatusPreviewContent(railAtStart: Boolean, modifier: Modifier = Modifier) {
+    val cardColor = MaterialTheme.colorScheme.surfaceContainer
+    val textColor = MaterialTheme.colorScheme.onSurface
+    Column(
+        modifier = modifier
+            .fillMaxHeight()
+            .clip(sidebarPaneShape(edgeAtStart = railAtStart))
+            .background(MaterialTheme.colorScheme.surface)
+            .verticalScroll(rememberScrollState())
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            stringResource(R.string.sidebar_home_layout_cards),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        Surface(shape = MaterialTheme.shapes.large, color = cardColor) {
+            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(stringResource(R.string.home_title), color = textColor, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.home_working), color = textColor, fontWeight = FontWeight.Bold)
+            }
+        }
+        Surface(shape = MaterialTheme.shapes.large, color = cardColor) {
+            Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                Text(stringResource(R.string.superuser) + "  —", color = textColor, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.module) + "  —", color = textColor, fontWeight = FontWeight.Bold)
+            }
+        }
+        Surface(shape = MaterialTheme.shapes.large, color = cardColor) {
+            Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                Text(stringResource(R.string.home_selinux_status), color = textColor, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.home_seccomp_status), color = textColor, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.home_fingerprint), color = textColor, fontWeight = FontWeight.Bold)
+            }
+        }
+        Surface(shape = MaterialTheme.shapes.large, color = cardColor) {
+            Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                Text(stringResource(R.string.home_manager_version), color = textColor, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.home_kernel), color = textColor, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@StringRes
+private fun SidebarHomeLayout.labelRes(): Int = when (this) {
+    SidebarHomeLayout.Material -> R.string.sidebar_home_layout_material
+    SidebarHomeLayout.StatusCards -> R.string.sidebar_home_layout_cards
+}
+
 private data class NavigationSpec(@StringRes val labelRes: Int, val icon: ImageVector)
 
 private fun navigationSpec(id: String): NavigationSpec? = when (id) {
@@ -601,14 +698,12 @@ private fun SidebarWidgetType.labelRes(): Int = when (this) {
     SidebarWidgetType.Clock -> R.string.sidebar_widget_type_clock
     SidebarWidgetType.Weather -> R.string.sidebar_widget_type_weather
     SidebarWidgetType.Alarm -> R.string.sidebar_widget_type_alarm
-    SidebarWidgetType.Image -> R.string.sidebar_widget_type_image
 }
 
 private fun SidebarWidgetType.icon(): ImageVector = when (this) {
     SidebarWidgetType.Clock -> Icons.Rounded.Schedule
     SidebarWidgetType.Weather -> Icons.Rounded.Cloud
     SidebarWidgetType.Alarm -> Icons.Rounded.Alarm
-    SidebarWidgetType.Image -> Icons.Rounded.Image
 }
 
 @StringRes
@@ -623,7 +718,6 @@ private fun SidebarImageShape.labelRes(): Int = when (this) {
     SidebarImageShape.Circle -> R.string.sidebar_widget_shape_circle
     SidebarImageShape.Square -> R.string.sidebar_widget_shape_square
     SidebarImageShape.Diamond -> R.string.sidebar_widget_shape_diamond
-    SidebarImageShape.Star -> R.string.sidebar_widget_shape_star
     SidebarImageShape.Triangle -> R.string.sidebar_widget_shape_triangle
 }
 

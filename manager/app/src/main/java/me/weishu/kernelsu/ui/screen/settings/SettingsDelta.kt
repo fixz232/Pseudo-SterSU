@@ -164,12 +164,6 @@ fun SettingPagerDelta(
                     icon = Icons.Rounded.EditNote,
                     onClick = actions.onEditHomeTitle,
                 )
-                DeltaActionRow(
-                    title = stringResource(R.string.home_layout_title),
-                    summary = stringResource(R.string.home_layout_settings_summary),
-                    icon = Icons.Rounded.Apps,
-                    onClick = actions.onOpenHomeLayout,
-                )
                 DeltaSwitchRow(
                     title = stringResource(R.string.settings_show_home_support_card),
                     summary = stringResource(R.string.settings_show_home_support_card_summary),
@@ -206,37 +200,15 @@ fun SettingPagerDelta(
                     checked = uiState.isDefaultUmountModules,
                     onCheckedChange = actions.onSetDefaultUmountModules,
                 )
-                DeltaSwitchRow(
-                    title = stringResource(R.string.settings_kpatch_next),
-                    summary = kPatchNextSummary(uiState),
-                    checked = uiState.isKPatchNextSwitchChecked,
-                    enabled = uiState.canToggleKPatchNext,
-                    onCheckedChange = actions.onSetKPatchNextEnabled,
-                )
-                DeltaActionRow(
-                    title = stringResource(R.string.settings_kpatch_next_webui),
-                    summary = stringResource(
-                        if (uiState.canOpenKPatchNextWebUi) {
-                            R.string.settings_kpatch_next_webui_summary
-                        } else {
-                            R.string.settings_kpatch_next_webui_disabled_summary
-                        }
-                    ),
-                    icon = Icons.Rounded.Apps,
-                    enabled = uiState.canOpenKPatchNextWebUi,
-                    onClick = {
-                        if (uiState.canOpenKPatchNextWebUi) {
-                            actions.onOpenKPatchNextWebUi()
-                        }
-                    },
-                )
-                DeltaActionRow(
-                    title = pathConfigTitle(uiState),
-                    summary = pathConfigSummary(uiState),
-                    icon = Icons.Rounded.Visibility,
-                    enabled = uiState.canOpenPathConfig,
-                    onClick = actions.onOpenHiddenPathConfig,
-                )
+                if (uiState.isPathConfigEntryVisible) {
+                    DeltaActionRow(
+                        title = pathConfigTitle(uiState),
+                        summary = pathConfigSummary(uiState),
+                        icon = Icons.Rounded.Visibility,
+                        enabled = uiState.canOpenPathConfig,
+                        onClick = actions.onOpenHiddenPathConfig,
+                    )
+                }
                 DeltaSwitchRow(
                     title = stringResource(R.string.settings_epkesu_hide),
                     summary = stringResource(R.string.settings_epkesu_hide_summary),

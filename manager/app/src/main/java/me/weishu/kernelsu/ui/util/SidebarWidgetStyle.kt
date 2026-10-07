@@ -15,8 +15,7 @@ import androidx.core.content.edit
 enum class SidebarWidgetType(val value: String) {
     Clock("clock"),
     Weather("weather"),
-    Alarm("alarm"),
-    Image("image");
+    Alarm("alarm");
 
     companion object {
         fun fromValue(value: String?): SidebarWidgetType =
@@ -39,7 +38,6 @@ enum class SidebarImageShape(val value: String) {
     Circle("circle"),
     Square("square"),
     Diamond("diamond"),
-    Star("star"),
     Triangle("triangle");
 
     companion object {
@@ -55,7 +53,7 @@ enum class SidebarNavigationPosition(val value: String) {
 
     companion object {
         fun fromValue(value: String?): SidebarNavigationPosition =
-            entries.firstOrNull { it.value == value } ?: Bottom
+            entries.firstOrNull { it.value == value } ?: Center
     }
 }
 
@@ -69,6 +67,16 @@ enum class SidebarSide(val value: String) {
     companion object {
         fun fromValue(value: String?): SidebarSide =
             entries.firstOrNull { it.value == value } ?: Left
+    }
+}
+
+enum class SidebarHomeLayout(val value: String) {
+    Material("material"),
+    StatusCards("status_cards");
+
+    companion object {
+        fun fromValue(value: String?): SidebarHomeLayout =
+            entries.firstOrNull { it.value == value } ?: Material
     }
 }
 
@@ -91,13 +99,15 @@ data class SidebarWidgetConfig(
     val clockStyle: SidebarClockStyle = SidebarClockStyle.Stacked,
     val weatherLabel: String = "",
     val weatherTemperature: String = "",
+    // Retain the original image preference keys so existing artwork becomes the avatar.
     val imageUriString: String? = null,
     val imageShape: SidebarImageShape = SidebarImageShape.Circle,
-    val navigationPosition: SidebarNavigationPosition = SidebarNavigationPosition.Bottom,
+    val navigationPosition: SidebarNavigationPosition = SidebarNavigationPosition.Center,
     val navigationOrder: List<String> = SIDEBAR_NAVIGATION_IDS,
     val side: SidebarSide = SidebarSide.Left,
     val weatherApi: SidebarWeatherConfig = SidebarWeatherConfig(),
     val glassEnabled: Boolean = true,
+    val homeLayout: SidebarHomeLayout = SidebarHomeLayout.Material,
 ) {
     fun normalized(): SidebarWidgetConfig = copy(
         weatherLabel = weatherLabel.trim().take(MAX_WEATHER_LABEL_LENGTH),
@@ -139,6 +149,7 @@ fun readSidebarWidgetConfig(context: Context): SidebarWidgetConfig {
         side = SidebarSide.fromValue(prefs.getString(SIDEBAR_SIDE_KEY, null)),
         weatherApi = readSidebarWeatherConfig(context),
         glassEnabled = prefs.getBoolean(SIDEBAR_GLASS_ENABLED_KEY, true),
+        homeLayout = SidebarHomeLayout.fromValue(prefs.getString(SIDEBAR_HOME_LAYOUT_KEY, null)),
     ).normalized()
 }
 
@@ -160,6 +171,7 @@ fun writeSidebarWidgetConfig(context: Context, config: SidebarWidgetConfig) {
         putString(SIDEBAR_NAVIGATION_ORDER_KEY, value.navigationOrder.joinToString(","))
         putString(SIDEBAR_SIDE_KEY, value.side.value)
         putBoolean(SIDEBAR_GLASS_ENABLED_KEY, value.glassEnabled)
+        putString(SIDEBAR_HOME_LAYOUT_KEY, value.homeLayout.value)
     }
 }
 
@@ -202,6 +214,7 @@ private const val SIDEBAR_NAVIGATION_POSITION_KEY = "sidebar_widget_navigation_p
 private const val SIDEBAR_NAVIGATION_ORDER_KEY = "sidebar_widget_navigation_order"
 private const val SIDEBAR_SIDE_KEY = "sidebar_widget_side"
 private const val SIDEBAR_GLASS_ENABLED_KEY = "sidebar_widget_glass_enabled"
+private const val SIDEBAR_HOME_LAYOUT_KEY = "sidebar_widget_home_layout"
 private const val MAX_WEATHER_LABEL_LENGTH = 24
 private const val MAX_WEATHER_TEMPERATURE_LENGTH = 12
 private val SIDEBAR_WIDGET_KEYS = setOf(
@@ -215,4 +228,5 @@ private val SIDEBAR_WIDGET_KEYS = setOf(
     SIDEBAR_NAVIGATION_ORDER_KEY,
     SIDEBAR_SIDE_KEY,
     SIDEBAR_GLASS_ENABLED_KEY,
+    SIDEBAR_HOME_LAYOUT_KEY,
 )

@@ -48,7 +48,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -77,6 +76,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.weishu.kernelsu.BuildConfig
 import me.weishu.kernelsu.R
+import me.weishu.kernelsu.ui.component.material.ExpressiveScaffold
 import me.weishu.kernelsu.stealth.StealthModeStore
 import me.weishu.kernelsu.ui.navigation3.LocalNavigator
 import me.weishu.kernelsu.ui.navigation3.Route
@@ -100,6 +100,10 @@ import me.weishu.kernelsu.ui.util.disableNativeWebManagerAndVerify
 import me.weishu.kernelsu.ui.util.getInstalledKsudStatus
 import me.weishu.kernelsu.ui.util.hasPluginUpdate
 import me.weishu.kernelsu.ui.util.removeManagerPlugin
+import me.weishu.kernelsu.ui.util.readHiddenPathConfig
+import me.weishu.kernelsu.ui.util.setHiddenPathAutoLoad
+import me.weishu.kernelsu.ui.util.stopPathmaskPluginForRemoval
+import me.weishu.kernelsu.ui.util.unloadHiddenPathKernelPaths
 import me.weishu.kernelsu.ui.webmanager.WebManagerPreferences
 import me.weishu.kernelsu.ui.webmanager.WebManagerServer
 import java.text.DateFormat
@@ -232,6 +236,13 @@ fun PluginStoreScreen() {
                             WebManagerServer.stop()
                             true
                         },
+                        stopPathmask = {
+                            stopPathmaskPluginForRemoval(
+                                readStatus = ::readHiddenPathConfig,
+                                disableAutoLoad = { setHiddenPathAutoLoad(false) },
+                                unload = ::unloadHiddenPathKernelPaths,
+                            )
+                        },
                         removeRecord = { registry.remove(plugin.id) },
                     )
                 }
@@ -253,6 +264,8 @@ fun PluginStoreScreen() {
                         Toast.makeText(context, R.string.plugin_store_disable_stealth_first, Toast.LENGTH_LONG).show()
                     PluginRemovalResult.RemoteManagementStopFailed ->
                         Toast.makeText(context, R.string.plugin_store_stop_failed, Toast.LENGTH_LONG).show()
+                    PluginRemovalResult.PathmaskStopFailed ->
+                        Toast.makeText(context, R.string.plugin_store_pathmask_stop_failed, Toast.LENGTH_LONG).show()
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -287,7 +300,7 @@ fun PluginStoreScreen() {
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val useNavigationRail = maxWidth >= 720.dp
-        Scaffold(
+        ExpressiveScaffold(
             modifier = Modifier.fillMaxSize(),
             containerColor = MaterialTheme.colorScheme.background,
             contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
@@ -822,6 +835,7 @@ private fun pluginSlotLabel(slot: PluginSlot): String = stringResource(
         PluginSlot.MaintenanceStealthMode -> R.string.stealth_mode_title
         PluginSlot.SuperuserAppIdManager -> R.string.app_id_manager_title
         PluginSlot.SuperuserAppFreeze -> R.string.app_freeze_title
+        PluginSlot.MountHidePathmaskLkm -> R.string.hidden_path_config
     },
 )
 

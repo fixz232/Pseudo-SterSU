@@ -12,7 +12,11 @@ from cryptography.hazmat.primitives import serialization
 
 def main() -> int:
     repo = Path(__file__).resolve().parents[1]
-    catalog = repo / "plugin-store" / "catalog-v1.json"
+    version = sys.argv[1] if len(sys.argv) == 2 else "1"
+    if version not in {"1", "2"}:
+        raise SystemExit("Usage: sign-plugin-store.py [1|2]")
+    filename = f"catalog-v{version}"
+    catalog = repo / "plugin-store" / f"{filename}.json"
     key_path = Path(os.environ.get("APKESU_PLUGIN_STORE_KEY", "")).expanduser()
     if not key_path.is_file():
         raise SystemExit(
@@ -23,8 +27,8 @@ def main() -> int:
     )
     signature = base64.b64encode(key.sign(catalog.read_bytes())) + b"\n"
     for output in (
-        repo / "plugin-store" / "catalog-v1.sig",
-        repo / "manager" / "app" / "src" / "main" / "assets" / "plugin-store" / "catalog-v1.sig",
+        repo / "plugin-store" / f"{filename}.sig",
+        repo / "manager" / "app" / "src" / "main" / "assets" / "plugin-store" / f"{filename}.sig",
     ):
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_bytes(signature)

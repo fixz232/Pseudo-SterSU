@@ -18,12 +18,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Android
+import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.InstallMobile
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.WarningAmber
-import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -54,7 +54,7 @@ fun HomePagerAlpha(
     AlphaScreen(
         title = state.customHomeTitle.ifBlank { stringResource(R.string.home) },
         bottomInnerPadding = bottomInnerPadding,
-        topActionIcon = Icons.Rounded.VisibilityOff.takeIf { state.showSusfsPathConfig },
+        topActionIcon = Icons.Rounded.Apps.takeIf { state.showSusfsPathConfig },
         onTopActionClick = actions.onSusfsPathClick,
         topActionContentDescription = stringResource(R.string.home_susfs_path),
     ) { contentPadding ->

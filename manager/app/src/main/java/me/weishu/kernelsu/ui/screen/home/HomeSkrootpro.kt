@@ -19,8 +19,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.CheckBox
-import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -62,7 +62,7 @@ fun HomePagerSkrootpro(
         title = state.customHomeTitle.ifBlank { stringResource(R.string.skrootpro_title) },
         showAdd = state.showSusfsPathConfig,
         onAddClick = actions.onSusfsPathClick,
-        actionIcon = Icons.Rounded.VisibilityOff,
+        actionIcon = Icons.Rounded.Apps,
         actionContentDescription = stringResource(R.string.home_susfs_path),
         bottomInnerPadding = bottomInnerPadding,
     ) { contentPadding ->

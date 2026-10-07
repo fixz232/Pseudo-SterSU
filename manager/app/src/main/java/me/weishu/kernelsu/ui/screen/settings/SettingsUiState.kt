@@ -159,19 +159,7 @@ data class SettingsUiState(
     // Umount Modules
     val isDefaultUmountModules: Boolean = false,
 
-    // Built-in KPatch Next
-    val isKPatchNextInstalled: Boolean = false,
-    val isKPatchNextEnabled: Boolean = false,
-    val isKPatchNextOperationRunning: Boolean = false,
-    val isKPatchNextPendingUpdate: Boolean = false,
-    val isKPatchNextPendingRemove: Boolean = false,
-    val isKPatchNextWebUiAvailable: Boolean = false,
-    val isKPatchNextUnresolved: Boolean = false,
-    val kPatchNextVersion: String = "",
-    val kPatchNextConflict: String? = null,
-
-    // Effective KPM backend reported by ksud. Keep this separate from the
-    // KPatch-Next installation lifecycle because GKI uses Native KPM.
+    // Effective KPM backend reported by ksud; GKI uses Native KPM.
     val kpmBackend: String = "none",
     val isKpmManagementAvailable: Boolean = false,
     val isKpmCapabilityResolved: Boolean = false,
@@ -263,7 +251,6 @@ data class SettingsScreenActions(
     val onEditHomeTitle: () -> Unit,
     val onOpenNavigationIcons: () -> Unit,
     val onOpenSidebarDesign: () -> Unit,
-    val onOpenHomeLayout: () -> Unit,
     val onOpenHomeCardWallpapers: () -> Unit,
     val onOpenVisualEffects: () -> Unit,
     val onOpenUiDecorationLibrary: () -> Unit,
@@ -301,8 +288,6 @@ data class SettingsScreenActions(
     val onSetAdbRootEnabled: (Boolean) -> Unit,
     val onSetAvcSpoofEnabled: (Boolean) -> Unit,
     val onSetDefaultUmountModules: (Boolean) -> Unit,
-    val onSetKPatchNextEnabled: (Boolean) -> Unit,
-    val onOpenKPatchNextWebUi: () -> Unit,
     val onOpenHiddenPathConfig: () -> Unit,
     val onOpenAiChat: () -> Unit,
     val onOpenRescueProtection: () -> Unit,
