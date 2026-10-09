@@ -91,9 +91,9 @@ class SidebarWeatherTest {
             SidebarWeatherCondition.Clear to listOf(0),
             SidebarWeatherCondition.Cloud to listOf(1, 2),
             SidebarWeatherCondition.Fog to listOf(3, 18, 19, 20, 21, 23, 24),
-            SidebarWeatherCondition.Rain to listOf(4, 5, 6, 8, 9, 10, 11),
+            SidebarWeatherCondition.Rain to listOf(4, 5, 6, 8, 9, 10, 11, 25),
             SidebarWeatherCondition.Storm to listOf(7),
-            SidebarWeatherCondition.Snow to listOf(12, 13, 14, 15, 16, 17, 22, 25),
+            SidebarWeatherCondition.Snow to listOf(12, 13, 14, 15, 16, 17, 22),
         )
         expected.forEach { (condition, codes) ->
             codes.forEach { code ->

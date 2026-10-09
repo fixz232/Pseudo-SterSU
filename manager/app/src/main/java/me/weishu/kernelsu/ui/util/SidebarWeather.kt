@@ -258,9 +258,9 @@ internal fun xiaomiWeatherCondition(type: Int?, description: String): SidebarWea
         else SidebarWeatherCondition.Clear
     1, 2 -> SidebarWeatherCondition.Cloud
     3, 18, 19, 20, 21, 23, 24 -> SidebarWeatherCondition.Fog
-    4, 5, 6, 8, 9, 10, 11 -> SidebarWeatherCondition.Rain
+    4, 5, 6, 8, 9, 10, 11, 25 -> SidebarWeatherCondition.Rain
     7 -> SidebarWeatherCondition.Storm
-    12, 13, 14, 15, 16, 17, 22, 25 -> SidebarWeatherCondition.Snow
+    12, 13, 14, 15, 16, 17, 22 -> SidebarWeatherCondition.Snow
     99 -> SidebarWeatherCondition.Unknown
     else -> weatherCondition(description)
 }
