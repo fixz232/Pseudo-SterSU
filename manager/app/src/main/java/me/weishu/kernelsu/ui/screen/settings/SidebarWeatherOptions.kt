@@ -21,6 +21,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -49,7 +50,9 @@ import me.weishu.kernelsu.ui.util.SidebarWeatherError
 import me.weishu.kernelsu.ui.util.SidebarWeatherException
 import me.weishu.kernelsu.ui.util.SidebarWeatherReading
 import me.weishu.kernelsu.ui.util.SidebarWeatherRuntime
+import me.weishu.kernelsu.ui.util.SidebarWeatherSource
 import me.weishu.kernelsu.ui.util.SidebarWidgetConfig
+import me.weishu.kernelsu.ui.util.openMeteoUrl
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -58,7 +61,11 @@ internal fun SidebarWeatherOptions(config: SidebarWidgetConfig, onUpdate: (Sideb
     val scope = rememberCoroutineScope()
     val currentConfig by rememberUpdatedState(config)
     val currentOnUpdate by rememberUpdatedState(onUpdate)
-    var apiMode by remember(config.weatherApi.enabled) { mutableStateOf(config.weatherApi.enabled) }
+    var mode by remember(config.weatherApi) {
+        mutableStateOf(config.weatherApi.source.takeIf { config.weatherApi.canFetch() })
+    }
+    var showXiaomiDisclosure by remember { mutableStateOf(false) }
+    var showOpenMeteoDisclosure by remember { mutableStateOf(false) }
     var draft by remember(config.weatherApi) { mutableStateOf(config.weatherApi) }
     var busy by remember { mutableStateOf(false) }
     var failure by remember { mutableStateOf<SidebarWeatherException?>(null) }
@@ -75,9 +82,9 @@ internal fun SidebarWeatherOptions(config: SidebarWidgetConfig, onUpdate: (Sideb
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(
-                selected = !apiMode, enabled = !busy,
+                selected = mode == null, enabled = !busy,
                 onClick = {
-                    apiMode = false
+                    mode = null
                     failure = null
                     tested = null
                     onUpdate(config.copy(weatherApi = config.weatherApi.copy(enabled = false)))
@@ -85,12 +92,22 @@ internal fun SidebarWeatherOptions(config: SidebarWidgetConfig, onUpdate: (Sideb
                 label = { Text(stringResource(R.string.sidebar_weather_manual)) },
             )
             FilterChip(
-                selected = apiMode, enabled = !busy,
-                onClick = { apiMode = true },
+                selected = mode == SidebarWeatherSource.CustomApi, enabled = !busy,
+                onClick = { mode = SidebarWeatherSource.CustomApi },
                 label = { Text(stringResource(R.string.sidebar_weather_custom_api)) },
             )
+            FilterChip(
+                selected = mode == SidebarWeatherSource.Xiaomi, enabled = !busy,
+                onClick = { mode = SidebarWeatherSource.Xiaomi },
+                label = { Text(stringResource(R.string.sidebar_weather_xiaomi)) },
+            )
+            FilterChip(
+                selected = mode == SidebarWeatherSource.OpenMeteo, enabled = !busy,
+                onClick = { mode = SidebarWeatherSource.OpenMeteo },
+                label = { Text(stringResource(R.string.sidebar_weather_open_meteo)) },
+            )
         }
-        if (!apiMode) {
+        if (mode == null) {
             Text(
                 stringResource(R.string.sidebar_widget_weather_privacy_summary),
                 style = MaterialTheme.typography.bodySmall,
@@ -107,6 +124,146 @@ internal fun SidebarWeatherOptions(config: SidebarWidgetConfig, onUpdate: (Sideb
                 onValueChange = { onUpdate(config.copy(weatherLabel = it)) },
                 modifier = Modifier.fillMaxWidth(), singleLine = true,
                 label = { Text(stringResource(R.string.sidebar_widget_weather_label)) },
+            )
+        } else if (mode == SidebarWeatherSource.Xiaomi) {
+            Text(
+                stringResource(R.string.sidebar_weather_xiaomi_help),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(stringResource(R.string.sidebar_weather_interval), style = MaterialTheme.typography.labelLarge)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SidebarWeatherConfig.REFRESH_INTERVALS.forEach { minutes ->
+                    FilterChip(
+                        selected = draft.refreshMinutes == minutes, enabled = !busy,
+                        onClick = { edit(draft.copy(refreshMinutes = minutes)) },
+                        label = { Text(stringResource(R.string.sidebar_weather_minutes, minutes)) },
+                    )
+                }
+            }
+            val xiaomiEnabled = config.weatherApi.source == SidebarWeatherSource.Xiaomi && config.weatherApi.canFetch()
+            Text(
+                stringResource(if (xiaomiEnabled) R.string.sidebar_weather_xiaomi_enabled else R.string.sidebar_weather_xiaomi_disabled),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            FilledTonalButton(
+                enabled = !busy,
+                modifier = Modifier.fillMaxWidth(),
+                onClick = { showXiaomiDisclosure = true },
+            ) { Text(stringResource(if (xiaomiEnabled) R.string.sidebar_weather_xiaomi_apply else R.string.sidebar_weather_xiaomi_enable)) }
+            if (showXiaomiDisclosure) AlertDialog(
+                onDismissRequest = { showXiaomiDisclosure = false },
+                title = { Text(stringResource(R.string.sidebar_weather_xiaomi_disclosure_title)) },
+                text = { Text(stringResource(R.string.sidebar_weather_xiaomi_disclosure)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val candidate = draft.copy(
+                            enabled = true,
+                            source = SidebarWeatherSource.Xiaomi,
+                            xiaomiAccepted = true,
+                        ).normalized()
+                        showXiaomiDisclosure = false
+                        currentOnUpdate(currentConfig.copy(weatherApi = candidate))
+                        scope.launch { SidebarWeatherRuntime.repository(context).refresh(candidate, force = true) }
+                    }) { Text(stringResource(R.string.sidebar_weather_xiaomi_confirm)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showXiaomiDisclosure = false }) {
+                        Text(stringResource(R.string.sidebar_weather_xiaomi_cancel))
+                    }
+                },
+            )
+        } else if (mode == SidebarWeatherSource.OpenMeteo) {
+            Text(
+                stringResource(R.string.sidebar_weather_open_meteo_help),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedTextField(
+                value = draft.latitude,
+                onValueChange = { edit(draft.copy(latitude = it.take(32))) },
+                modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !busy,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, autoCorrectEnabled = false),
+                label = { Text(stringResource(R.string.sidebar_weather_latitude)) },
+                isError = failure?.reason == SidebarWeatherError.Coordinates,
+            )
+            OutlinedTextField(
+                value = draft.longitude,
+                onValueChange = { edit(draft.copy(longitude = it.take(32))) },
+                modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !busy,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, autoCorrectEnabled = false),
+                label = { Text(stringResource(R.string.sidebar_weather_longitude)) },
+                isError = failure?.reason == SidebarWeatherError.Coordinates,
+            )
+            OutlinedTextField(
+                value = draft.locationLabel,
+                onValueChange = { edit(draft.copy(locationLabel = it.take(48))) },
+                modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !busy,
+                label = { Text(stringResource(R.string.sidebar_weather_location_label)) },
+                supportingText = { Text(stringResource(R.string.sidebar_weather_open_meteo_location_help)) },
+            )
+            Text(stringResource(R.string.sidebar_weather_open_meteo_unit), style = MaterialTheme.typography.labelLarge)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(false, true).forEach { fahrenheit ->
+                    FilterChip(
+                        selected = draft.fahrenheit == fahrenheit, enabled = !busy,
+                        onClick = { edit(draft.copy(fahrenheit = fahrenheit)) },
+                        label = { Text(if (fahrenheit) "\u00b0F" else "\u00b0C") },
+                    )
+                }
+            }
+            Text(stringResource(R.string.sidebar_weather_interval), style = MaterialTheme.typography.labelLarge)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SidebarWeatherConfig.REFRESH_INTERVALS.forEach { minutes ->
+                    FilterChip(
+                        selected = draft.refreshMinutes == minutes, enabled = !busy,
+                        onClick = { edit(draft.copy(refreshMinutes = minutes)) },
+                        label = { Text(stringResource(R.string.sidebar_weather_minutes, minutes)) },
+                    )
+                }
+            }
+            val openMeteoEnabled = config.weatherApi.source == SidebarWeatherSource.OpenMeteo && config.weatherApi.canFetch()
+            Text(
+                stringResource(if (openMeteoEnabled) R.string.sidebar_weather_open_meteo_enabled else R.string.sidebar_weather_open_meteo_disabled),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            failure?.let { Text(weatherErrorText(it.reason, it.statusCode), color = MaterialTheme.colorScheme.error) }
+            FilledTonalButton(
+                enabled = !busy,
+                modifier = Modifier.fillMaxWidth(),
+                onClick = {
+                    try {
+                        openMeteoUrl(draft)
+                        failure = null
+                        showOpenMeteoDisclosure = true
+                    } catch (e: SidebarWeatherException) {
+                        failure = e
+                    }
+                },
+            ) { Text(stringResource(if (openMeteoEnabled) R.string.sidebar_weather_open_meteo_apply else R.string.sidebar_weather_open_meteo_enable)) }
+            if (showOpenMeteoDisclosure) AlertDialog(
+                onDismissRequest = { showOpenMeteoDisclosure = false },
+                title = { Text(stringResource(R.string.sidebar_weather_open_meteo_disclosure_title)) },
+                text = { Text(stringResource(R.string.sidebar_weather_open_meteo_disclosure)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val candidate = draft.copy(
+                            enabled = true,
+                            source = SidebarWeatherSource.OpenMeteo,
+                            openMeteoAccepted = true,
+                        ).normalized()
+                        showOpenMeteoDisclosure = false
+                        currentOnUpdate(currentConfig.copy(weatherApi = candidate))
+                        scope.launch { SidebarWeatherRuntime.repository(context).refresh(candidate, force = true) }
+                    }) { Text(stringResource(R.string.sidebar_weather_open_meteo_confirm)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showOpenMeteoDisclosure = false }) {
+                        Text(stringResource(R.string.sidebar_weather_xiaomi_cancel))
+                    }
+                },
             )
         } else {
             Text(
@@ -212,7 +369,7 @@ internal fun SidebarWeatherOptions(config: SidebarWidgetConfig, onUpdate: (Sideb
                 }
             }
             Text(
-                stringResource(if (config.weatherApi.enabled) R.string.sidebar_weather_saved_hint else R.string.sidebar_weather_unsaved_hint),
+                stringResource(if (config.weatherApi.source == SidebarWeatherSource.CustomApi && config.weatherApi.enabled) R.string.sidebar_weather_saved_hint else R.string.sidebar_weather_unsaved_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -237,7 +394,7 @@ internal fun SidebarWeatherOptions(config: SidebarWidgetConfig, onUpdate: (Sideb
                     busy = true
                     failure = null
                     tested = null
-                    val candidate = draft.copy(enabled = true)
+                    val candidate = draft.copy(enabled = true, source = SidebarWeatherSource.CustomApi)
                     scope.launch {
                         try {
                             val reading = SidebarWeatherClient().fetch(candidate)

@@ -25,6 +25,11 @@ import kotlin.coroutines.resumeWithException
 /** Only explicitly saved settings are used for requests; editor drafts never poll. */
 data class SidebarWeatherConfig(
     val enabled: Boolean = false,
+    val source: SidebarWeatherSource = SidebarWeatherSource.CustomApi,
+    val xiaomiAccepted: Boolean = false,
+    val openMeteoAccepted: Boolean = false,
+    val latitude: String = "",
+    val longitude: String = "",
     val url: String = "",
     val headerName: String = "",
     val headerValue: String = "",
@@ -35,8 +40,15 @@ data class SidebarWeatherConfig(
     val fahrenheit: Boolean = false,
     val refreshMinutes: Int = 30,
 ) {
+    fun canFetch(): Boolean = enabled && when (source) {
+        SidebarWeatherSource.CustomApi -> true
+        SidebarWeatherSource.Xiaomi -> xiaomiAccepted
+        SidebarWeatherSource.OpenMeteo -> openMeteoAccepted
+    }
+
     fun normalized() = copy(
         url = url.trim(), headerName = headerName.trim(), headerValue = headerValue.trim(),
+        latitude = latitude.trim(), longitude = longitude.trim(),
         temperaturePath = temperaturePath.trim(), descriptionPath = descriptionPath.trim(),
         locationPath = locationPath.trim(), locationLabel = locationLabel.trim().take(48),
         refreshMinutes = refreshMinutes.takeIf { it in REFRESH_INTERVALS } ?: 30,
@@ -44,6 +56,11 @@ data class SidebarWeatherConfig(
 
     internal fun toJson(): JSONObject = JSONObject().apply {
         put("enabled", enabled)
+        put("source", source.name)
+        put("xiaomiAccepted", xiaomiAccepted)
+        put("openMeteoAccepted", openMeteoAccepted)
+        put("latitude", latitude)
+        put("longitude", longitude)
         put("url", url)
         put("headerName", headerName)
         put("headerValue", headerValue)
@@ -57,7 +74,22 @@ data class SidebarWeatherConfig(
 
     // Cache identity covers credentials and mappings, without storing them in cache entries.
     internal fun cacheKey(): String {
-        val json = normalized().toJson().apply { remove("enabled"); remove("refreshMinutes") }
+        val json = normalized().toJson().apply {
+            remove("enabled")
+            remove("xiaomiAccepted")
+            remove("openMeteoAccepted")
+            remove("refreshMinutes")
+            // Keep pre-Xiaomi custom API cache identities valid across upgrades.
+            if (source != SidebarWeatherSource.OpenMeteo) {
+                remove("latitude")
+                remove("longitude")
+            }
+            if (source == SidebarWeatherSource.CustomApi) remove("source")
+            if (source == SidebarWeatherSource.OpenMeteo) {
+                listOf("url", "headerName", "headerValue", "temperaturePath", "descriptionPath", "locationPath")
+                    .forEach(::remove)
+            }
+        }
         return MessageDigest.getInstance("SHA-256").digest(json.toString().toByteArray())
             .joinToString("") { "%02x".format(it) }
     }
@@ -71,6 +103,12 @@ data class SidebarWeatherConfig(
             val json = JSONObject(value.orEmpty())
             SidebarWeatherConfig(
                 enabled = json.optBoolean("enabled"),
+                source = SidebarWeatherSource.entries.firstOrNull { it.name == json.optString("source") }
+                    ?: SidebarWeatherSource.CustomApi,
+                xiaomiAccepted = json.optBoolean("xiaomiAccepted"),
+                openMeteoAccepted = json.optBoolean("openMeteoAccepted"),
+                latitude = json.optString("latitude"),
+                longitude = json.optString("longitude"),
                 url = json.optString("url"),
                 headerName = json.optString("headerName"),
                 headerValue = json.optString("headerValue"),
@@ -85,6 +123,8 @@ data class SidebarWeatherConfig(
     }
 }
 
+enum class SidebarWeatherSource { CustomApi, Xiaomi, OpenMeteo }
+
 enum class SidebarWeatherCondition { Clear, Cloud, Rain, Snow, Storm, Fog, Night, Unknown }
 
 data class SidebarWeatherReading(
@@ -92,14 +132,20 @@ data class SidebarWeatherReading(
     val description: String,
     val location: String,
     val fetchedAt: Long,
+    val fahrenheit: Boolean? = null,
+    val weatherType: Int? = null,
+    val openMeteoCode: Int? = null,
+    val isDay: Boolean? = null,
 ) {
     fun temperatureText(): String = DecimalFormat("0.#", DecimalFormatSymbols(Locale.ROOT)).format(temperature)
 
-    val condition: SidebarWeatherCondition get() = weatherCondition(description)
+    val condition: SidebarWeatherCondition get() = openMeteoCode?.let { openMeteoWeatherCondition(it, isDay) }
+        ?: xiaomiWeatherCondition(weatherType, description)
 }
 
 enum class SidebarWeatherError {
     Url, Header, Path, Temperature, Json, TooLarge, Redirect, Http, Timeout, Tls, Network,
+    Provider, Permission, Coordinates,
 }
 
 class SidebarWeatherException(
@@ -206,6 +252,19 @@ internal fun weatherCondition(description: String): SidebarWeatherCondition {
     }
 }
 
+/** Xiaomi weather_type values from the official weather phenomenon table. */
+internal fun xiaomiWeatherCondition(type: Int?, description: String): SidebarWeatherCondition = when (type) {
+    0 -> if (weatherCondition(description) == SidebarWeatherCondition.Night) SidebarWeatherCondition.Night
+        else SidebarWeatherCondition.Clear
+    1, 2 -> SidebarWeatherCondition.Cloud
+    3, 18, 19, 20, 21, 23, 24 -> SidebarWeatherCondition.Fog
+    4, 5, 6, 8, 9, 10, 11 -> SidebarWeatherCondition.Rain
+    7 -> SidebarWeatherCondition.Storm
+    12, 13, 14, 15, 16, 17, 22, 25 -> SidebarWeatherCondition.Snow
+    99 -> SidebarWeatherCondition.Unknown
+    else -> weatherCondition(description)
+}
+
 internal class SidebarWeatherClient(
     private val client: OkHttpClient = defaultClient,
     private val now: () -> Long = System::currentTimeMillis,
@@ -216,6 +275,18 @@ internal class SidebarWeatherClient(
         val config = settings.normalized()
         val request = Request.Builder().url(config.url).get().header("Accept", "application/json")
             .apply { if (config.headerName.isNotBlank()) header(config.headerName, config.headerValue) }.build()
+        return request(request) { parseSidebarWeather(it, config, now()) }
+    }
+
+    suspend fun fetchOpenMeteo(config: SidebarWeatherConfig): SidebarWeatherReading {
+        if (config.source != SidebarWeatherSource.OpenMeteo || !config.canFetch()) {
+            throw SidebarWeatherException(SidebarWeatherError.Permission)
+        }
+        val request = Request.Builder().url(openMeteoUrl(config)).get().header("Accept", "application/json").build()
+        return request(request) { parseOpenMeteoWeather(it, config, now()) }
+    }
+
+    private suspend fun request(request: Request, parse: (String) -> SidebarWeatherReading): SidebarWeatherReading {
         return suspendCancellableCoroutine { continuation ->
             val call = client.newCall(request)
             continuation.invokeOnCancellation { call.cancel() }
@@ -239,7 +310,7 @@ internal class SidebarWeatherClient(
                             // Limit the decompressed body, including chunked or dishonest Content-Length responses.
                             source.request(MAX_RESPONSE_BYTES + 1)
                             if (source.buffer.size > MAX_RESPONSE_BYTES) throw SidebarWeatherException(SidebarWeatherError.TooLarge)
-                            parseSidebarWeather(source.readUtf8(), config, now())
+                            parse(source.readUtf8())
                         }
                         continuation.resume(reading)
                     } catch (e: Exception) {

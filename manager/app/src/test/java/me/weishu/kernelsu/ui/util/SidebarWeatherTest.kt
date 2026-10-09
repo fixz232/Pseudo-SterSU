@@ -9,6 +9,7 @@ import okhttp3.Protocol
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.json.JSONObject
+import me.weishu.kernelsu.ui.component.bottombar.icon
 import org.junit.Assert.*
 import org.junit.After
 import org.junit.Test
@@ -34,6 +35,7 @@ class SidebarWeatherTest {
         assertFalse(SidebarWeatherConfig.fromJson(null).enabled)
         assertEquals(SidebarWeatherConfig(), SidebarWeatherConfig.fromJson("not json"))
         assertEquals(30, config.copy(refreshMinutes = 0).normalized().refreshMinutes)
+        assertEquals(SidebarWeatherSource.CustomApi, SidebarWeatherConfig.fromJson("""{"enabled":true,"url":"https://weather.test"}""").source)
     }
 
     @Test
@@ -42,6 +44,68 @@ class SidebarWeatherTest {
         assertEquals(original, SidebarWeatherConfig.fromJson(original.toJson().toString()))
         assertFalse(original.toString().contains("private-token"))
         assertFalse(original.toString().contains("weather.example"))
+    }
+
+    @Test
+    fun xiaomiRequiresExplicitAcceptanceAndRoundTrips() {
+        val pending = config.copy(source = SidebarWeatherSource.Xiaomi)
+        assertFalse(pending.canFetch())
+        assertFalse(SidebarWeatherConfig.fromJson(pending.toJson().toString()).canFetch())
+        val accepted = pending.copy(xiaomiAccepted = true)
+        assertTrue(accepted.canFetch())
+        assertEquals(accepted, SidebarWeatherConfig.fromJson(accepted.toJson().toString()))
+        assertNotEquals(config.cacheKey(), accepted.cacheKey())
+        assertEquals(pending.cacheKey(), accepted.cacheKey())
+    }
+
+    @Test
+    fun xiaomiProviderFieldsHandleUnitsAndRejectInvalidTemperatures() {
+        val celsius = parseXiaomiWeather(mapOf(
+            "temperature" to "18\u2103", "temperature_unit" to "1",
+            "description" to "\u591a\u4e91", "city_name" to "\u5b89\u5b81\u5e84\u5357\u8def",
+        ), 123L)
+        assertEquals(18.0, celsius.temperature, 0.0)
+        assertEquals(false, celsius.fahrenheit)
+        assertEquals("\u5b89\u5b81\u5e84\u5357\u8def", celsius.location)
+        assertEquals(SidebarWeatherCondition.Cloud, celsius.condition)
+        assertEquals(123L, celsius.fetchedAt)
+        assertEquals(42L, parseXiaomiWeather(mapOf("temperature" to "18", "publish_time" to "42"), 123L).fetchedAt)
+        assertEquals(123L, parseXiaomiWeather(mapOf("temperature" to "18", "publish_time" to "invalid"), 123L).fetchedAt)
+        val fahrenheit = parseXiaomiWeather(mapOf("temperature" to "64\u2109", "temperature_unit" to "0"), 456L)
+        assertEquals(64.0, fahrenheit.temperature, 0.0)
+        assertEquals(true, fahrenheit.fahrenheit)
+        val storm = parseXiaomiWeather(mapOf("temperature" to "18", "description" to "Clear", "weather_type" to "7"), 456L)
+        assertEquals(7, storm.weatherType)
+        assertEquals(SidebarWeatherCondition.Storm, storm.condition)
+        assertEquals(80, parseXiaomiWeather(mapOf("temperature" to "2", "city_name" to "\u202E" + "a".repeat(100)), 1L).location.length)
+        listOf(null, "", "NaN", "18 degrees", "999\u2103").forEach { value ->
+            expectError(SidebarWeatherError.Temperature) {
+                parseXiaomiWeather(mapOf("temperature" to value), 1L)
+            }
+        }
+    }
+
+    @Test
+    fun allDocumentedXiaomiWeatherCodesHaveMatchingSmallIcons() {
+        val expected = mapOf(
+            SidebarWeatherCondition.Clear to listOf(0),
+            SidebarWeatherCondition.Cloud to listOf(1, 2),
+            SidebarWeatherCondition.Fog to listOf(3, 18, 19, 20, 21, 23, 24),
+            SidebarWeatherCondition.Rain to listOf(4, 5, 6, 8, 9, 10, 11),
+            SidebarWeatherCondition.Storm to listOf(7),
+            SidebarWeatherCondition.Snow to listOf(12, 13, 14, 15, 16, 17, 22, 25),
+        )
+        expected.forEach { (condition, codes) ->
+            codes.forEach { code ->
+                val result = xiaomiWeatherCondition(code, "")
+                assertEquals("code $code", condition, result)
+                assertNotNull(result.icon())
+            }
+        }
+        assertEquals((0..25).toList(), expected.values.flatten().sorted())
+        assertEquals(SidebarWeatherCondition.Unknown, xiaomiWeatherCondition(99, "Clear"))
+        assertEquals(SidebarWeatherCondition.Clear, xiaomiWeatherCondition(null, "Clear"))
+        assertEquals(SidebarWeatherCondition.Night, xiaomiWeatherCondition(0, "Clear night"))
     }
 
     @Test
