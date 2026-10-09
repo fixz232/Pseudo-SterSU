@@ -31,7 +31,7 @@ SterSU 是基于 [KernelSU](https://github.com/tiann/KernelSU) 官方上游仓�
 
 本项目继承 KernelSU 的开源授权结构：`kernel/` 目录遵循上游 KernelSU/Linux kernel 的 **GPL-2.0-only** 授权；除 `kernel/` 之外的 KernelSU 衍生代码遵循 **GPL-3.0-or-later** 授权；第三方依赖遵循各自上游许可证，清单见 [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md)。
 
-[Pseudo-SterSU 备用仓库](https://github.com/fixz232/Pseudo-SterSU)作为 SterSU 源码的备用发布位置，沿用相同的逐文件许可证和上游版权声明。仓库根目录的 `LICENSE` 提供 GPL 第 3 版文本，不会将 `kernel/` 改为 GPL 第 3 版；内核文件仍按 GPL-2.0-only 及其各自文件头授权。分发备用仓库构建产物时，仍须保留来源、许可文本与完整对应源码。
+**备用仓库许可声明：**本仓库（[Pseudo-SterSU](https://github.com/fixz232/Pseudo-SterSU)）是 SterSU 源码的备用发布位置，并非单独重新授权的版本。仓库根目录 `LICENSE` 提供 GPL 第 3 版文本；`kernel/` 仍遵循 GPL-2.0-only 及各文件头，非内核 KernelSU 衍生代码遵循 GPL-3.0-or-later，第三方文件遵循各自许可证。分发此仓库构建的内核、APK 或模块时，请保留上游来源、版权和许可声明，并提供完整对应源码。
 
 Native GKI KPM 接口的来源、兼容范围、SukiSU-Ultra 参考提交、KernelPatch
 快照和许可证边界见 [SukiSU 兼容 GKI KPM 声明](./docs/SUKISU_KPM_NOTICE.md)。
@@ -41,6 +41,7 @@ Native GKI KPM 接口的来源、兼容范围、SukiSU-Ultra 参考提交、Kern
 - **动态管理器**：保留 SterSU 内置主管理器，同时允许用户为一个已安装且兼容的管理器授予副管理器权限。身份同时绑定包名、App ID、APK v2 证书大小和证书 SHA-256，并在软件包变化后由内核重新校验。该功能授予完整 Root 管理权限，使用前请阅读[动态管理器安全与使用说明](./docs/DYNAMIC_MANAGER.md)。
 - **Native GKI KPM 接口**：在满足 GKI、AArch64、`CONFIG_KSU=y` 和 `CONFIG_KPM=y` 时提供 SukiSU 兼容的 KPM ABI；LKM 模式继续使用独立的 KPatch-Next 后端。该功能不是 SukiSU-Ultra 官方发行版，使用前请阅读 [KPM 声明](./docs/SUKISU_KPM_NOTICE.md)。
 - **ABK Control 兼容桥**：在启用 `CONFIG_ABK_CONTROL` 时，通过现有 supercall fd 提供公开的 ABK 状态/命令 ABI，并以包名、证书大小和 SHA-256 同时校验 ABK 管理器。GKI 和 LKM 构建都支持该桥，LKM 外部构建默认随 `CONFIG_KSU` 继承，也可显式关闭。实现边界和构建开关见 [ABK Control 说明](./docs/ABK_CONTROL.md)。
+
 - **侧栏小米天气**：经用户阅读并确认启用声明后，从本机小米天气 ContentProvider 读取当前天气；接口来源、数据范围与可用性说明见 [小米天气侧栏接口说明](./docs/XIAOMI_WEATHER_PROVIDER.md)。
 - **侧栏 Open-Meteo 天气**：手填经纬度并确认联网与数据声明后，将实时天气映射到侧栏中部天气组件；数据来源、图标映射和使用条款见 [Open-Meteo 侧栏说明](./docs/OPEN_METEO_SIDEBAR.md)。
 

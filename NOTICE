@@ -1,3 +1,14 @@
+Pseudo-SterSU backup repository license notice
+============================================
+
+This repository is a backup publication of SterSU source. It does not change
+any upstream or per-file license: kernel/ remains GPL-2.0-only unless an
+individual file says otherwise; non-kernel KernelSU-derived code remains
+GPL-3.0-or-later; third-party files retain their own licenses. The root
+LICENSE contains the GPL version 3 text and does not relicense kernel/.
+Redistributions must preserve the applicable notices and provide complete
+corresponding source. See README.md and THIRD_PARTY_NOTICES.md.
+
 ApkeSU copyright and licensing notice
 =====================================
 
