@@ -1,7 +1,6 @@
 <div align="center">
-  <img src=".github/assets/apkesu-avatar.jpg" width="180" alt="Avatar du projet ApkeSU">
-  <h1>ApkeSU</h1>
-  <p>Gestionnaire root basé sur le noyau pour les appareils Android GKI</p>
+  <h1>SterSU</h1>
+  <p>Gestionnaire root Android au niveau du noyau, dérivé de KernelSU</p>
   <p>
     <a href="README.md">简体中文</a> ·
     <a href="README.en.md">English</a> ·
@@ -11,65 +10,53 @@
     <a href="README.ko.md">한국어</a> ·
     <a href="README.es.md">Español</a>
   </p>
-  <p>
-    <a href="#présentation-du-projet">Présentation</a> ·
-    <a href="#projet-en-amont">Projet en amont</a> ·
-    <a href="#respect-des-licences-libres">Licences</a> ·
-    <a href="#avertissement">Avertissement</a>
-  </p>
-  <p>
-    <a href="https://t.me/+LkrMQKXtXvpmYmNl">Telegram</a>
-  </p>
+  <p><a href="https://t.me/+LkrMQKXtXvpmYmNl">Telegram</a></p>
 </div>
 
----
+SterSU est un projet open source dérivé de [KernelSU](https://github.com/tiann/KernelSU), destiné aux environnements GKI et LKM. Il conserve la gestion des autorisations root et des modules, tout en étendant la maintenance du noyau, l'interface du gestionnaire et les fonctions facultatives. Certaines implémentations s'inspirent de [SukiSU-Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra) et d'autres projets ; SterSU n'est pas une version officielle de KernelSU ou de SukiSU-Ultra.
 
-ApkeSU est un projet open source dérivé du dépôt officiel [KernelSU](https://github.com/tiann/KernelSU) et de [SukiSU-Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra). Il s'agit d'un gestionnaire root basé sur le noyau pour les appareils Android GKI, axé sur la correspondance KMI, la fiabilité de la configuration SuSFS, la maintenance récupérable, l'expérience du gestionnaire KernelSU, les extensions d'interface, les correctifs LKM et le débogage d'appareils personnels.
+## Fonctionnalités
 
-## Présentation du projet
+- **Root et modules** : gérer les autorisations des applications et installer, activer ou désactiver des modules.
+- **Maintenance GKI / LKM** : correspondance KMI, installation du noyau et correctifs d'images. Les fonctions disponibles dépendent de l'appareil et de la compilation du noyau.
+- **Gestionnaire dynamique** : permettre à une application compatible déjà installée d'obtenir les droits de gestionnaire secondaire. Ces droits donnent un contrôle complet du root ; lisez le [guide de sécurité et d'utilisation](./docs/DYNAMIC_MANAGER.md) avant l'activation.
+- **GKI KPM** : fournir une interface compatible sur les noyaux GKI AArch64 compilés avec `CONFIG_KSU=y` et `CONFIG_KPM=y`. LKM utilise un moteur KPatch-Next distinct. Voir la [déclaration sur l'origine et la compatibilité de KPM](./docs/SUKISU_KPM_NOTICE.md).
+- **ABK Control** : fournir une passerelle de compatibilité lorsque `CONFIG_ABK_CONTROL` est activé, avec vérification du nom de paquet, de la taille du certificat et de son empreinte SHA-256. Voir la [documentation ABK Control](./docs/ABK_CONTROL.md).
+- **Extensions d'interface** : proposer plusieurs styles d'interface du gestionnaire et des fonctions de boutique facultatives.
 
-Ce projet reprend la structure de licences de KernelSU : le répertoire `kernel/` est publié sous licence **GPL-2.0-only**, conformément à KernelSU en amont et au noyau Linux ; le code dérivé de KernelSU situé hors de `kernel/` est publié sous licence **GPL-3.0-or-later**. Les dépendances tierces restent soumises à leurs licences d'origine. Consultez [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md) pour plus de détails.
+## Météo de la barre latérale
 
-## Projet en amont
+Avant d'utiliser les données météo, lisez et acceptez la déclaration dans les paramètres. Sélectionner une source ne déclenche pas immédiatement de requête. Les sources traitent les données différemment :
 
-Projet principal en amont : KernelSU
+- **Météo Xiaomi** : lit les données du fournisseur météo local de l'appareil sans demander l'autorisation de localisation. Si ce fournisseur est absent, le widget indique que la météo est indisponible. Voir la [déclaration sur l'interface Météo Xiaomi](./docs/XIAOMI_WEATHER_PROVIDER.md).
+- **Open-Meteo** : envoie les coordonnées saisies par l'utilisateur à un service météo tiers, qui peut également voir l'adresse IP du réseau. Le nom d'affichage facultatif reste sur l'appareil. Voir la [déclaration sur l'interface Open-Meteo](./docs/OPEN_METEO_SIDEBAR.md) pour les conditions d'utilisation et l'attribution.
 
-Dépôt en amont : https://github.com/tiann/KernelSU
+## Licences et provenance
 
-Ce projet intègre périodiquement les mises à jour du code source, les correctifs de sécurité et les évolutions fonctionnelles du projet en amont.
+SterSU conserve les limites des licences en amont. Les mentions propres à chaque fichier font foi :
 
-## Respect des licences libres
+- Le répertoire `kernel/` est sous licence **GPL-2.0-only**, sauf mention contraire dans un fichier.
+- Le code dérivé de KernelSU hors de `kernel/` est sous licence **GPL-3.0-or-later**.
+- Les fichiers tiers conservent leurs licences et mentions de droit d'auteur ; voir [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md) et [NOTICE](./NOTICE).
 
-1. Toutes les modifications et tout le code dérivé restent open source. Le code source correspondant complet est fourni avec chaque version distribuée, notamment les noyaux, APK et modules.
-2. Toute personne peut obtenir, modifier et redistribuer ce projet selon les licences applicables. Toute redistribution doit conserver l'attribution au projet en amont, les mentions de licence et le code source correspondant complet.
-3. Si vous distribuez publiquement une version modifiée de ce projet, vous devez également publier l'intégralité du code source modifié et indiquer sa provenance.
+[Pseudo-SterSU](https://github.com/fixz232/Pseudo-SterSU) est un dépôt de secours pour le code source de SterSU, sans changement de licence. Le fichier [LICENSE](./LICENSE) à la racine contient le texte de la GPL version 3 et ne modifie pas la licence de `kernel/`. Toute distribution de versions compilées doit respecter les licences applicables, conserver les mentions d'origine et fournir le code source correspondant complet. Voir les [notes de conformité GPL](./GPL-COMPLIANCE.md).
 
-> Important : ce projet étend les fonctionnalités du projet en amont tout en conservant le modèle d'autorisations natif de KernelSU.
-> Le thème de style MIUI est une réalisation visuelle indépendante qui n'utilise pas le code source officiel de Xiaomi.
+L'interface s'inspire de projets open source. Le style MIUI de SterSU n'est pas un produit officiel Xiaomi et n'utilise pas le code source de Xiaomi. Voir la [déclaration relative à l'interface Aster](./docs/ASTER_UI_DESIGN_NOTICE.md) pour les références de conception de la barre latérale.
 
-## Utilisation prévue
+## Avant utilisation
 
-Cet outil est exclusivement destiné à la recherche technique locale sur Android, à l'apprentissage et au débogage d'appareils vous appartenant. Ne l'utilisez pas pour modifier illégalement les autorisations d'applications, contourner des contrôles de risque, obtenir un accès non autorisé ou mener toute autre activité illégale.
-
-## Avertissement
-
-1. Ce projet est uniquement destiné à l'apprentissage des technologies Android de bas niveau et aux échanges techniques open source. Tous les outils et codes sources sont fournis pour des recherches personnelles licites. Les développeurs déclinent toute responsabilité de réparation, d'indemnisation ou d'assistance après-vente en cas d'échec de démarrage, de redémarrages en boucle, d'appareil inutilisable, de dommages matériels ou de toute autre panne provoquée par le flashage d'une ROM ou d'un noyau, ou par l'installation de fichiers liés au projet. Vous assumez l'intégralité de ces risques.<br>
-
-2. Les applications financières, de jeu en ligne, professionnelles et administratives utilisent couramment des contrôles de risque liés à l'environnement root et aux privilèges du noyau. Vous assumez tous les risques de suspension de compte, de blocage d'appareil, de restriction de fonctionnalités ou de perte financière résultant de l'utilisation de cet outil. Les développeurs ne fournissent aucune aide pour les recours de compte ou le contournement des contrôles de risque.<br>
-
-3. Il est interdit d'utiliser le code source ou les outils dérivés de ce projet pour modifier des autorisations sans l'accord du propriétaire de l'appareil, pirater des applications, voler des données, intégrer des logiciels malveillants, développer des outils de triche ou enfreindre toute loi applicable relative à la cybersécurité, au droit d'auteur ou autre. L'auteur de tels actes assume seul toute responsabilité civile, administrative et pénale ; les développeurs du projet ne sauraient être tenus responsables.<br>
-
-4. Ce projet est distribué gratuitement uniquement par l'intermédiaire de communautés open source légitimes et ne propose aucune vente payante ni aucun service officiel de personnalisation. Les paquets payants ou versions modifiées proposés par des plateformes ou personnes tierces sont sans lien avec ce projet ; leur sécurité et leur intégrité ne sont pas garanties. Vous assumez les risques de vol de compte, de fuite de données personnelles ou d'infection par un logiciel malveillant liés à ces versions tierces.<br>
-
-5. En téléchargeant, compilant ou flashant des fichiers de ce projet, vous confirmez avoir lu, compris et accepté l'intégralité de cet avertissement. Si vous ne l'acceptez pas, supprimez immédiatement le code source et les fichiers, puis cessez toute utilisation du projet.<br>
+- Modifier le noyau, flasher une image ou installer un module peut empêcher le démarrage, entraîner une perte de données ou endommager l'appareil. Vérifiez la compatibilité et sauvegardez vos données au préalable. Le projet ne fournit ni réparation, ni indemnisation, ni service après-vente.
+- Les applications financières, les jeux et les applications professionnelles ou administratives peuvent restreindre l'usage d'appareils rootés. SterSU ne garantit pas le contournement de leurs contrôles et n'aide pas aux recours liés aux comptes ou à la levée des restrictions.
+- N'utilisez le projet légalement que sur des appareils qui vous appartiennent ou que vous êtes autorisé à administrer. Ne l'utilisez pas pour modifier des privilèges sans autorisation, craquer des applications, voler des données, intégrer des logiciels malveillants ou tricher.
+- Le projet ne propose ni vente officielle payante ni service de personnalisation. Vérifiez vous-même la provenance, l'intégrité et la sécurité des APK tiers ou modifiés.
+- Lisez cette page, les licences applicables et la documentation des fonctions avant utilisation. N'installez ou ne flashez rien si vous n'acceptez pas ces risques.
 
 ## Remerciements
 
-- [KernelSU](https://github.com/tiann/KernelSU), avec nos remerciements à l'auteur weishu et à tous les contributeurs
-- [SukiSU-Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra), référence pour la solution SuSFS
-- [FolkPatch](https://github.com/LyraVoid/FolkPatch), code du framework d'interface utilisé comme référence
-- [kowsu](https://github.com/KOWX712/KernelSU.git), assistance technique
-- [Kernel-Assisted Superuser](https://git.zx2c4.com/kernel-assisted-superuser/about/), source d'inspiration pour la conception de KernelSU
-- [Magisk](https://github.com/topjohnwu/Magisk), solution root open source reconnue
-- [genuine](https://github.com/brevent/genuine/), vérification des signatures APK
-- [Diamorphine](https://github.com/m0nad/Diamorphine), référence pour les techniques de dissimulation de bas niveau
+- [KernelSU](https://github.com/tiann/KernelSU) : projet en amont principal ; merci à weishu et à tous les contributeurs.
+- [SukiSU-Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra) et [susfs4ksu](https://gitlab.com/simonpunk/susfs4ksu) : intégration de SuSFS et sources des correctifs.
+- [ReSukiSU](https://github.com/ReSukiSU/ReSukiSU) : références pour la conception et les interfaces du gestionnaire dynamique.
+- [FolkPatch](https://github.com/LyraVoid/FolkPatch), [Aster](https://github.com/LyraVoid/Aster) et [SKRoot](https://github.com/abcz316/SKRoot-linuxKernelRoot) : références pour le code et la conception de l'interface.
+- [KOWX712/KernelSU](https://github.com/KOWX712/KernelSU) : source des fichiers de modules du noyau.
+- [Kernel-Assisted Superuser](https://git.zx2c4.com/kernel-assisted-superuser/about/) et [Magisk](https://github.com/topjohnwu/Magisk) : inspirations techniques.
+- [genuine](https://github.com/brevent/genuine/) et [Diamorphine](https://github.com/m0nad/Diamorphine) : références pour la vérification des signatures et les implémentations de bas niveau.
