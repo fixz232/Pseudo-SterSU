@@ -19,8 +19,7 @@
     <a href="#disclaimer">Disclaimer</a>
   </p>
   <p>
-    <a href="https://t.me/+LkrMQKXtXvpmYmNl">Telegram</a> ·
-    <a href="https://qm.qq.com/q/8O7qvLM3zq">QQ group</a>
+    <a href="https://t.me/+LkrMQKXtXvpmYmNl">Telegram</a>
   </p>
 </div>
 

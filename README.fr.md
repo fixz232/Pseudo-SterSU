@@ -18,8 +18,7 @@
     <a href="#avertissement">Avertissement</a>
   </p>
   <p>
-    <a href="https://t.me/+LkrMQKXtXvpmYmNl">Telegram</a> ·
-    <a href="https://qm.qq.com/q/8O7qvLM3zq">Groupe QQ</a>
+    <a href="https://t.me/+LkrMQKXtXvpmYmNl">Telegram</a>
   </p>
 </div>
 

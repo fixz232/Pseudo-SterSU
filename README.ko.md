@@ -18,8 +18,7 @@
     <a href="#면책-조항">면책 조항</a>
   </p>
   <p>
-    <a href="https://t.me/+LkrMQKXtXvpmYmNl">Telegram</a> ·
-    <a href="https://qm.qq.com/q/8O7qvLM3zq">QQ 그룹</a>
+    <a href="https://t.me/+LkrMQKXtXvpmYmNl">Telegram</a>
   </p>
 </div>
 
