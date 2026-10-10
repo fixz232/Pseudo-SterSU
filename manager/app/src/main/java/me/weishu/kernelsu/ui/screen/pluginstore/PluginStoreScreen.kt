@@ -83,6 +83,7 @@ import me.weishu.kernelsu.ui.util.InstalledManagerPlugin
 import me.weishu.kernelsu.ui.util.InstalledKsudStatus
 import me.weishu.kernelsu.ui.util.ManagerPluginCatalogRepository
 import me.weishu.kernelsu.ui.util.ManagerPluginCompatibility
+import me.weishu.kernelsu.ui.util.ManagerPluginCompatibilityIssue
 import me.weishu.kernelsu.ui.util.ManagerPluginInstaller
 import me.weishu.kernelsu.ui.util.ManagerPluginPackage
 import me.weishu.kernelsu.ui.util.ManagerPluginRegistry
@@ -495,7 +496,7 @@ private fun PluginDetailContent(
                 Text(stringResource(R.string.plugin_store_version, plugin.version),
                     style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (installed != null) StoreTag(stringResource(if (updateAvailable) R.string.store_redesign_updates else R.string.plugin_store_installed), true)
-                if (incompatible) Text(stringResource(R.string.plugin_store_incompatible), color = MaterialTheme.colorScheme.error)
+                if (incompatible) Text(pluginCompatibilityMessage(compatibility), color = MaterialTheme.colorScheme.error)
                 if (installed == null || updateAvailable) {
                     Button(onClick = onInstall, enabled = !busy && compatibilityResolved && !incompatible,
                         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
@@ -562,6 +563,15 @@ private fun pluginSlotLabel(slot: PluginSlot): String = stringResource(
         PluginSlot.SuperuserAppFreeze -> R.string.app_freeze_title
         PluginSlot.MountHidePathmaskLkm -> R.string.hidden_path_config
     },
+)
+
+@Composable
+private fun pluginCompatibilityMessage(compatibility: ManagerPluginCompatibility?): String = stringResource(
+    if (compatibility?.issue == ManagerPluginCompatibilityIssue.LkmModeRequired) {
+        R.string.plugin_store_lkm_required
+    } else {
+        R.string.plugin_store_incompatible
+    }
 )
 
 private sealed interface ManagerPluginCatalogSnapshotState {
@@ -696,7 +706,7 @@ private fun PluginCard(
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(stringResource(R.string.plugin_store_version, plugin.version), style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    if (incompatible) Text(stringResource(R.string.plugin_store_incompatible),
+                    if (incompatible) Text(pluginCompatibilityMessage(compatibility),
                         style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
                     else if (installed != null) StoreTag(stringResource(if (updateAvailable) R.string.store_redesign_updates
                         else R.string.plugin_store_installed), emphasized = updateAvailable)
@@ -727,6 +737,7 @@ private fun Throwable.safePluginMessageForUi(context: android.content.Context): 
     ?.ifBlank { null }
     ?: context.getString(R.string.plugin_store_error_generic_detail)
     val normalized = detail.lowercase()
+    if ("lkm mode" in normalized) return context.getString(R.string.plugin_store_lkm_required)
     val resource = when {
         listOf("requires", "incompatible", "newer manager", "newer ksud").any(normalized::contains) ->
             R.string.plugin_store_error_compatibility

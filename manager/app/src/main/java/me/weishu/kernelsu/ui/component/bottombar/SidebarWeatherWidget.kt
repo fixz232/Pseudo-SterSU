@@ -53,6 +53,7 @@ import me.weishu.kernelsu.R
 import me.weishu.kernelsu.ui.util.SidebarWeatherCondition
 import me.weishu.kernelsu.ui.util.SidebarWeatherError
 import me.weishu.kernelsu.ui.util.SidebarWeatherRuntime
+import me.weishu.kernelsu.ui.util.SidebarWeatherSource
 import me.weishu.kernelsu.ui.util.SidebarWidgetConfig
 import me.weishu.kernelsu.ui.util.rememberSidebarWeatherState
 import me.weishu.kernelsu.ui.util.weatherCondition
@@ -61,10 +62,12 @@ import java.util.Date
 @Composable
 internal fun SidebarWeatherSummary(config: SidebarWidgetConfig, compact: Boolean) {
     val state = rememberSidebarWeatherState(config.weatherApi)
-    val temperature = if (config.weatherApi.enabled) {
-        state.reading?.temperatureText()?.let { it + if (config.weatherApi.fahrenheit) "°F" else "°C" }.orEmpty()
+    val temperature = if (config.weatherApi.canFetch()) {
+        state.reading?.let { reading ->
+            reading.temperatureText() + if (reading.fahrenheit ?: config.weatherApi.fahrenheit) "°F" else "°C"
+        }.orEmpty()
     } else config.weatherTemperature
-    val description = if (config.weatherApi.enabled) state.reading?.description.orEmpty() else config.weatherLabel
+    val description = if (config.weatherApi.canFetch()) state.reading?.description.orEmpty() else config.weatherLabel
     val text = listOf(description, temperature).filter(String::isNotBlank).joinToString(" ").ifBlank {
         if (state.loading) stringResource(R.string.sidebar_weather_updating) else "—"
     }
@@ -82,7 +85,7 @@ internal fun SidebarWeatherSummary(config: SidebarWidgetConfig, compact: Boolean
 @Composable
 internal fun SidebarWeatherWidget(config: SidebarWidgetConfig, compact: Boolean) {
     val state = rememberSidebarWeatherState(config.weatherApi)
-    val api = config.weatherApi.enabled
+    val api = config.weatherApi.canFetch()
     val reading = state.reading
     val ink = LocalContentColor.current
     val context = LocalContext.current
@@ -157,7 +160,7 @@ internal fun SidebarWeatherWidget(config: SidebarWidgetConfig, compact: Boolean)
                     Icon(condition.icon(), contentDescription = null, modifier = Modifier.size(48.dp))
                     Column(Modifier.weight(1f)) {
                         Text(
-                            if (api && reading != null) temperature + if (config.weatherApi.fahrenheit) "F" else "C" else temperature,
+                            if (api && reading != null) temperature + if (reading.fahrenheit ?: config.weatherApi.fahrenheit) "F" else "C" else temperature,
                             style = MaterialTheme.typography.headlineLarge,
                         )
                         Text(description.ifBlank { stringResource(R.string.sidebar_weather_no_description) })
@@ -169,6 +172,11 @@ internal fun SidebarWeatherWidget(config: SidebarWidgetConfig, compact: Boolean)
                     val updated = DateFormat.getMediumDateFormat(context).format(date) + " " + DateFormat.getTimeFormat(context).format(date)
                     Text(stringResource(R.string.sidebar_weather_updated_at, updated), style = MaterialTheme.typography.bodySmall)
                 }
+                if (api && config.weatherApi.source == SidebarWeatherSource.OpenMeteo) Text(
+                    stringResource(R.string.sidebar_weather_open_meteo_attribution),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 if (api && state.error != null) Text(
                     weatherErrorText(state.error, state.httpStatus),
                     color = MaterialTheme.colorScheme.error,
@@ -225,6 +233,9 @@ internal fun weatherErrorText(error: SidebarWeatherError, httpStatus: Int? = nul
         SidebarWeatherError.Redirect -> R.string.sidebar_weather_error_redirect
         SidebarWeatherError.Timeout -> R.string.sidebar_weather_error_timeout
         SidebarWeatherError.Tls -> R.string.sidebar_weather_error_tls
+        SidebarWeatherError.Provider -> R.string.sidebar_weather_error_provider
+        SidebarWeatherError.Permission -> R.string.sidebar_weather_error_permission
+        SidebarWeatherError.Coordinates -> R.string.sidebar_weather_error_coordinates
         else -> R.string.sidebar_weather_error_network
     })
 }

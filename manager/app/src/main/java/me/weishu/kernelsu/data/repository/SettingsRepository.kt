@@ -8,8 +8,6 @@ import me.weishu.kernelsu.ui.util.InterfaceStylePackage
 import me.weishu.kernelsu.ui.theme.CustomThemePreset
 import me.weishu.kernelsu.ui.theme.ThemeSyncStrategy
 import me.weishu.kernelsu.ui.component.NightBackgroundEffect
-import me.weishu.kernelsu.ui.component.decoration.UiDecorationConfig
-import me.weishu.kernelsu.ui.component.decoration.CustomUiDecorationPreset
 import me.weishu.kernelsu.ui.util.CustomNavigationIconSet
 import me.weishu.kernelsu.ui.util.CustomNavigationIconSlot
 import me.weishu.kernelsu.ui.util.CustomNavigationIconState
@@ -73,14 +71,6 @@ interface SettingsRepository {
     var rainCardMotionEnabled: Boolean
     var pixelStyle: String
     var pixelCardMotionEnabled: Boolean
-    val uiDecorationConfig: UiDecorationConfig
-    fun saveUiDecorationConfig(config: UiDecorationConfig): Boolean
-    fun getCustomUiDecorationPresets(): List<CustomUiDecorationPreset>
-    fun saveCustomUiDecorationPreset(name: String, config: UiDecorationConfig): CustomUiDecorationPreset?
-    fun renameCustomUiDecorationPreset(presetId: String, name: String): Boolean
-    fun deleteCustomUiDecorationPreset(presetId: String): Boolean
-    fun importCustomUiDecorationPresets(presets: List<CustomUiDecorationPreset>): Int
-    fun getRecentUiDecorationComponents(): List<String>
     var globalSnowEnabled: Boolean
     var globalSnowEffect: String
     var nightBackgroundEffect: String

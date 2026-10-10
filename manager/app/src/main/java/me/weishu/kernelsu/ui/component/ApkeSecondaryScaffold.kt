@@ -208,11 +208,9 @@ fun ApkeSecondaryScaffold(
                     contentAlignment = Alignment.TopCenter,
                 ) {
                     Box(
-                        modifier = if (sidebar) {
-                            Modifier.widthIn(max = minOf(maxContentWidth, SidebarUiTokens.DetailMaxWidth)).fillMaxSize()
-                        } else {
-                            Modifier.fillMaxSize().widthIn(max = maxContentWidth)
-                        },
+                        modifier = Modifier
+                            .widthIn(max = if (sidebar) minOf(maxContentWidth, SidebarUiTokens.DetailMaxWidth) else maxContentWidth)
+                            .fillMaxSize(),
                     ) {
                         content(innerPadding, windowSizeClass)
                     }

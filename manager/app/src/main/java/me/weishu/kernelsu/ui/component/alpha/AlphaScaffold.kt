@@ -73,7 +73,6 @@ import me.weishu.kernelsu.ui.component.LocalNightBackgroundEffectActive
 import me.weishu.kernelsu.ui.component.StyledSwitch
 import me.weishu.kernelsu.ui.component.SwitchStyle
 import me.weishu.kernelsu.ui.component.bottombar.stateFor
-import me.weishu.kernelsu.ui.component.decoration.uiDecoratedCard
 import me.weishu.kernelsu.ui.component.snow.SnowBackdrop
 import me.weishu.kernelsu.ui.component.snow.SnowCapBand
 import me.weishu.kernelsu.ui.theme.LocalImmersiveBackgroundActive
@@ -711,8 +710,7 @@ fun AlphaCard(
                             } ?: Modifier
                         )
                 }
-            )
-            .uiDecoratedCard(shape = shape),
+            ),
     ) {
         backgroundContent?.invoke(this)
         Box(modifier = Modifier.padding(resolvedPadding)) {

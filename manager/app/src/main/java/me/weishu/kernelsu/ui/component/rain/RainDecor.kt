@@ -54,8 +54,6 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import me.weishu.kernelsu.ui.InterfaceStyle
 import me.weishu.kernelsu.ui.LocalInterfaceStyle
-import me.weishu.kernelsu.ui.component.custom.CustomCardTarget
-import me.weishu.kernelsu.ui.component.decoration.uiDecoratedCard
 import me.weishu.kernelsu.ui.theme.isInDarkTheme
 import me.weishu.kernelsu.ui.util.InterfaceStyleTheme
 import me.weishu.kernelsu.ui.util.LocalInterfaceStyleTheme
@@ -238,7 +236,6 @@ fun RainMotto(modifier: Modifier = Modifier) {
 fun Modifier.rainMiuixCardSurface(
     enabled: Boolean = true,
     capHeight: Dp = 11.dp,
-    customTarget: CustomCardTarget = CustomCardTarget.Default,
 ): Modifier {
     if (!enabled || !isRainInterfaceStyle()) return this
     val style = LocalRainStyle.current
@@ -278,7 +275,6 @@ fun Modifier.rainMiuixCardSurface(
                 )
             }
         }
-        .uiDecoratedCard(shape = shape, enabled = true, customTarget = customTarget)
 }
 
 @Composable

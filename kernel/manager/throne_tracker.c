@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
+#include "ksu.h"
+#include <linux/cred.h>
 #include <linux/err.h>
 #include <linux/fs.h>
 #include <linux/jiffies.h>
@@ -6,6 +8,7 @@
 #include <linux/list.h>
 #include <linux/moduleparam.h>
 #include <linux/mutex.h>
+#include <linux/namei.h>
 #include <linux/pid.h>
 #include <linux/sched/task.h>
 #include <linux/slab.h>
@@ -48,8 +51,27 @@ struct data_path {
     struct list_head list;
 };
 
+static const char *const known_manager_packages[] = {
+    KSU_PACKAGE_NAME,
+#ifdef KSU_MANAGER_PACKAGE_LEGACY
+    KSU_MANAGER_PACKAGE_LEGACY,
+#endif
+#ifdef ABK_MANAGER_PACKAGE
+    ABK_MANAGER_PACKAGE,
+#endif
+};
+
+struct known_manager_apk {
+    uid_t appid;
+    char path[DATA_PATH_LEN];
+};
+
+static struct known_manager_apk cached_manager_apks[ARRAY_SIZE(known_manager_packages)];
+static u64 cached_dynamic_manager_generation;
+
 struct manager_scan {
     struct ksu_manager_entry *entries;
+    struct known_manager_apk *known_apks;
     u16 count;
     u16 capacity;
     bool complete;
@@ -157,10 +179,22 @@ static bool crown_manager(const char *apk, struct list_head *uid_list,
     }
 
     list_for_each_entry(entry, uid_list, list) {
+        size_t index;
+
         if (strncmp(entry->package, package, KSU_MAX_PACKAGE_NAME))
             continue;
         if (!append_manager(scan, entry->uid, signature_index))
             return false;
+        if (ksu_is_normal_appid(ksu_normalize_appid(entry->uid))) {
+            for (index = 0; index < ARRAY_SIZE(known_manager_packages);
+                 index++) {
+                if (strcmp(package, known_manager_packages[index]))
+                    continue;
+                scan->known_apks[index].appid =
+                    ksu_normalize_appid(entry->uid);
+                strscpy(scan->known_apks[index].path, apk, DATA_PATH_LEN);
+            }
+        }
         pr_info("Crowning manager: %s(uid=%u, signature_index=%u)\n",
                 package, entry->uid, signature_index);
         return true;
@@ -168,6 +202,28 @@ static bool crown_manager(const char *apk, struct list_head *uid_list,
 
     pr_warn("Manager APK %s has no matching packages.list entry\n", package);
     return true;
+}
+
+static bool maybe_manager_apk_dir(const char *path)
+{
+    char package[KSU_MAX_PACKAGE_NAME];
+
+    /* A dynamic manager can use any package name. */
+    if (ksu_is_dynamic_manager_enabled())
+        return true;
+    if (get_pkg_from_apk_dir_path(package, path) < 0)
+        return false;
+    if (!strcmp(package, KSU_PACKAGE_NAME))
+        return true;
+#ifdef KSU_MANAGER_PACKAGE_LEGACY
+    if (!strcmp(package, KSU_MANAGER_PACKAGE_LEGACY))
+        return true;
+#endif
+#ifdef ABK_MANAGER_PACKAGE
+    if (!strcmp(package, ABK_MANAGER_PACKAGE))
+        return true;
+#endif
+    return false;
 }
 
 static FILLDIR_RETURN_TYPE manager_actor(struct dir_context *ctx,
@@ -197,8 +253,11 @@ static FILLDIR_RETURN_TYPE manager_actor(struct dir_context *ctx,
     }
 
     if (d_type == DT_DIR && scan_ctx->depth > 0) {
-        struct data_path *data = kzalloc(sizeof(*data), GFP_KERNEL);
+        struct data_path *data;
 
+        if (scan_ctx->depth == 1 && !maybe_manager_apk_dir(path))
+            return FILLDIR_ACTOR_CONTINUE;
+        data = kzalloc(sizeof(*data), GFP_KERNEL);
         if (!data) {
             *scan_ctx->complete = false;
             return FILLDIR_ACTOR_STOP;
@@ -206,7 +265,9 @@ static FILLDIR_RETURN_TYPE manager_actor(struct dir_context *ctx,
         strscpy(data->dirpath, path, sizeof(data->dirpath));
         data->depth = scan_ctx->depth - 1;
         list_add_tail(&data->list, scan_ctx->data_path_list);
-    } else if (namelen == 8 && !memcmp(name, "base.apk", 8)) {
+    } else if ((d_type == DT_REG || d_type == DT_UNKNOWN) &&
+               namelen == 8 && !memcmp(name, "base.apk", 8) &&
+               maybe_manager_apk_dir(scan_ctx->parent_dir)) {
         strscpy(scan_ctx->candidate_path, path, DATA_PATH_LEN);
     }
     return FILLDIR_ACTOR_CONTINUE;
@@ -363,21 +424,69 @@ static bool load_packages_list(struct list_head *uid_list)
     return valid;
 }
 
+static bool known_manager_apks_unchanged(struct list_head *uid_list,
+                                        u64 dynamic_manager_generation)
+{
+    bool has_cached_manager = false;
+    size_t index;
+
+    if (ksu_is_dynamic_manager_enabled() ||
+        dynamic_manager_generation != cached_dynamic_manager_generation)
+        return false;
+
+    for (index = 0; index < ARRAY_SIZE(known_manager_packages); index++) {
+        const struct known_manager_apk *cached = &cached_manager_apks[index];
+        struct uid_data *entry;
+        uid_t appid = KSU_INVALID_APPID;
+        struct path path;
+
+        list_for_each_entry(entry, uid_list, list) {
+            if (!strcmp(entry->package, known_manager_packages[index])) {
+                appid = ksu_normalize_appid(entry->uid);
+                break;
+            }
+        }
+        if (appid == KSU_INVALID_APPID) {
+            if (cached->path[0])
+                return false;
+            continue;
+        }
+        if (!cached->path[0] || cached->appid != appid ||
+            !ksu_is_manager_appid(appid))
+            return false;
+        if (kern_path(cached->path, LOOKUP_FOLLOW, &path))
+            return false;
+        path_put(&path);
+        has_cached_manager = true;
+    }
+
+    return has_cached_manager || !ksu_has_manager();
+}
+
 static void do_track_throne(unsigned int flags)
 {
     LIST_HEAD(uid_list);
+    const struct cred *old_cred;
     struct uid_data *entry, *next;
     struct manager_scan scan = { 0 };
     bool package_list_valid;
     u64 dynamic_manager_generation;
 
     mutex_lock(&throne_scan_lock);
+    old_cred = override_creds(ksu_cred);
     dynamic_manager_generation = ksu_get_dynamic_manager_generation();
     package_list_valid = load_packages_list(&uid_list);
     if (!package_list_valid)
         goto out;
 
-    if (flags & TRACK_THRONE_FORCE_SEARCH_MGR) {
+    if (!(flags & TRACK_THRONE_PRUNE_ONLY) &&
+        ((flags & TRACK_THRONE_FORCE_SEARCH_MGR) ||
+         !known_manager_apks_unchanged(&uid_list,
+                                      dynamic_manager_generation))) {
+        scan.known_apks = kcalloc(ARRAY_SIZE(known_manager_packages),
+                                  sizeof(*scan.known_apks), GFP_KERNEL);
+        if (!scan.known_apks)
+            goto prune;
         pr_info("Searching for manager(s)...\n");
         if (search_managers("/data/app", 2, &uid_list, &scan)) {
             int ret;
@@ -397,8 +506,13 @@ static void do_track_throne(unsigned int flags)
                 ksu_unregister_manager_by_signature_index(
                     KSU_SIGNATURE_INDEX_DYNAMIC_MANAGER);
                 pr_warn("Dynamic manager changed while publishing scan; revoked stale entries\n");
-            } else
+            } else {
+                memcpy(cached_manager_apks, scan.known_apks,
+                       sizeof(cached_manager_apks));
+                cached_dynamic_manager_generation =
+                    dynamic_manager_generation;
                 pr_info("Manager search finished: %u manager(s)\n", scan.count);
+            }
         } else {
             pr_warn("Manager search incomplete; keeping previous registry\n");
         }
@@ -408,10 +522,12 @@ prune:
     ksu_prune_allowlist(is_uid_exist, &uid_list);
 out:
     kfree(scan.entries);
+    kfree(scan.known_apks);
     list_for_each_entry_safe(entry, next, &uid_list, list) {
         list_del(&entry->list);
         kfree(entry);
     }
+    revert_creds(old_cred);
     mutex_unlock(&throne_scan_lock);
 }
 

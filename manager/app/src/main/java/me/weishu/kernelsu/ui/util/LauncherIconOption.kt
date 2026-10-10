@@ -1,14 +1,18 @@
 package me.weishu.kernelsu.ui.util
 
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.util.Log
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import me.weishu.kernelsu.R
+import me.weishu.kernelsu.ui.webmanager.WEB_MANAGER_LAUNCHER_HIDDEN_KEY
 
 private const val LAUNCHER_ALIAS_PACKAGE = "me.weishu.kernelsu.ui"
+private const val SETTINGS_PREFERENCES = "settings"
 
 enum class LauncherIconOption(
     val value: String,
@@ -21,54 +25,6 @@ enum class LauncherIconOption(
         aliasClassName = "${LAUNCHER_ALIAS_PACKAGE}.LauncherDefault",
         labelRes = R.string.settings_app_icon_default,
         foregroundRes = R.mipmap.ic_launcher_foreground,
-    ),
-    Module(
-        value = "module",
-        aliasClassName = "${LAUNCHER_ALIAS_PACKAGE}.LauncherModule",
-        labelRes = R.string.settings_app_icon_module,
-        foregroundRes = R.drawable.module_foreground,
-    ),
-    AnyKernel(
-        value = "anykernel",
-        aliasClassName = "${LAUNCHER_ALIAS_PACKAGE}.LauncherAnyKernel",
-        labelRes = R.string.settings_app_icon_anykernel,
-        foregroundRes = R.drawable.anykernel_foreground,
-    ),
-    NekoStar(
-        value = "neko_star",
-        aliasClassName = "${LAUNCHER_ALIAS_PACKAGE}.LauncherNekoStar",
-        labelRes = R.string.settings_app_icon_neko_star,
-        foregroundRes = R.mipmap.neko_star_foreground,
-    ),
-    AnimeBlueHair(
-        value = "anime_blue_hair",
-        aliasClassName = "${LAUNCHER_ALIAS_PACKAGE}.LauncherAnimeBlueHair",
-        labelRes = R.string.settings_app_icon_anime_blue_hair,
-        foregroundRes = R.mipmap.anime_blue_hair_foreground,
-    ),
-    AnimeEyepatch(
-        value = "anime_eyepatch",
-        aliasClassName = "${LAUNCHER_ALIAS_PACKAGE}.LauncherAnimeEyepatch",
-        labelRes = R.string.settings_app_icon_anime_eyepatch,
-        foregroundRes = R.mipmap.anime_eyepatch_foreground,
-    ),
-    AnimeBlonde(
-        value = "anime_blonde",
-        aliasClassName = "${LAUNCHER_ALIAS_PACKAGE}.LauncherAnimeBlonde",
-        labelRes = R.string.settings_app_icon_anime_blonde,
-        foregroundRes = R.mipmap.anime_blonde_foreground,
-    ),
-    AnimeWhiteHair(
-        value = "anime_white_hair",
-        aliasClassName = "${LAUNCHER_ALIAS_PACKAGE}.LauncherAnimeWhiteHair",
-        labelRes = R.string.settings_app_icon_anime_white_hair,
-        foregroundRes = R.mipmap.anime_white_hair_foreground,
-    ),
-    AnimePinkHair(
-        value = "anime_pink_hair",
-        aliasClassName = "${LAUNCHER_ALIAS_PACKAGE}.LauncherAnimePinkHair",
-        labelRes = R.string.settings_app_icon_anime_pink_hair,
-        foregroundRes = R.mipmap.anime_pink_hair_foreground,
     ),
     FoxMask(
         value = "fox_mask",
@@ -129,4 +85,29 @@ fun applyLauncherIcon(context: Context, option: LauncherIconOption): Boolean {
     }.onFailure {
         Log.e("LauncherIcon", "failed to apply launcher icon ${option.value}", it)
     }.getOrDefault(false)
+}
+
+fun reconcileLauncherIcon(context: Context): Boolean {
+    val appContext = context.applicationContext
+    val preferences = appContext.getSharedPreferences(SETTINGS_PREFERENCES, Context.MODE_PRIVATE)
+    val storedValue = preferences.getString(
+        LauncherIconOption.PREF_KEY,
+        LauncherIconOption.DEFAULT_VALUE,
+    )
+    val normalizedOption = LauncherIconOption.fromValue(storedValue)
+    if (storedValue == normalizedOption.value) return true
+
+    val iconApplied = preferences.getBoolean(WEB_MANAGER_LAUNCHER_HIDDEN_KEY, false) ||
+        applyLauncherIcon(appContext, normalizedOption)
+    return iconApplied && preferences.edit()
+        .putString(LauncherIconOption.PREF_KEY, normalizedOption.value)
+        .commit()
+}
+
+class LauncherIconMigrationReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) {
+            reconcileLauncherIcon(context)
+        }
+    }
 }

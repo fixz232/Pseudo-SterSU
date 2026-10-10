@@ -113,7 +113,6 @@ import me.weishu.kernelsu.ui.component.AppIconImage
 import me.weishu.kernelsu.ui.component.LocalSwitchStyle
 import me.weishu.kernelsu.ui.component.StyledSwitch
 import me.weishu.kernelsu.ui.component.SwitchStyle
-import me.weishu.kernelsu.ui.component.decoration.uiDecoratedCard
 import me.weishu.kernelsu.ui.navigation3.LocalNavigator
 import me.weishu.kernelsu.ui.navigation3.Route
 import me.weishu.kernelsu.ui.theme.immersivePageColor
@@ -1654,8 +1653,7 @@ private fun ConfigSection(
     val shape = RoundedCornerShape(8.dp)
     Surface(
         modifier = Modifier
-            .fillMaxWidth()
-            .uiDecoratedCard(shape = shape),
+            .fillMaxWidth(),
         shape = shape,
         color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.86f),
         tonalElevation = 1.dp,

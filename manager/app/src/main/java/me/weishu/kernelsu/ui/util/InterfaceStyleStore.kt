@@ -3,6 +3,7 @@ package me.weishu.kernelsu.ui.util
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.util.AtomicFile
+import android.util.Log
 import androidx.core.content.edit
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -98,6 +99,7 @@ private const val CATALOG_CACHE_NAME = "catalog-v2.json"
 private const val CATALOG_SIGNATURE_CACHE_NAME = "catalog-v2.sig"
 private const val STATE_NAME = "installed-v2.json"
 private const val BUNDLES_DIRECTORY_NAME = "packages"
+private const val PACKAGE_CACHE_DIRECTORY_NAME = "package-cache"
 private const val PREFS_NAME = "interface-style-download"
 private const val MODE_KEY = "proxy_mode"
 private const val CUSTOM_PROXY_KEY = "custom_proxy"
@@ -107,6 +109,8 @@ private const val DEFAULT_CATALOG_SIGNATURE_URL =
     "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/catalog-v2.sig"
 private const val SIDEBAR_WIDGET_PACKAGE_ASSET = "interface-style/packages/sidebar-widget.ksstyle"
 private const val CATALOG_PUBLIC_KEY_B64 =
+    "MCowBQYDK2VwAyEA/wQaxUtssw+twS+df8Qzj8NYJt//khkcwaydq1kuAQM="
+private const val LEGACY_CATALOG_PUBLIC_KEY_B64 =
     "MCowBQYDK2VwAyEAcB5tOkIPio9w5pCIsiAaEE0SEGdkXQD2eKwpnZoRBnM="
 private const val BUNDLE_MANIFEST_PATH = "manifest.json"
 private const val THEME_RESOURCE_PATH = "theme.json"
@@ -138,19 +142,6 @@ private val ALLOWED_GITHUB_HOSTS = setOf("raw.githubusercontent.com", "github.co
 private val ALLOWED_PROXY_HOSTS = setOf("ghproxy.net")
 private val ALLOWED_BUNDLE_PATHS = setOf(BUNDLE_MANIFEST_PATH, THEME_RESOURCE_PATH, WALLPAPER_RESOURCE_PATH)
 private val APK_TRUSTED_INTERFACE_STYLES = listOf(
-    InterfaceStylePackage(
-        id = "windows-fluent",
-        name = "Windows 流畅设计 / Windows Fluent",
-        summary = "Windows 11 Fluent 风格的清爽系统界面，使用 Mica 中性色、紧凑 8dp 圆角，并完整适配浅色与深色模式。",
-        engine = "alpha",
-        variant = null,
-        version = 3,
-        downloadUrl =
-            "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/windows-fluent.ksstyle",
-        sha256 = "9b476797051de3ce4ada7ba16746f074ab26fb4260e95127e3e3ba167a9753e6",
-        sizeBytes = 1098L,
-        accent = 4278221012L,
-    ),
     InterfaceStylePackage(
         id = "sidebar-widget",
         name = "侧栏组件",
@@ -246,6 +237,7 @@ class InterfaceStyleRegistry(context: Context) {
     private val appContext = context.applicationContext
     private val directory = File(appContext.filesDir, "interface-styles").apply { mkdirs() }
     private val bundlesDirectory = File(directory, BUNDLES_DIRECTORY_NAME).apply { mkdirs() }
+    private val packageCacheDirectory = File(directory, PACKAGE_CACHE_DIRECTORY_NAME).apply { mkdirs() }
     private val stateFile get() = File(directory, STATE_NAME)
     private var cachedTimestamp = Long.MIN_VALUE
     private var cachedLength = Long.MIN_VALUE
@@ -303,7 +295,42 @@ class InterfaceStyleRegistry(context: Context) {
         if (updated.size == current.size) return false
         writeState(updated)
         File(bundlesDirectory, id).deleteRecursively()
+        File(packageCacheDirectory, id).deleteRecursively()
         return true
+    }
+
+    @Synchronized
+    internal fun cachedPackage(style: InterfaceStylePackage): ByteArray? =
+        readVerifiedInterfaceStyleArchive(packageCacheFile(style), style)
+
+    @Synchronized
+    internal fun cachePackage(style: InterfaceStylePackage, bytes: ByteArray) {
+        validatePackage(style)
+        require(bytes.size.toLong() == style.sizeBytes &&
+            MessageDigest.getInstance("SHA-256").digest(bytes).toHexString()
+                .equals(style.sha256, ignoreCase = true)) {
+            "Interface style package does not match catalog"
+        }
+        val file = packageCacheFile(style)
+        if (readVerifiedInterfaceStyleArchive(file, style) != null) return
+        require(file.parentFile?.mkdirs() == true || file.parentFile?.isDirectory == true) {
+            "Cannot create interface style package cache"
+        }
+        val atomicFile = AtomicFile(file)
+        val output = atomicFile.startWrite()
+        try {
+            output.write(bytes)
+            output.fd.sync()
+            atomicFile.finishWrite(output)
+        } catch (error: Throwable) {
+            atomicFile.failWrite(output)
+            throw error
+        }
+    }
+
+    private fun packageCacheFile(style: InterfaceStylePackage): File {
+        validatePackage(style)
+        return File(File(packageCacheDirectory, style.id), "${style.sha256}.ksstyle")
     }
 
     @Synchronized
@@ -458,6 +485,17 @@ fun interfaceStyleTheme(
     preferredId: String? = null,
 ): InterfaceStyleTheme? = InterfaceStyleRegistry(context).theme(engine, variant, preferredId)
 
+internal fun readVerifiedInterfaceStyleArchive(file: File, style: InterfaceStylePackage): ByteArray? {
+    if (!file.isFile || file.length() != style.sizeBytes || style.sizeBytes !in 1..MAX_PACKAGE_BYTES) return null
+    return runCatching {
+        val bytes = file.inputStream().use { it.readLimited(MAX_PACKAGE_BYTES) }
+        require(bytes.size.toLong() == style.sizeBytes)
+        require(MessageDigest.getInstance("SHA-256").digest(bytes).toHexString()
+            .equals(style.sha256, ignoreCase = true))
+        bytes
+    }.getOrNull()
+}
+
 class InterfaceStyleCatalogRepository(
     context: Context,
     private val client: okhttp3.OkHttpClient = ksuApp.okhttpClient,
@@ -565,7 +603,7 @@ class InterfaceStyleInstaller(
         onProgress: (InterfaceStyleDownloadProgress) -> Unit = {},
     ): InstalledInterfaceStyle = withContext(Dispatchers.IO) {
         val verified = downloadVerifiedPackage(style, preferences, onProgress)
-        registry.install(style, verified.bundle)
+        registry.install(style, verified.bundle).also { cacheVerifiedPackage(style, verified.bytes) }
     }
 
     suspend fun downloadPackage(
@@ -573,7 +611,12 @@ class InterfaceStyleInstaller(
         preferences: InterfaceStyleDownloadPreferences = readInterfaceStyleDownloadPreferences(appContext),
         onProgress: (InterfaceStyleDownloadProgress) -> Unit = {},
     ): ByteArray = withContext(Dispatchers.IO) {
-        downloadVerifiedPackage(style, preferences, onProgress).bytes
+        downloadVerifiedPackage(style, preferences, onProgress).bytes.also { cacheVerifiedPackage(style, it) }
+    }
+
+    private fun cacheVerifiedPackage(style: InterfaceStylePackage, bytes: ByteArray) {
+        runCatching { registry.cachePackage(style, bytes) }
+            .onFailure { Log.w("InterfaceStyleStore", "Unable to retain verified package for offline export", it) }
     }
 
     private fun downloadVerifiedPackage(
@@ -583,6 +626,11 @@ class InterfaceStyleInstaller(
     ): VerifiedInterfaceStylePackage {
         validatePackage(style)
         require(style.sizeBytes in 1..MAX_PACKAGE_BYTES) { "Interface style package size is invalid" }
+        registry.cachedPackage(style)?.let { bytes ->
+            val bundle = parseInterfaceStyleBundle(bytes, style)
+            validateBundleImages(bundle)
+            return VerifiedInterfaceStylePackage(bytes, bundle)
+        }
         val directUrl = validateStyleUrl(style.downloadUrl)
         val urls = runCatching {
             resolveInterfaceStyleUrls(directUrl, preferences)
@@ -942,12 +990,15 @@ internal fun resolveInterfaceStyleUrls(
 internal fun verifyInterfaceStyleCatalogSignature(
     catalog: ByteArray,
     signatureText: ByteArray,
-    publicKeyBase64: String = CATALOG_PUBLIC_KEY_B64,
+    publicKeyBase64: String? = null,
 ) {
     val signatureBytes = Base64.getMimeDecoder().decode(signatureText.toString(Charsets.UTF_8).trim())
     require(signatureBytes.size == 64) { "Interface style catalog signature is invalid" }
-    val keyBytes = Base64.getDecoder().decode(publicKeyBase64)
-    require(verifyCatalogEd25519Signature(listOf(catalog), signatureBytes, keyBytes)) {
+    val trustedKeys = publicKeyBase64?.let(::listOf)
+        ?: listOf(CATALOG_PUBLIC_KEY_B64, LEGACY_CATALOG_PUBLIC_KEY_B64)
+    require(trustedKeys.any { key ->
+        verifyCatalogEd25519Signature(listOf(catalog), signatureBytes, Base64.getDecoder().decode(key))
+    }) {
         "Interface style catalog signature verification failed"
     }
 }

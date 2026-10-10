@@ -18,6 +18,10 @@ class SidebarWeatherRepositoryTest {
     fun manualModeNeverRequestsWeather() = runBlocking {
         val repository = SidebarWeatherRepository(fetch = { error("Must not fetch") })
         repository.refresh(config.copy(enabled = false), force = true)
+        repository.refresh(config.copy(source = SidebarWeatherSource.Xiaomi), force = true)
+        repository.accept(config.copy(source = SidebarWeatherSource.Xiaomi), reading())
+        repository.refresh(config.copy(source = SidebarWeatherSource.OpenMeteo), force = true)
+        repository.accept(config.copy(source = SidebarWeatherSource.OpenMeteo), reading())
         assertNull(repository.state.value.reading)
     }
 

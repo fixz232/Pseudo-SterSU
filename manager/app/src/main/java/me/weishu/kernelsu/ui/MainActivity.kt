@@ -46,6 +46,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
@@ -141,15 +142,10 @@ import me.weishu.kernelsu.ui.util.SidebarMaterial
 import me.weishu.kernelsu.ui.component.bottombar.rememberMainPagerState
 import me.weishu.kernelsu.ui.component.bottombar.useNavigationRail
 import me.weishu.kernelsu.ui.component.dialog.rememberConfirmDialog
-import me.weishu.kernelsu.ui.component.decoration.LocalUiDecorationConfig
-import me.weishu.kernelsu.ui.component.decoration.LocalUiDecorationScope
-import me.weishu.kernelsu.ui.component.custom.LocalCustomCardStyle
 import me.weishu.kernelsu.ui.component.custom.LocalCustomSwitchStyle
-import me.weishu.kernelsu.ui.component.decoration.UiDecorationBackdrop
-import me.weishu.kernelsu.ui.component.decoration.UiDecorationChromeOverlay
-import me.weishu.kernelsu.ui.component.decoration.UiDecorationScope
 import me.weishu.kernelsu.ui.component.liquid.LocalLiquidGlassBackdrop
 import me.weishu.kernelsu.ui.component.liquid.liquidGlassBackdropColor
+import me.weishu.kernelsu.ui.theme.SidebarUiTokens
 import me.weishu.kernelsu.ui.component.pixel.LocalPixelStyle
 import me.weishu.kernelsu.ui.component.pixel.LocalPixelCardMotionEnabled
 import me.weishu.kernelsu.ui.component.pixel.LocalPixelCardMotionProgress
@@ -204,7 +200,6 @@ import me.weishu.kernelsu.ui.screen.modulerepo.ModuleRepoDetailScreen
 import me.weishu.kernelsu.ui.screen.modulerepo.ModuleRepoScreen
 import me.weishu.kernelsu.ui.screen.navigationicon.NavigationIconScreen
 import me.weishu.kernelsu.ui.screen.settings.BackgroundSettingsScreen
-import me.weishu.kernelsu.ui.screen.settings.CardStyleCreatorScreen
 import me.weishu.kernelsu.ui.screen.settings.AiChatScreen
 import me.weishu.kernelsu.ui.screen.settings.AiModuleStudioScreen
 import me.weishu.kernelsu.ui.screen.settings.CpuSpoofScreen
@@ -216,6 +211,10 @@ import me.weishu.kernelsu.ui.screen.settings.ForegroundToolProtectionScreen
 import me.weishu.kernelsu.ui.screen.settings.ImageToolScreen
 import me.weishu.kernelsu.ui.screen.settings.KpmScreen
 import me.weishu.kernelsu.ui.screen.settings.SusfsPathConfigScreen
+import me.weishu.kernelsu.ui.util.captureSusfsRecoverySnapshot
+import me.weishu.kernelsu.ui.util.getSusfsPathConfig
+import me.weishu.kernelsu.ui.util.hasSusfsRecoverySnapshot
+import me.weishu.kernelsu.ui.util.restoreSusfsFromSnapshot
 import me.weishu.kernelsu.ui.screen.settings.SusfsApplicationsScreen
 import me.weishu.kernelsu.ui.screen.settings.SusfsGuideScreen
 import me.weishu.kernelsu.ui.screen.settings.RescueProtectionScreen
@@ -228,7 +227,6 @@ import me.weishu.kernelsu.ui.screen.settings.SettingsCategoryScreen
 import me.weishu.kernelsu.ui.screen.settings.SoundEffectsScreen
 import me.weishu.kernelsu.ui.screen.settings.SidebarWidgetSettingsScreen
 import me.weishu.kernelsu.ui.screen.settings.StartupAnimationScreen
-import me.weishu.kernelsu.ui.screen.settings.UiDecorationLibraryScreen
 import me.weishu.kernelsu.ui.screen.settings.VisualEffectsScreen
 import me.weishu.kernelsu.ui.screen.settings.SwitchStyleCreatorScreen
 import me.weishu.kernelsu.ui.screen.sulog.SulogScreen
@@ -380,6 +378,18 @@ class MainActivity : ComponentActivity() {
                 runCatching { check(install()) { "ksud install command failed" } }
                     .onSuccess { KernelStatusEvents.requestRefresh() }
                     .onFailure { Log.e(TAG, "install ksud failed", it) }
+                if (!Natives.isLateLoadMode && !Natives.isLkmMode) {
+                    runCatching {
+                        val current = getSusfsPathConfig()
+                        if (current.runtimeStatus.generation.isBlank() && hasSusfsRecoverySnapshot()) {
+                            val restored = restoreSusfsFromSnapshot()
+                            if (!restored.success) Log.w(TAG, "SUSFS recovery failed: ${restored.error}")
+                        } else if (current.available) {
+                            captureSusfsRecoverySnapshot()
+                        }
+                    }
+                        .onFailure { Log.w(TAG, "SUSFS recovery snapshot failed", it) }
+                }
             }
         }
 
@@ -499,10 +509,6 @@ class MainActivity : ComponentActivity() {
             } else {
                 navigator.current() as? Route
             }
-            val uiDecorationScope = resolveUiDecorationScope(
-                currentRoute,
-                if (uiState.stealthModeEnabled) MainDestination.Home else selectedMainDestination,
-            )
             val systemDensity = LocalDensity.current
             val density = remember(systemDensity, uiState.pageScale, uiState.fontScale) {
                 Density(
@@ -510,17 +516,8 @@ class MainActivity : ComponentActivity() {
                     fontScale = systemDensity.fontScale * uiState.fontScale,
                 )
             }
-            val effectiveUiDecorationConfig = remember(uiState.uiDecorationConfig, uiState.interfaceStyle) {
-                uiState.uiDecorationConfig.deduplicateNativePixelChrome(
-                    pixelStyleActive = uiState.interfaceStyle == InterfaceStyle.Pixel.value,
-                )
-            }
-
             CompositionLocalProvider(
                 LocalNavigator provides navigator,
-                LocalUiDecorationConfig provides effectiveUiDecorationConfig,
-                LocalUiDecorationScope provides uiDecorationScope,
-                LocalCustomCardStyle provides uiState.customCardStyle,
                 LocalCustomSwitchStyle provides uiState.customSwitchStyle,
                 LocalDensity provides density,
                 LocalColorMode provides appSettings.colorMode.value,
@@ -660,8 +657,6 @@ class MainActivity : ComponentActivity() {
                                 entry<Route.LanguageSettings> { LanguageSettingsScreen() }
                                 entry<Route.PreInstallStyleSettings> { PreInstallStyleSettingsScreen() }
                                 entry<Route.VisualEffects> { VisualEffectsScreen() }
-                                entry<Route.UiDecorationLibrary> { UiDecorationLibraryScreen() }
-                                entry<Route.CardStyleCreator> { CardStyleCreatorScreen() }
                                 entry<Route.SwitchStyleCreator> { SwitchStyleCreatorScreen() }
                                 entry<Route.HiddenPathConfig> {
                                     if (!Natives.isLkmMode && !Natives.isLateLoadMode) {
@@ -908,7 +903,6 @@ class MainActivity : ComponentActivity() {
                                             modifier = Modifier.fillMaxSize(),
                                         )
                                     }
-                                    UiDecorationBackdrop(modifier = Modifier.fillMaxSize())
                                     if (immersiveBackgroundActive) {
                                         StatusBarContrastScrim(darkMode = darkMode)
                                     }
@@ -935,7 +929,6 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                        UiDecorationChromeOverlay(modifier = Modifier.fillMaxSize())
                         SeasonChromeOverlay(modifier = Modifier.fillMaxSize())
                         RainChromeOverlay(modifier = Modifier.fillMaxSize())
                         PixelChromeOverlay(modifier = Modifier.fillMaxSize())
@@ -986,6 +979,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
+        KernelStatusEvents.requestRefresh()
         StealthModeStore.reconcileFromRootAsync(this)
         StartupSoundPlayer.playConfigured(this)
         BackgroundMusicPlayer.playConfigured(this)
@@ -1271,26 +1265,6 @@ private fun stableNavPopTransitionContentTransform(): ContentTransform {
 
 val LocalMainPagerState = staticCompositionLocalOf<MainPagerState> { error("LocalMainPagerState not provided") }
 
-private fun resolveUiDecorationScope(
-    route: Route?,
-    selectedMainDestination: MainDestination,
-): UiDecorationScope {
-    return when (route) {
-        Route.Home -> UiDecorationScope.Home
-        Route.SuperUser -> UiDecorationScope.SuperUser
-        Route.Module -> UiDecorationScope.Modules
-        Route.Settings -> UiDecorationScope.Settings
-        Route.Main -> when (selectedMainDestination) {
-            MainDestination.Home -> UiDecorationScope.Home
-            MainDestination.SuperUser -> UiDecorationScope.SuperUser
-            MainDestination.Module -> UiDecorationScope.Modules
-            MainDestination.Settings -> UiDecorationScope.Settings
-            MainDestination.Kpm -> UiDecorationScope.Secondary
-        }
-        else -> UiDecorationScope.Secondary
-    }
-}
-
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun MainScreen(
@@ -1433,7 +1407,7 @@ fun MainScreen(
 
     MainScreenBackHandler(mainPagerState, navController)
 
-    val useNavigationRail = useNavigationRail(enableFloatingBottomBar)
+    val useNavigationRail = useNavigationRail()
     val sidebarConfig = if (interfaceStyle == InterfaceStyle.SidebarWidget.value) {
         rememberSidebarWidgetConfig()
     } else {
@@ -1510,41 +1484,48 @@ fun MainScreen(
                                         )
                                 },
                             ),
+                        contentAlignment = Alignment.TopCenter,
                     ) {
                         if (isCurrentPage || contentReady) {
-                            when (destination) {
-                                MainDestination.Home -> HomePager(
-                                    navController,
-                                    bottomInnerPadding,
-                                    isCurrentPage,
-                                    stealthModeEnabled,
-                                )
+                            Box(
+                                modifier = Modifier
+                                    .widthIn(max = mainPagerContentMaxWidth(destination, sidebarConfig != null))
+                                    .fillMaxSize(),
+                            ) {
+                                when (destination) {
+                                    MainDestination.Home -> HomePager(
+                                        navController,
+                                        bottomInnerPadding,
+                                        isCurrentPage,
+                                        stealthModeEnabled,
+                                    )
 
-                                MainDestination.Kpm -> KpmScreen(
-                                    inPager = true,
-                                    bottomInnerPadding = bottomInnerPadding,
-                                )
+                                    MainDestination.Kpm -> KpmScreen(
+                                        inPager = true,
+                                        bottomInnerPadding = bottomInnerPadding,
+                                    )
 
-                                MainDestination.SuperUser -> SuperUserPager(
-                                    navigator = navController,
-                                    bottomInnerPadding = bottomInnerPadding,
-                                    isCurrentPage = isCurrentPage,
-                                    onOpenSecondary = {
-                                        onDestinationChanged(MainDestination.SuperUser)
-                                    },
-                                )
+                                    MainDestination.SuperUser -> SuperUserPager(
+                                        navigator = navController,
+                                        bottomInnerPadding = bottomInnerPadding,
+                                        isCurrentPage = isCurrentPage,
+                                        onOpenSecondary = {
+                                            onDestinationChanged(MainDestination.SuperUser)
+                                        },
+                                    )
 
-                                MainDestination.Module -> ModulePager(
-                                    bottomInnerPadding,
-                                    isCurrentPage,
-                                )
+                                    MainDestination.Module -> ModulePager(
+                                        bottomInnerPadding,
+                                        isCurrentPage,
+                                    )
 
-                                MainDestination.Settings -> SettingPager(
-                                    navController,
-                                    bottomInnerPadding,
-                                )
+                                    MainDestination.Settings -> SettingPager(
+                                        navController,
+                                        bottomInnerPadding,
+                                    )
 
-                                null -> Unit
+                                    null -> Unit
+                                }
                             }
                         }
                     }
@@ -1643,6 +1624,12 @@ fun MainScreen(
         }
         }
     }
+}
+
+internal fun mainPagerContentMaxWidth(destination: MainDestination?, sidebarStyle: Boolean): Dp = when {
+    sidebarStyle || destination == MainDestination.Settings -> SidebarUiTokens.ContentMaxWidth
+    destination == MainDestination.Kpm -> 960.dp
+    else -> SidebarUiTokens.DetailMaxWidth
 }
 
 internal fun resolveMainContentBottomPadding(

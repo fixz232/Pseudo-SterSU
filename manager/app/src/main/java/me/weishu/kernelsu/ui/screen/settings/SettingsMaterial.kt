@@ -187,14 +187,6 @@ fun SettingPagerMaterial(
                                 onClick = actions.onOpenVisualEffects,
                             )
                         },
-                        {
-                            MaterialSettingsLink(
-                                title = stringResource(R.string.settings_ui_decoration_library),
-                                summary = stringResource(R.string.settings_ui_decoration_library_summary),
-                                icon = Icons.Rounded.Brush,
-                                onClick = actions.onOpenUiDecorationLibrary,
-                            )
-                        },
                     ),
                 )
             }

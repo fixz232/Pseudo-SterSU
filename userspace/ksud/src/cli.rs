@@ -43,6 +43,13 @@ enum Commands {
         command: Kpm,
     },
 
+    /// Query and configure the SUSFS kernel interface
+    #[cfg(target_arch = "aarch64")]
+    Susfs {
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true, num_args = 1..)]
+        args: Vec<String>,
+    },
+
     /// Manage SterSU Hide
     EpkesuHide {
         #[command(subcommand)]
@@ -896,6 +903,9 @@ pub fn run() -> Result<()> {
         }
 
         Commands::SoftReboot => crate::soft_reboot::soft_reboot(),
+
+        #[cfg(target_arch = "aarch64")]
+        Commands::Susfs { args } => crate::susfs::cli::run(&args),
 
         Commands::Insmod { module, params } => debug::insmod(&module, &params),
 

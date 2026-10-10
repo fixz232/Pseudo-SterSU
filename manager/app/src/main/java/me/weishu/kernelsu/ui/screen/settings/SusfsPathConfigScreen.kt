@@ -97,13 +97,18 @@ import me.weishu.kernelsu.ui.util.SusfsKstatEntry
 import me.weishu.kernelsu.ui.util.SusfsOpenRedirectEntry
 import me.weishu.kernelsu.ui.util.SusfsPathConfigState
 import me.weishu.kernelsu.ui.util.buildSusfsBackupJson
+import me.weishu.kernelsu.ui.util.captureSusfsRecoverySnapshot
 import me.weishu.kernelsu.ui.util.getSusfsDiagnostics
 import me.weishu.kernelsu.ui.util.getSusfsPathConfig
+import me.weishu.kernelsu.ui.util.hasSusfsRecoverySnapshot
 import me.weishu.kernelsu.ui.util.mergeSusfsConfig
 import me.weishu.kernelsu.ui.util.normalizeSusfsMapPath
 import me.weishu.kernelsu.ui.util.normalizeSusfsPath
+import me.weishu.kernelsu.ui.util.normalizeSusfsRedirectPath
 import me.weishu.kernelsu.ui.util.parseSusfsBackupJson
 import me.weishu.kernelsu.ui.util.saveAndApplySusfsConfig
+import me.weishu.kernelsu.ui.util.restoreSusfsFromSnapshot
+import me.weishu.kernelsu.ui.util.susfsApplyErrorDetail
 import me.weishu.kernelsu.ui.util.withKernelIdentity
 import me.weishu.kernelsu.ui.viewmodel.SusfsKernelSlotsState
 import me.weishu.kernelsu.ui.viewmodel.SusfsKernelSlotsViewModel
@@ -142,6 +147,10 @@ fun SusfsPathConfigScreen() {
     var selectedPageIndex by rememberSaveable { mutableStateOf(0) }
     var showActionMenu by rememberSaveable { mutableStateOf(false) }
     var exportingDiagnostics by remember { mutableStateOf(false) }
+    var recoveryAvailable by remember { mutableStateOf(false) }
+    var recoveryError by remember { mutableStateOf("") }
+    var restoring by remember { mutableStateOf(false) }
+    var dismissedRecoveryError by rememberSaveable { mutableStateOf("") }
 
     val selectedPage = SusfsPage.entries[selectedPageIndex.coerceIn(SusfsPage.entries.indices)]
     val runtimeScrollState = rememberScrollState()
@@ -163,7 +172,13 @@ fun SusfsPathConfigScreen() {
         if (loading || applying || importing || dirty) return
         scope.launch {
             loading = true
-            replaceWithRuntime(getSusfsPathConfig())
+            val refreshed = getSusfsPathConfig()
+            replaceWithRuntime(refreshed)
+            if (refreshed.available) {
+                val backup = captureSusfsRecoverySnapshot()
+                recoveryError = if (backup.success || refreshed.runtimeStatus.generation.isBlank()) "" else backup.error
+            }
+            recoveryAvailable = hasSusfsRecoverySnapshot()
             loading = false
         }
     }
@@ -172,17 +187,20 @@ fun SusfsPathConfigScreen() {
         if (dirty) showDiscardDialog = true else navigator.pop()
     }
 
-    fun apply() {
+    fun apply(config: SusfsPathConfigState = draft) {
         if (applying || !runtime.available) return
         scope.launch {
             applying = true
             actionError = ""
             actionErrorRetryable = false
-            val result = saveAndApplySusfsConfig(draft)
+            val result = saveAndApplySusfsConfig(config)
             if (result.saved) {
                 val refreshed = getSusfsPathConfig()
                 if (refreshed.available) {
                     replaceWithRuntime(refreshed)
+                    val backup = captureSusfsRecoverySnapshot()
+                    recoveryError = if (backup.success) "" else backup.error
+                    recoveryAvailable = hasSusfsRecoverySnapshot()
                 } else {
                     val saved = draft.copy(
                         available = runtime.available,
@@ -195,7 +213,7 @@ fun SusfsPathConfigScreen() {
                     baseline = saved
                 }
                 if (!result.success) {
-                    actionError = result.error.ifBlank { "partial_apply" }
+                    actionError = susfsApplyErrorDetail(result)
                     actionErrorRetryable = true
                 }
                 Toast.makeText(
@@ -214,6 +232,35 @@ fun SusfsPathConfigScreen() {
                 actionErrorRetryable = true
             }
             applying = false
+        }
+    }
+
+    fun restore() {
+        if (restoring || dirty || (!recoveryAvailable && !runtime.available)) return
+        scope.launch {
+            restoring = true
+            try {
+                val result = restoreSusfsFromSnapshot()
+                replaceWithRuntime(getSusfsPathConfig())
+                recoveryAvailable = hasSusfsRecoverySnapshot()
+                if (result.success) {
+                    Toast.makeText(
+                        context,
+                        when (result.error) {
+                            "already_present" -> R.string.susfs_recovery_already_present
+                            "initialized_without_backup" -> R.string.susfs_recovery_initialized
+                            else -> R.string.susfs_recovery_success
+                        },
+                        Toast.LENGTH_LONG,
+                    ).show()
+                } else {
+                    actionError = result.error.ifBlank { "restore_failed" }
+                }
+            } catch (error: Exception) {
+                actionError = error.message.orEmpty().ifBlank { "restore_failed" }
+            } finally {
+                restoring = false
+            }
         }
     }
 
@@ -293,7 +340,13 @@ fun SusfsPathConfigScreen() {
     BackHandler(enabled = dirty, onBack = { showDiscardDialog = true })
 
     LaunchedEffect(Unit) {
-        replaceWithRuntime(getSusfsPathConfig())
+        val initial = getSusfsPathConfig()
+        replaceWithRuntime(initial)
+        if (initial.available) {
+            val backup = captureSusfsRecoverySnapshot()
+            recoveryError = if (backup.success || initial.runtimeStatus.generation.isBlank()) "" else backup.error
+        }
+        recoveryAvailable = hasSusfsRecoverySnapshot()
         loading = false
     }
 
@@ -407,6 +460,24 @@ fun SusfsPathConfigScreen() {
                             expanded = showActionMenu,
                             onDismissRequest = { showActionMenu = false },
                         ) {
+                            if (recoveryError.isNotBlank() && dismissedRecoveryError == recoveryError) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.susfs_recovery_show_warning)) },
+                                    onClick = {
+                                        dismissedRecoveryError = ""
+                                        showActionMenu = false
+                                    },
+                                )
+                            }
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.susfs_recovery_action)) },
+                                leadingIcon = { Icon(Icons.Rounded.Refresh, contentDescription = null) },
+                                enabled = recoveryAvailable && !dirty && !loading && !applying && !restoring,
+                                onClick = {
+                                    showActionMenu = false
+                                    restore()
+                                },
+                            )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.susfs_import)) },
                                 leadingIcon = { Icon(Icons.Rounded.UploadFile, contentDescription = null) },
@@ -469,7 +540,7 @@ fun SusfsPathConfigScreen() {
             ) {
                 Column(modifier = Modifier.imePadding()) {
                     Button(
-                        onClick = ::apply,
+                        onClick = { apply() },
                         enabled = runtime.available && dirty && !loading && !applying && !importing,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -531,9 +602,70 @@ fun SusfsPathConfigScreen() {
         ) {
             SusfsStatusPanel(
                 state = runtime,
-                loading = loading || importing,
+                loading = loading || importing || restoring,
                 page = selectedPage,
             )
+
+            if (runtime.runtimeStatus.issues.any { it.category == "avc" }) {
+                SusfsNoticeCard(
+                    title = stringResource(R.string.susfs_avc_rejected_title),
+                    message = stringResource(R.string.susfs_avc_rejected_message),
+                    warning = true,
+                )
+                if (!dirty && runtime.avcLogSpoofing) {
+                    OutlinedButton(
+                        onClick = {
+                            val next = runtime.copy(avcLogSpoofing = false)
+                            draft = next
+                            apply(next)
+                        },
+                        enabled = runtime.available && !loading && !applying && !importing,
+                    ) { Text(stringResource(R.string.susfs_disable_avc_and_retry)) }
+                }
+            }
+
+            if (!loading && (!runtime.available || runtime.runtimeStatus.generation.isBlank())) {
+                SusfsNoticeCard(
+                    title = stringResource(R.string.susfs_recovery_title),
+                    message = stringResource(
+                        if (recoveryAvailable) R.string.susfs_recovery_available
+                        else if (runtime.available) R.string.susfs_recovery_initialize_hint
+                        else R.string.susfs_recovery_unavailable,
+                    ),
+                    warning = true,
+                )
+                if (recoveryAvailable || runtime.available) {
+                    OutlinedButton(
+                        onClick = ::restore,
+                        enabled = !dirty && !applying && !restoring,
+                    ) {
+                        Text(stringResource(
+                            if (recoveryAvailable) R.string.susfs_recovery_action
+                            else R.string.susfs_recovery_initialize_action,
+                        ))
+                    }
+                }
+            }
+
+            if (!loading && runtime.available && runtime.runtimeStatus.generation.isNotBlank() &&
+                selectedPage == SusfsPage.RuntimePolicy &&
+                (recoveryError.isBlank() || dismissedRecoveryError != recoveryError)
+            ) {
+                SusfsNoticeCard(
+                    title = stringResource(R.string.susfs_recovery_title),
+                    message = if (recoveryError.isNotBlank()) {
+                        stringResource(R.string.susfs_recovery_backup_failed, recoveryError)
+                    } else if (recoveryAvailable) {
+                        stringResource(R.string.susfs_recovery_ready)
+                    } else {
+                        stringResource(R.string.susfs_recovery_unavailable)
+                    },
+                    warning = recoveryError.isNotBlank() || !recoveryAvailable,
+                    onDismiss = if (recoveryError.isNotBlank()) {
+                        { dismissedRecoveryError = recoveryError }
+                    } else null,
+                )
+            }
 
             if (importWarnings.isNotEmpty()) {
                 SusfsNoticeCard(
@@ -572,7 +704,7 @@ fun SusfsPathConfigScreen() {
                         )
                         if (actionErrorRetryable) {
                             TextButton(
-                                onClick = ::apply,
+                                onClick = { apply() },
                                 enabled = runtime.available && !loading && !applying && !importing,
                             ) {
                                 Text(stringResource(R.string.susfs_retry_apply))
@@ -628,6 +760,19 @@ fun SusfsPathConfigScreen() {
             }
 
             if (selectedPage == SusfsPage.PathMasking) {
+                if ((draft.paths + draft.loopPaths).any { path ->
+                        path == "/data/adb" || path == "/data/adb/modules" ||
+                            listOf("/data/adb/ksu", "/data/adb/ap").any { root ->
+                                path == root || path.startsWith("$root/")
+                            }
+                    }
+                ) {
+                    SusfsNoticeCard(
+                        title = stringResource(R.string.susfs_management_path_warning_title),
+                        message = stringResource(R.string.susfs_management_path_warning_message),
+                        warning = true,
+                    )
+                }
                 SusfsStringListEditor(
                     title = stringResource(R.string.susfs_normal_paths),
                     summary = stringResource(R.string.susfs_normal_paths_summary),
@@ -1033,8 +1178,8 @@ private fun SusfsRedirectEditor(
     var uidMenuExpanded by rememberSaveable { mutableStateOf(false) }
 
     fun addRedirect() {
-        val source = normalizeSusfsPath(original)
-        val target = normalizeSusfsPath(redirected)
+        val source = normalizeSusfsRedirectPath(original)
+        val target = normalizeSusfsRedirectPath(redirected)
         if (source == null || target == null || uidScheme.toIntOrNull() !in 0..4) {
             Toast.makeText(context, R.string.susfs_redirect_invalid, Toast.LENGTH_LONG).show()
             return
@@ -1221,6 +1366,7 @@ private fun SusfsNoticeCard(
     title: String,
     message: String,
     warning: Boolean,
+    onDismiss: (() -> Unit)? = null,
 ) {
     Surface(
         shape = RoundedCornerShape(8.dp),
@@ -1243,6 +1389,11 @@ private fun SusfsNoticeCard(
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                 Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                if (onDismiss != null) {
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(R.string.susfs_recovery_hide_warning))
+                    }
+                }
             }
         }
     }

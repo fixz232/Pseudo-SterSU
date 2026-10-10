@@ -1,7 +1,9 @@
 package me.weishu.kernelsu.ui.util
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.ByteArrayOutputStream
@@ -36,14 +38,40 @@ class InterfaceStyleStoreTest {
     }
 
     @Test
+    fun offlineArchiveRequiresExactSignedCatalogBytes() {
+        val assets = File("src/main/assets/interface-style")
+        val style = parseInterfaceStyleCatalog(File(assets, "catalog-v2.json").readText())
+            .styles.single { it.id == "sidebar-widget" }
+        val bytes = File(assets, "packages/sidebar-widget.ksstyle").readBytes()
+        val cacheFile = File.createTempFile("interface-style-archive", ".ksstyle")
+        try {
+            cacheFile.writeBytes(bytes)
+            assertArrayEquals(bytes, readVerifiedInterfaceStyleArchive(cacheFile, style))
+            assertNull(readVerifiedInterfaceStyleArchive(cacheFile, style.copy(sha256 = "a".repeat(64))))
+            val tampered = bytes.copyOf().also { it[0] = (it[0].toInt() xor 1).toByte() }
+            cacheFile.writeBytes(tampered)
+            assertNull(readVerifiedInterfaceStyleArchive(cacheFile, style))
+        } finally {
+            cacheFile.delete()
+        }
+    }
+
+    @Test
     fun onlyOptionalStylesAppearInMergedStoreCatalog() {
         val assets = File("src/main/assets/interface-style")
         val signedCatalog = parseInterfaceStyleCatalog(File(assets, "catalog-v2.json").readText())
-        assertEquals(31, signedCatalog.styles.size)
+        assertEquals(21, signedCatalog.styles.size)
         assertTrue(signedCatalog.styles.any { it.id == "skrootpro" })
         assertTrue(signedCatalog.styles.any { it.id == "alpha-delta" })
+        val retiredIds = setOf(
+            "rain-light", "rain-medium", "rain-heavy", "rain-thunderstorm", "rain-after",
+            "windows-fluent", "pixel-cloud-town", "pixel-lava-valley",
+            "pixel-rust-wasteland", "pixel-star-voyage",
+        )
+        assertTrue(signedCatalog.styles.none { it.id in retiredIds })
         val catalog = signedCatalog.withApkTrustedStyles()
         assertFalse(catalog.styles.any { it.id == "sidebar-widget" })
+        assertTrue(catalog.styles.none { it.id in retiredIds })
         assertFalse(File(assets, "packages/windows-fluent.ksstyle").exists())
         for (id in listOf("skrootpro", "alpha-delta")) {
             val style = catalog.styles.single { it.id == id }

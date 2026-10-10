@@ -3,10 +3,6 @@ package me.weishu.kernelsu.ui.component.pixel
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.unit.dp
-import me.weishu.kernelsu.ui.component.decoration.pixelCardOverlayInset
-import me.weishu.kernelsu.ui.component.decoration.pixelCardTopDecorationHeight
-import me.weishu.kernelsu.ui.component.decoration.pixelCardTopDecorationScale
-import me.weishu.kernelsu.ui.component.decoration.pixelPatternFramePolishEnabled
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -118,31 +114,6 @@ class PixelStyleTest {
     }
 
     @Test
-    fun cardTopDecorationsStayCompactAndSkipTinyCards() {
-        val unit = 3f
-        assertEquals(12f, pixelCardTopDecorationHeight(unit, 360f, 120f), 0.001f)
-        assertEquals(9.6f, pixelCardTopDecorationHeight(unit, 240f, 60f), 0.001f)
-        assertEquals(0f, pixelCardTopDecorationHeight(unit, 48f, 60f), 0.001f)
-        assertEquals(0f, pixelCardTopDecorationHeight(unit, 240f, 24f), 0.001f)
-    }
-
-    @Test
-    fun compactCardTopDecorationsScaleInsteadOfClipping() {
-        assertEquals(1f, pixelCardTopDecorationScale(unit = 3f, availableHeight = 12f), 0.001f)
-        assertEquals(0.8f, pixelCardTopDecorationScale(unit = 3f, availableHeight = 9.6f), 0.001f)
-        assertEquals(0.4f, pixelCardTopDecorationScale(unit = 3f, availableHeight = 4.8f), 0.001f)
-        assertEquals(0f, pixelCardTopDecorationScale(unit = 0f, availableHeight = 12f), 0.001f)
-    }
-
-    @Test
-    fun cardOverlaysStayInsideTheirDrawableBounds() {
-        assertEquals(2.16f, pixelCardOverlayInset(unit = 3f, width = 360f, height = 120f), 0.001f)
-        assertEquals(1.1f, pixelCardOverlayInset(unit = 3f, width = 360f, height = 20f), 0.001f)
-        assertEquals(0f, pixelCardOverlayInset(unit = 0f, width = 360f, height = 120f), 0.001f)
-        assertEquals(0f, pixelCardOverlayInset(unit = 3f, width = 0f, height = 120f), 0.001f)
-    }
-
-    @Test
     fun pixelCardsUseRealSquareCorners() {
         assertEquals(0.dp, resolvePixelMiuixCardCornerRadius(pixelStyle = true, defaultRadius = 18.dp))
         assertEquals(18.dp, resolvePixelMiuixCardCornerRadius(pixelStyle = false, defaultRadius = 18.dp))
@@ -150,11 +121,4 @@ class PixelStyleTest {
         assertEquals(RectangleShape, pixelMottoShape)
     }
 
-    @Test
-    fun polishedFramesSkipCardsThatCannotKeepTheirContentClear() {
-        assertTrue(pixelPatternFramePolishEnabled(unit = 3f, width = 360f, height = 120f))
-        assertFalse(pixelPatternFramePolishEnabled(unit = 3f, width = 48f, height = 120f))
-        assertFalse(pixelPatternFramePolishEnabled(unit = 3f, width = 360f, height = 24f))
-        assertFalse(pixelPatternFramePolishEnabled(unit = 0f, width = 360f, height = 120f))
-    }
 }

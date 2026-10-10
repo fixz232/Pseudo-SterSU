@@ -933,7 +933,7 @@ private fun ThemePreviewCardMiuix(
     val screenWidth = configuration.screenWidthDp.toFloat()
     val screenHeight = configuration.screenHeightDp.toFloat()
     val screenRatio = screenWidth / screenHeight
-    val useRail = useNavigationRail(enableFloatingBottomBar)
+    val useRail = useNavigationRail()
 
     val seedColor = if (keyColor == 0) colorScheme.primary else Color(keyColor)
     val effectiveStyle = if (keyColor == 0) PaletteStyle.TonalSpot else paletteStyle

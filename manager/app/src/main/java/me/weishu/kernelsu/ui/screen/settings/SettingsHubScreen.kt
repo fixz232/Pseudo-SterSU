@@ -54,7 +54,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import me.weishu.kernelsu.R
 import me.weishu.kernelsu.ui.InterfaceStyle
-import me.weishu.kernelsu.ui.component.decoration.uiDecoratedCard
 import me.weishu.kernelsu.ui.theme.immersiveScrolledTopBarColor
 import me.weishu.kernelsu.ui.theme.immersiveSurfaceColor
 
@@ -204,7 +203,6 @@ private fun SettingsCategoryCard(
         contentColor = MaterialTheme.colorScheme.onSurface,
         shape = shape,
         modifier = modifier
-            .uiDecoratedCard(shape = shape)
             .clickable(onClick = onClick),
     ) {
         Row(

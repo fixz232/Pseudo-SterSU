@@ -6,6 +6,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.json.JSONObject
 import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.security.KeyPairGenerator
@@ -23,12 +24,12 @@ class PluginStoreTest {
     }
 
     @Test
-    fun catalogContainsEveryAllowlistedPlugin() {
+    fun catalogContainsEveryPublishedPlugin() {
         val catalog = parseManagerPluginCatalog(validCatalog())
 
-        assertEquals(ManagerPlugin.entries.size, catalog.plugins.size)
+        assertEquals(publishedManagerPlugins().size, catalog.plugins.size)
         assertEquals(
-            ManagerPlugin.entries.map { it.id }.toSet(),
+            publishedManagerPlugins().map { it.id }.toSet(),
             catalog.plugins.map { it.id }.toSet(),
         )
         assertEquals(
@@ -47,15 +48,18 @@ class PluginStoreTest {
         assertEquals(ManagerPlugin.entries.size - 1, catalog.plugins.size)
     }
 
-    @Test(expected = IllegalArgumentException::class)
-    fun catalogRejectsArbitraryMissingPlugin() {
-        parseManagerPluginCatalog(validCatalog(ManagerPlugin.entries.drop(1)))
+    @Test
+    fun catalogAcceptsSignedAllowlistedSubset() {
+        val subset = publishedManagerPlugins().drop(1)
+        val catalog = parseManagerPluginCatalog(validCatalog(subset))
+
+        assertEquals(subset.map { it.id }.toSet(), catalog.plugins.map { it.id }.toSet())
     }
 
     @Test(expected = IllegalArgumentException::class)
     fun catalogRejectsDuplicatePlugin() {
         parseManagerPluginCatalog(
-            validCatalog(ManagerPlugin.entries.dropLast(1) + ManagerPlugin.RescueProtection)
+            validCatalog(publishedManagerPlugins() + ManagerPlugin.RescueProtection)
         )
     }
 
@@ -141,12 +145,12 @@ class PluginStoreTest {
     }
 
     @Test
-    fun replacementSignedBundledCatalogIncludesEveryPlugin() {
+    fun replacementSignedBundledCatalogIncludesEveryPublishedPlugin() {
         val catalog = bundledCatalog(2)
         verifyManagerPluginCatalogSignature(catalog, bundledSignature(2))
 
         val parsed = parseManagerPluginCatalog(catalog.toString(Charsets.UTF_8))
-        assertEquals(ManagerPlugin.entries.map { it.id }.toSet(), parsed.plugins.map { it.id }.toSet())
+        assertEquals(publishedManagerPlugins().map { it.id }.toSet(), parsed.plugins.map { it.id }.toSet())
         assertTrue(parsed.plugins.any { it.id == ManagerPlugin.PathmaskLkm.id })
     }
 
@@ -159,7 +163,7 @@ class PluginStoreTest {
     }
 
     @Test
-    fun replacementCatalogPackagesMatchSignedHashes() {
+    fun replacementCatalogPackagesMatchSignedMetadata() {
         val bytes = bundledCatalog(2)
         verifyManagerPluginCatalogSignature(bytes, bundledSignature(2))
         val catalog = parseManagerPluginCatalog(bytes.toString(Charsets.UTF_8))
@@ -167,6 +171,8 @@ class PluginStoreTest {
             val downloaded = File("../../plugin-store/packages/${plugin.id}.ksplugin").readBytes()
             val verified = pluginPackageBytesMatchingCatalog(downloaded, plugin)
             assertEquals(plugin.sizeBytes, verified.size.toLong())
+            val packageMetadata = parsePlugin(JSONObject(verified.toString(Charsets.UTF_8)), requireDownload = false)
+            assertTrue(plugin.id, pluginPackageMatchesCatalog(packageMetadata, plugin))
         }
     }
 
@@ -356,6 +362,25 @@ class PluginStoreTest {
     }
 
     @Test
+    fun pathmaskRemovalDisablesAutoLoadEvenWithNoPathsLoaded() = runBlocking {
+        var disabled = false
+        var unloaded = false
+        val stopped = stopPathmaskPluginForRemoval(
+            readStatus = { HiddenPathConfigReadResult(HiddenPathConfigState(
+                targetPaths = emptyList(),
+                autoLoadEnabled = !disabled,
+                loaded = false,
+            )) },
+            disableAutoLoad = { disabled = true; ToolCommandResult(success = true) },
+            unload = { unloaded = true; ToolCommandResult(success = true) },
+        )
+
+        assertTrue(stopped)
+        assertTrue(disabled)
+        assertFalse(unloaded)
+    }
+
+    @Test
     fun pathmaskRemovalRejectsUnverifiedShutdown() = runBlocking {
         val stopped = stopPathmaskPluginForRemoval(
             readStatus = { HiddenPathConfigReadResult(HiddenPathConfigState(
@@ -409,7 +434,7 @@ class PluginStoreTest {
         sizeBytes = 128,
     )
 
-    private fun validCatalog(pluginsToInclude: List<ManagerPlugin> = ManagerPlugin.entries): String {
+    private fun validCatalog(pluginsToInclude: List<ManagerPlugin> = publishedManagerPlugins()): String {
         val plugins = pluginsToInclude.joinToString(",") { plugin ->
             val slots = plugin.slots.joinToString(",") { "\"${it.id}\"" }
             """

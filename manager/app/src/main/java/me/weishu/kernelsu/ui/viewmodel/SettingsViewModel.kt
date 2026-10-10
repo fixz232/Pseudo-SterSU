@@ -26,13 +26,10 @@ import me.weishu.kernelsu.ui.component.PageTransitionEffect
 import me.weishu.kernelsu.ui.component.GlobalSnowEffect
 import me.weishu.kernelsu.ui.component.NightBackgroundEffect
 import me.weishu.kernelsu.ui.component.SwitchStyle
-import me.weishu.kernelsu.ui.component.decoration.UiDecorationConfig
-import me.weishu.kernelsu.ui.component.decoration.CustomUiDecorationPreset
 import me.weishu.kernelsu.ui.component.pixel.PixelStyle
 import me.weishu.kernelsu.ui.component.rain.RainStyle
 import me.weishu.kernelsu.ui.component.snow.SeasonStyle
 import me.weishu.kernelsu.ui.screen.settings.SettingsUiState
-import me.weishu.kernelsu.ui.screen.settings.UiDecorationSaveState
 import me.weishu.kernelsu.ui.theme.ColorMode
 import me.weishu.kernelsu.ui.theme.DeltaColorVariant
 import me.weishu.kernelsu.ui.theme.ThemeAppearanceDefaults
@@ -86,7 +83,6 @@ class SettingsViewModel(
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
     private var refreshJob: Job? = null
-    private var uiDecorationSaveJob: Job? = null
     init {
         refresh()
     }
@@ -175,9 +171,6 @@ class SettingsViewModel(
             val fontScale = repo.fontScale
             val blurIntensity = repo.blurIntensity
             val switchStyle = repo.switchStyle
-            val uiDecorationConfig = repo.uiDecorationConfig
-            val customUiDecorationPresets = repo.getCustomUiDecorationPresets()
-            val recentUiDecorationComponents = repo.getRecentUiDecorationComponents()
             val globalSnowEnabled = repo.globalSnowEnabled
             val globalSnowEffect = repo.globalSnowEffect
             val nightBackgroundEffect = repo.nightBackgroundEffect
@@ -290,9 +283,6 @@ class SettingsViewModel(
                     fontScale = fontScale,
                     blurIntensity = blurIntensity,
                     switchStyle = switchStyle,
-                    uiDecorationConfig = uiDecorationConfig,
-                    customUiDecorationPresets = customUiDecorationPresets,
-                    recentUiDecorationComponents = recentUiDecorationComponents,
                     globalSnowEnabled = globalSnowEnabled,
                     globalSnowEffect = globalSnowEffect,
                     nightBackgroundEffect = nightBackgroundEffect,
@@ -519,70 +509,6 @@ class SettingsViewModel(
     fun setGlobalSnowEnabled(enabled: Boolean) {
         repo.globalSnowEnabled = enabled
         _uiState.update { it.copy(globalSnowEnabled = enabled) }
-    }
-
-    fun setUiDecorationConfig(config: UiDecorationConfig) {
-        val normalized = config.normalized()
-        if (uiDecorationSaveJob?.isActive == true) return
-        _uiState.update { it.copy(uiDecorationSaveState = UiDecorationSaveState.Saving) }
-        uiDecorationSaveJob = viewModelScope.launch {
-            val saved = withContext(Dispatchers.IO) {
-                runCatching {
-                    repo.saveUiDecorationConfig(normalized) && repo.uiDecorationConfig == normalized
-                }.getOrDefault(false)
-            }
-            _uiState.update { current ->
-                if (saved) {
-                    current.copy(
-                        uiDecorationConfig = normalized,
-                        uiDecorationSaveState = UiDecorationSaveState.Saved,
-                        recentUiDecorationComponents = repo.getRecentUiDecorationComponents(),
-                    )
-                } else {
-                    current.copy(uiDecorationSaveState = UiDecorationSaveState.Failed)
-                }
-            }
-        }
-    }
-
-    fun consumeUiDecorationSaveState() {
-        _uiState.update { current ->
-            if (current.uiDecorationSaveState == UiDecorationSaveState.Saving) {
-                current
-            } else {
-                current.copy(uiDecorationSaveState = UiDecorationSaveState.Idle)
-            }
-        }
-    }
-
-    fun saveCustomUiDecorationPreset(name: String, config: UiDecorationConfig): Boolean {
-        repo.saveCustomUiDecorationPreset(name, config) ?: return false
-        _uiState.update { current -> current.copy(customUiDecorationPresets = repo.getCustomUiDecorationPresets()) }
-        return true
-    }
-
-    fun renameCustomUiDecorationPreset(presetId: String, name: String): Boolean {
-        val saved = repo.renameCustomUiDecorationPreset(presetId, name)
-        if (saved) {
-            _uiState.update { it.copy(customUiDecorationPresets = repo.getCustomUiDecorationPresets()) }
-        }
-        return saved
-    }
-
-    fun deleteCustomUiDecorationPreset(presetId: String): Boolean {
-        val deleted = repo.deleteCustomUiDecorationPreset(presetId)
-        if (deleted) {
-            _uiState.update { it.copy(customUiDecorationPresets = repo.getCustomUiDecorationPresets()) }
-        }
-        return deleted
-    }
-
-    suspend fun importCustomUiDecorationPresets(presets: List<CustomUiDecorationPreset>): Int {
-        val count = withContext(Dispatchers.IO) { repo.importCustomUiDecorationPresets(presets) }
-        if (count > 0) {
-            _uiState.update { it.copy(customUiDecorationPresets = repo.getCustomUiDecorationPresets()) }
-        }
-        return count
     }
 
     fun setSeasonStyleIndex(index: Int) {

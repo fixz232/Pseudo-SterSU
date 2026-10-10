@@ -70,7 +70,6 @@ class MainPagerState(
     private var navigationGeneration = 0L
     private var pendingRestoredDestination: MainDestination? = restoredDestination
     private var fullFeaturedUnavailableObservations = 0
-    private var kpmInactiveObservations = 0
     private var kpmExplicitlyDisabled = false
 
     fun animateToPage(targetIndex: Int) {
@@ -154,34 +153,22 @@ class MainPagerState(
 
     fun markKpmExplicitlyDisabled() {
         kpmExplicitlyDisabled = true
-        kpmInactiveObservations = 0
-        updateKpmAvailability(false, bypassInactiveHysteresis = true)
+        updateKpmAvailability(false)
     }
 
     fun clearKpmExplicitDisable() {
         kpmExplicitlyDisabled = false
-        kpmInactiveObservations = 0
     }
 
-    fun updateKpmAvailability(available: Boolean?, bypassInactiveHysteresis: Boolean = false) {
+    fun updateKpmAvailability(available: Boolean?) {
         val resolvedAvailability = available ?: return
         if (resolvedAvailability) {
             // A probe started before an explicit disable may finish after it.
             // Do not let that stale result resurrect the KPM destination.
             if (!shouldAcceptKpmAvailability(resolvedAvailability, kpmExplicitlyDisabled)) return
-            kpmInactiveObservations = 0
-        } else {
-            if (!kpmActive) return
-
-            // KPatch-Next status is read through a root shell and can return a
-            // transient incomplete result during boot or module refresh. Keep
-            // the committed KPM destination until two probes agree it is gone.
-            if (!bypassInactiveHysteresis) {
-                kpmInactiveObservations++
-                if (kpmInactiveObservations < 2) return
-            }
-            kpmInactiveObservations = 0
         }
+        // Unknown probes are ignored above; a confirmed inactive backend removes
+        // the destination immediately instead of waiting for another refresh.
         if (kpmActive == resolvedAvailability) return
         val currentPage = if (isNavigating || kpmReconfigurationJob?.isActive == true) {
             selectedPage
@@ -440,9 +427,9 @@ internal fun CustomNavigationIconSet.labelFor(destination: MainDestination, fall
 }
 
 @Composable
-fun useNavigationRail(enableFloatingBottomBar: Boolean): Boolean {
+fun useNavigationRail(): Boolean {
     if (LocalInterfaceStyle.current == InterfaceStyle.SidebarWidget.value) return true
-    return shouldShowSplitPane() && !(LocalUiMode.current == UiMode.Miuix && enableFloatingBottomBar)
+    return shouldShowSplitPane()
 }
 
 @Composable

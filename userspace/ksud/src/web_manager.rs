@@ -1827,6 +1827,12 @@ for candidate in /data/adb/ksu/bin/ksu_susfs /data/adb/ap/bin/ksu_susfs /system/
   tool="$candidate"
   break
 done
+if [ -z "$tool" ] && [ -x /data/adb/ksud ] &&
+    /data/adb/ksud susfs show version >/dev/null 2>&1 &&
+    /data/adb/ksud susfs show enabled_features 2>/dev/null | grep -qF CONFIG_KSU_SUSFS_SUS_PATH; then
+  tool=ksud_susfs
+fi
+ksud_susfs() { /data/adb/ksud susfs "$@"; }
 if [ -z "$tool" ]; then tool=$(command -v ksu_susfs 2>/dev/null); fi
 printf '__TOOL__=%s\n' "$tool"
 version=''

@@ -43,16 +43,6 @@ import me.weishu.kernelsu.ui.component.pixel.PIXEL_STYLE_KEY
 import me.weishu.kernelsu.ui.component.pixel.PIXEL_CARD_MOTION_ENABLED_KEY
 import me.weishu.kernelsu.ui.component.pixel.DEFAULT_PIXEL_CARD_MOTION_ENABLED
 import me.weishu.kernelsu.ui.component.pixel.PixelStyle
-import me.weishu.kernelsu.ui.component.decoration.UI_DECORATION_CONFIG_KEY
-import me.weishu.kernelsu.ui.component.decoration.UI_DECORATION_CUSTOM_PRESETS_KEY
-import me.weishu.kernelsu.ui.component.decoration.UI_DECORATION_RECENT_COMPONENTS_KEY
-import me.weishu.kernelsu.ui.component.decoration.CustomUiDecorationPreset
-import me.weishu.kernelsu.ui.component.decoration.MAX_CUSTOM_UI_DECORATION_PRESETS
-import me.weishu.kernelsu.ui.component.decoration.UiDecorationConfig
-import me.weishu.kernelsu.ui.component.decoration.componentTokens
-import me.weishu.kernelsu.ui.component.decoration.customUiDecorationPresetsFromJson
-import me.weishu.kernelsu.ui.component.decoration.customUiDecorationPresetsToJson
-import me.weishu.kernelsu.ui.component.decoration.sanitizeCustomUiDecorationPresetName
 import me.weishu.kernelsu.ui.theme.CustomThemePreset
 import me.weishu.kernelsu.ui.theme.DELTA_COLOR_VARIANT_KEY
 import me.weishu.kernelsu.ui.theme.DeltaColorVariant
@@ -456,98 +446,6 @@ class SettingsRepositoryImpl : SettingsRepository {
     override var pixelCardMotionEnabled: Boolean
         get() = prefs.getBoolean(PIXEL_CARD_MOTION_ENABLED_KEY, DEFAULT_PIXEL_CARD_MOTION_ENABLED)
         set(value) = prefs.edit { putBoolean(PIXEL_CARD_MOTION_ENABLED_KEY, value) }
-
-    override val uiDecorationConfig: UiDecorationConfig
-        get() = UiDecorationConfig.fromJsonString(prefs.getString(UI_DECORATION_CONFIG_KEY, null))
-
-    override fun saveUiDecorationConfig(config: UiDecorationConfig): Boolean {
-        val normalized = config.normalized()
-        val recent = (normalized.componentTokens() + getRecentUiDecorationComponents())
-            .distinct()
-            .take(MAX_RECENT_UI_DECORATION_COMPONENTS)
-        return prefs.edit()
-            .putString(UI_DECORATION_CONFIG_KEY, normalized.toJsonString())
-            .putString(UI_DECORATION_RECENT_COMPONENTS_KEY, JSONArray(recent).toString())
-            .commit()
-    }
-
-    override fun getCustomUiDecorationPresets(): List<CustomUiDecorationPreset> {
-        return runCatching {
-            customUiDecorationPresetsFromJson(prefs.getString(UI_DECORATION_CUSTOM_PRESETS_KEY, null))
-        }.getOrDefault(emptyList()).sortedByDescending(CustomUiDecorationPreset::updatedAt)
-    }
-
-    override fun saveCustomUiDecorationPreset(
-        name: String,
-        config: UiDecorationConfig,
-    ): CustomUiDecorationPreset? {
-        val sanitizedName = sanitizeCustomUiDecorationPresetName(name)
-        if (sanitizedName.isBlank()) return null
-        val preset = CustomUiDecorationPreset(
-            id = UUID.randomUUID().toString(),
-            name = sanitizedName,
-            updatedAt = System.currentTimeMillis(),
-            config = config.normalized(),
-        )
-        val next = (listOf(preset) + getCustomUiDecorationPresets())
-            .distinctBy(CustomUiDecorationPreset::id)
-            .take(MAX_CUSTOM_UI_DECORATION_PRESETS)
-        return preset.takeIf { persistCustomUiDecorationPresets(next) }
-    }
-
-    override fun renameCustomUiDecorationPreset(presetId: String, name: String): Boolean {
-        val sanitizedName = sanitizeCustomUiDecorationPresetName(name)
-        if (sanitizedName.isBlank()) return false
-        var found = false
-        val next = getCustomUiDecorationPresets().map { preset ->
-            if (preset.id == presetId) {
-                found = true
-                preset.copy(name = sanitizedName, updatedAt = System.currentTimeMillis())
-            } else {
-                preset
-            }
-        }
-        return found && persistCustomUiDecorationPresets(next)
-    }
-
-    override fun deleteCustomUiDecorationPreset(presetId: String): Boolean {
-        val current = getCustomUiDecorationPresets()
-        val next = current.filterNot { it.id == presetId }
-        return next.size != current.size && persistCustomUiDecorationPresets(next)
-    }
-
-    override fun importCustomUiDecorationPresets(presets: List<CustomUiDecorationPreset>): Int {
-        val imported = presets
-            .mapNotNull { preset ->
-                val name = sanitizeCustomUiDecorationPresetName(preset.name)
-                preset.takeIf { name.isNotBlank() }?.copy(name = name, config = preset.config.normalized())
-            }
-            .distinctBy(CustomUiDecorationPreset::id)
-            .take(MAX_CUSTOM_UI_DECORATION_PRESETS)
-        if (imported.isEmpty()) return 0
-        val importedIds = imported.mapTo(hashSetOf(), CustomUiDecorationPreset::id)
-        val next = (imported + getCustomUiDecorationPresets().filterNot { it.id in importedIds })
-            .take(MAX_CUSTOM_UI_DECORATION_PRESETS)
-        return if (persistCustomUiDecorationPresets(next)) imported.size else -1
-    }
-
-    override fun getRecentUiDecorationComponents(): List<String> {
-        val raw = prefs.getString(UI_DECORATION_RECENT_COMPONENTS_KEY, null) ?: return emptyList()
-        return runCatching {
-            val json = JSONArray(raw)
-            buildList {
-                repeat(json.length()) { index ->
-                    json.optString(index).takeIf(String::isNotBlank)?.let(::add)
-                }
-            }.distinct().take(MAX_RECENT_UI_DECORATION_COMPONENTS)
-        }.getOrDefault(emptyList())
-    }
-
-    private fun persistCustomUiDecorationPresets(presets: List<CustomUiDecorationPreset>): Boolean {
-        return prefs.edit()
-            .putString(UI_DECORATION_CUSTOM_PRESETS_KEY, customUiDecorationPresetsToJson(presets))
-            .commit()
-    }
 
     override var globalSnowEnabled: Boolean
         get() = prefs.getBoolean(GLOBAL_SNOW_ENABLED_KEY, false)

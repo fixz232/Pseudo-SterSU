@@ -6,10 +6,6 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import me.weishu.kernelsu.ui.component.SWITCH_STYLE_KEY
 import me.weishu.kernelsu.ui.component.SwitchStyle
-import me.weishu.kernelsu.ui.component.decoration.UI_DECORATION_CONFIG_KEY
-import me.weishu.kernelsu.ui.component.decoration.UiCardDecoration
-import me.weishu.kernelsu.ui.component.decoration.UiDecorationConfig
-import me.weishu.kernelsu.ui.component.decoration.UiNavigationDecoration
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -27,37 +23,10 @@ class ComponentStyleStore(context: Context) {
     private val appContext = context.applicationContext
     private val prefs = appContext.getSharedPreferences(SETTINGS_PREFERENCES, Context.MODE_PRIVATE)
 
-    fun readCardStyles(): List<CustomCardStyle> = synchronized(componentStyleLock) {
-        runCatching {
-            decodeCardStyleLibrary(prefs.getString(CUSTOM_CARD_STYLE_LIBRARY_KEY, null))
-        }.getOrDefault(emptyList())
-    }
-
     fun readSwitchStyles(): List<CustomSwitchStyle> = synchronized(componentStyleLock) {
         runCatching {
             decodeSwitchStyleLibrary(prefs.getString(CUSTOM_SWITCH_STYLE_LIBRARY_KEY, null))
         }.getOrDefault(emptyList())
-    }
-
-    fun readActiveCardStyle(): CustomCardStyle? {
-        val activeId = prefs.getString(CUSTOM_CARD_STYLE_ACTIVE_ID_KEY, null) ?: return null
-        return readCardStyles().firstOrNull { it.id == activeId }
-    }
-
-    fun readCardEditorDraft(): CustomCardStyle? = synchronized(componentStyleLock) {
-        prefs.getString(CUSTOM_CARD_EDITOR_DRAFT_KEY, null)?.let { raw ->
-            runCatching { CustomCardStyle.fromJsonString(raw) }.getOrNull()
-        }
-    }
-
-    fun saveCardEditorDraft(style: CustomCardStyle): Boolean = synchronized(componentStyleLock) {
-        prefs.edit()
-            .putString(CUSTOM_CARD_EDITOR_DRAFT_KEY, style.normalized().toJsonString())
-            .commit()
-    }
-
-    fun clearCardEditorDraft(): Boolean = synchronized(componentStyleLock) {
-        prefs.edit().remove(CUSTOM_CARD_EDITOR_DRAFT_KEY).commit()
     }
 
     fun readActiveSwitchStyle(): CustomSwitchStyle? {
@@ -87,33 +56,6 @@ class ComponentStyleStore(context: Context) {
         committed
     }
 
-    fun saveCardStyle(style: CustomCardStyle, apply: Boolean): Boolean = synchronized(componentStyleLock) {
-        val normalized = style.normalized().copy(updatedAt = System.currentTimeMillis())
-        val current = readCardStyles()
-        if (current.size >= MAX_SAVED_COMPONENT_STYLES && current.none { it.id == normalized.id }) {
-            return@synchronized false
-        }
-        val styles = upsertCardStyle(current, normalized)
-        val editor = prefs.edit()
-            .putString(CUSTOM_CARD_STYLE_LIBRARY_KEY, encodeCardStyleLibrary(styles))
-        if (apply) {
-            val currentConfig = UiDecorationConfig.fromJsonString(
-                prefs.getString(UI_DECORATION_CONFIG_KEY, null)
-            )
-            editor
-                .putString(CUSTOM_CARD_STYLE_ACTIVE_ID_KEY, normalized.id)
-                .putString(
-                    UI_DECORATION_CONFIG_KEY,
-                    currentConfig.copy(
-                        enabled = true,
-                        card = UiCardDecoration.Custom,
-                        navigation = UiNavigationDecoration.Custom,
-                    ).normalized().toJsonString(),
-                )
-        }
-        editor.commit()
-    }
-
     fun saveSwitchStyle(style: CustomSwitchStyle, apply: Boolean): Boolean = synchronized(componentStyleLock) {
         val normalized = style.normalized().copy(updatedAt = System.currentTimeMillis())
         val current = readSwitchStyles()
@@ -131,29 +73,6 @@ class ComponentStyleStore(context: Context) {
         editor.commit().also { committed ->
             if (committed) cleanupReplacedImages(current, styles)
         }
-    }
-
-    fun deleteCardStyle(styleId: String): Boolean = synchronized(componentStyleLock) {
-        val current = readCardStyles()
-        val updated = current.filterNot { it.id == styleId }
-        if (updated.size == current.size) return@synchronized false
-        val editor = prefs.edit()
-            .putString(CUSTOM_CARD_STYLE_LIBRARY_KEY, encodeCardStyleLibrary(updated))
-        if (prefs.getString(CUSTOM_CARD_STYLE_ACTIVE_ID_KEY, null) == styleId) {
-            val config = UiDecorationConfig.fromJsonString(
-                prefs.getString(UI_DECORATION_CONFIG_KEY, null)
-            )
-            editor
-                .remove(CUSTOM_CARD_STYLE_ACTIVE_ID_KEY)
-                .putString(
-                    UI_DECORATION_CONFIG_KEY,
-                    config.copy(
-                        card = UiCardDecoration.Highlight,
-                        navigation = UiNavigationDecoration.UnderGlow,
-                    ).toJsonString(),
-                )
-        }
-        editor.commit()
     }
 
     fun deleteSwitchStyle(styleId: String): Boolean = synchronized(componentStyleLock) {
@@ -294,12 +213,6 @@ class ComponentStyleStore(context: Context) {
     }
 
     companion object {
-        internal fun upsertCardStyle(
-            current: List<CustomCardStyle>,
-            style: CustomCardStyle,
-        ): List<CustomCardStyle> = listOf(style) + current.filterNot { it.id == style.id }
-            .take(MAX_SAVED_COMPONENT_STYLES - 1)
-
         internal fun upsertSwitchStyle(
             current: List<CustomSwitchStyle>,
             style: CustomSwitchStyle,
@@ -310,7 +223,6 @@ class ComponentStyleStore(context: Context) {
 
 private const val SETTINGS_PREFERENCES = "settings"
 private const val COMPONENT_IMAGE_DIRECTORY = "component-styles/images"
-private const val CUSTOM_CARD_EDITOR_DRAFT_KEY = "custom_card_editor_draft"
 private const val CUSTOM_SWITCH_EDITOR_DRAFT_KEY = "custom_switch_editor_draft"
 private val componentStyleLock = Any()
 

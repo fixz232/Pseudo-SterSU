@@ -308,7 +308,6 @@ fun ThemeStoreScreen(
         onOpenNavigationIcons = dropUnlessResumed { navigator.push(Route.NavigationIcons) },
         onOpenFonts = dropUnlessResumed { navigator.push(Route.ThemeStoreFonts) },
         onOpenColorPalette = dropUnlessResumed { navigator.push(Route.ColorPalette) },
-        onOpenUiDecorationLibrary = dropUnlessResumed { navigator.push(Route.UiDecorationLibrary) },
         onOpenVisualEffects = dropUnlessResumed { navigator.push(Route.VisualEffects) },
         onOpenProfile = dropUnlessResumed { navigator.push(Route.ThemeStoreMy) },
         onOpenInterfaceStyles = dropUnlessResumed { navigator.push(Route.StoreInterfaceStyles) },
@@ -859,14 +858,6 @@ private fun ColumnScope.ThemeStoreStyleItems(
         )
         ThemeStoreSettingsDivider()
         ThemeStoreDestinationRow(
-            title = stringResource(R.string.settings_ui_decoration_library),
-            summary = stringResource(R.string.settings_ui_decoration_library_summary),
-            status = stringResource(R.string.theme_store_open_editor),
-            icon = Icons.Rounded.AutoFixHigh,
-            onClick = actions.onOpenUiDecorationLibrary,
-        )
-        ThemeStoreSettingsDivider()
-        ThemeStoreDestinationRow(
             title = stringResource(R.string.settings_section_visual_effects),
             summary = stringResource(R.string.settings_visual_effects_summary),
             status = stringResource(R.string.theme_store_open_editor),
@@ -1077,6 +1068,35 @@ private fun InterfaceStyleStoreContent(
         }
     }
 
+    fun removeInstalled(style: InterfaceStylePackage, active: Boolean) {
+        if (busyId != null) return
+        busyId = style.id
+        error = null
+        scope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    registry.remove(style.id)
+                    if (active) {
+                        settingsRepository.applyInterfaceStyle(
+                            UiMode.DEFAULT_VALUE,
+                            ThemePreset.CLEAN_TOOL,
+                            settingsRepository.themeMode,
+                        )
+                    }
+                }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (failure: Throwable) {
+                error = failure.safeInterfaceStyleMessage()
+                Toast.makeText(context, error, Toast.LENGTH_LONG).show()
+            } finally {
+                busyId = null
+                val refreshed = withContext(Dispatchers.IO) { runCatching { registry.list() }.getOrNull() }
+                if (refreshed != null) installed = refreshed
+            }
+        }
+    }
+
     fun isActive(style: InterfaceStylePackage): Boolean =
         settingsRepository.activeInterfaceStyleId == style.id &&
             (settingsRepository.uiMode == style.engine ||
@@ -1200,17 +1220,7 @@ private fun InterfaceStyleStoreContent(
             onConfigure = onConfigureSidebar.takeIf {
                 installedStyle != null && selectedStyle.engine == InterfaceStyle.SidebarWidget.value
             },
-            onRemove = {
-                if (isActive(selectedStyle)) {
-                    settingsRepository.applyInterfaceStyle(
-                        UiMode.DEFAULT_VALUE,
-                        ThemePreset.CLEAN_TOOL,
-                        settingsRepository.themeMode,
-                    )
-                }
-                registry.remove(selectedStyle.id)
-                installed = registry.list()
-            },
+            onRemove = { removeInstalled(selectedStyle, isActive(selectedStyle)) },
         )
         error?.let { ThemeStoreNotice(stringResource(R.string.interface_style_operation_failed, it)) }
         return
@@ -1781,7 +1791,6 @@ private data class ThemeStoreActions(
     val onOpenNavigationIcons: () -> Unit,
     val onOpenFonts: () -> Unit,
     val onOpenColorPalette: () -> Unit,
-    val onOpenUiDecorationLibrary: () -> Unit,
     val onOpenVisualEffects: () -> Unit,
     val onOpenProfile: () -> Unit,
     val onOpenInterfaceStyles: () -> Unit,

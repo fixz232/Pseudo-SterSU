@@ -358,7 +358,7 @@ fun FloatingBottomBar(
                 }
                 .graphicsLayer { translationX = panelOffset }
                 .then(
-                    if (isPixelStyle) {
+                    if (isPixelStyle || isLiquidGlass) {
                         Modifier
                     } else {
                         Modifier.dropShadow(
@@ -403,9 +403,11 @@ fun FloatingBottomBar(
                             Modifier.globalLiquidGlassSurface(
                                 shape = pillShape,
                                 surfaceColor = liquidGlassSurfaceColor(),
-                                surfaceAlpha = 0.76f,
-                                strokeAlpha = 0.62f,
-                                cardStyle = FrostedGlassCardStyle.Ice,
+                                surfaceAlpha = 0.94f,
+                                minimumSurfaceAlpha = 0.94f,
+                                enableBlur = isBlurEnabled,
+                                strokeAlpha = 0.14f,
+                                cardStyle = FrostedGlassCardStyle.Mist,
                             )
                         } else {
                             Modifier.background(containerColor, pillShape)

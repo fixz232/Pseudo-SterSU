@@ -42,6 +42,12 @@ for candidate in /data/adb/ksu/bin/ksu_susfs /data/adb/ap/bin/ksu_susfs /system/
   tool=$candidate
   break
 done
+if [ -z "$tool" ] && [ -x /data/adb/ksud ] &&
+    /data/adb/ksud susfs show version >/dev/null 2>&1 &&
+    /data/adb/ksud susfs show enabled_features 2>/dev/null | grep -qF CONFIG_KSU_SUSFS_SUS_PATH; then
+  tool=ksud_susfs
+fi
+ksud_susfs() { /data/adb/ksud susfs "$@"; }
 generation=$(read_setting generation)
 requires_reboot=$(read_setting requires_reboot)
 [ "$requires_reboot" = 1 ] || requires_reboot=0
@@ -54,11 +60,16 @@ run_tool() {
   target=$2
   shift 2
   configured=$((configured + 1))
-  if "$tool" "$@" >/dev/null 2>&1; then
+  output_file=$BASE/.last-command-output
+  if "$tool" "$@" > "$output_file" 2>&1; then
     applied=$((applied + 1))
   else
+    code=$?
     failed=$((failed + 1))
-    printf 'failed\t%s\t%s\tcommand_failed\n' "$category" "$target" >> "$ISSUES.pending.$$"
+    reason=$(sed -n '1p' "$output_file" 2>/dev/null | tr -cd '[:print:]' | cut -c 1-160)
+    issue_code=exit_$code
+    [ -z "$reason" ] || issue_code=$issue_code:$reason
+    printf 'failed\t%s\t%s\t%s\n' "$category" "$target" "$issue_code" >> "$ISSUES.pending.$$"
   fi
 }
 apply_paths() {
@@ -104,7 +115,9 @@ hide_mounts=$(read_setting hide_sus_mnts_for_non_su_procs)
 [ "$enabled" = 1 ] || avc=0
 [ "$enabled" = 1 ] || hide_mounts=0
 run_tool logging "$logging" enable_log "${logging:-0}"
-run_tool avc "$avc" enable_avc_log_spoofing "${avc:-0}"
+if [ "$avc" = 1 ]; then
+  run_tool avc 1 enable_avc_log_spoofing 1
+fi
 run_tool mount_visibility "$hide_mounts" hide_sus_mnts_for_non_su_procs "${hide_mounts:-0}"
 if [ "$enabled" != 1 ]; then
   write_status disabled
@@ -168,7 +181,7 @@ fn ensure_gki_mode() -> Result<()> {
 }
 
 fn trusted_tool() -> Option<PathBuf> {
-    TOOL_CANDIDATES.iter().find_map(|candidate| {
+    let external = TOOL_CANDIDATES.iter().find_map(|candidate| {
         let path = Path::new(candidate);
         let metadata = fs::symlink_metadata(path).ok()?;
         (metadata.is_file()
@@ -177,7 +190,27 @@ fn trusted_tool() -> Option<PathBuf> {
             && metadata.mode() & 0o022 == 0
             && metadata.mode() & 0o111 != 0)
             .then(|| path.to_path_buf())
+    });
+    external.or_else(|| {
+        let path = Path::new(crate::defs::DAEMON_PATH);
+        let metadata = fs::symlink_metadata(path).ok()?;
+        (metadata.is_file()
+            && !metadata.file_type().is_symlink()
+            && metadata.uid() == 0
+            && metadata.mode() & 0o022 == 0
+            && metadata.mode() & 0o111 != 0)
+            .then(|| path.to_path_buf())
     })
+}
+
+fn run_susfs_output(program: &Path, arguments: &[&str]) -> Result<String> {
+    if program == Path::new(crate::defs::DAEMON_PATH) {
+        let mut full = vec!["susfs"];
+        full.extend_from_slice(arguments);
+        run_output(program, &full, Duration::from_secs(4))
+    } else {
+        run_output(program, arguments, Duration::from_secs(4))
+    }
 }
 
 fn run_output(program: &Path, arguments: &[&str], timeout: Duration) -> Result<String> {
@@ -361,7 +394,7 @@ pub fn status() -> Result<Value> {
     let tool = trusted_tool();
     let version = tool
         .as_deref()
-        .and_then(|path| run_output(path, &["show", "version"], Duration::from_secs(4)).ok())
+        .and_then(|path| run_susfs_output(path, &["show", "version"]).ok())
         .unwrap_or_default()
         .lines()
         .next()
@@ -370,15 +403,17 @@ pub fn status() -> Result<Value> {
         .to_string();
     let features = tool
         .as_deref()
-        .and_then(|path| {
-            run_output(path, &["show", "enabled_features"], Duration::from_secs(4)).ok()
-        })
+        .and_then(|path| run_susfs_output(path, &["show", "enabled_features"]).ok())
         .map_or_else(Vec::new, |value| feature_names(&value));
     let feature_probe_available = !features.is_empty();
     let supports =
         |name: &str| !feature_probe_available || features.iter().any(|item| item == name);
-    let error = if tool.is_none() {
+    let error = if tool.is_none() || !version.starts_with('v') {
         "tool_unavailable"
+    } else if tool.as_deref() == Some(Path::new(crate::defs::DAEMON_PATH))
+        && !feature_probe_available
+    {
+        "feature_probe_unavailable"
     } else if !supports("CONFIG_KSU_SUSFS_SUS_PATH") {
         "path_feature_unavailable"
     } else {
@@ -424,7 +459,7 @@ fn string_field(value: &Value, name: &str) -> Result<String> {
     Ok(result)
 }
 
-fn normalized_path(raw: &str, map_path: bool) -> Option<String> {
+fn normalized_path(raw: &str) -> Option<String> {
     let trimmed = raw.trim();
     if !trimmed.starts_with('/') || trimmed == "/" || trimmed.chars().any(char::is_control) {
         return None;
@@ -441,20 +476,19 @@ fn normalized_path(raw: &str, map_path: bool) -> Option<String> {
     if normalized.len() > MAX_PATH_BYTES {
         return None;
     }
-    let blocked = if map_path {
-        ["/data/adb", "/data/adb/ksu", "/data/adb/ap"]
+    Some(normalized)
+}
+
+fn normalized_redirect_path(raw: &str) -> Option<String> {
+    let normalized = normalized_path(raw)?;
+    let blocked = normalized == "/data/adb"
+        || ["/data/adb/modules", "/data/adb/ksu", "/data/adb/ap"]
             .iter()
-            .any(|path| normalized == *path)
-    } else {
-        normalized == "/data/adb"
-            || ["/data/adb/modules", "/data/adb/ksu", "/data/adb/ap"]
-                .iter()
-                .any(|path| normalized == *path || normalized.starts_with(&format!("{path}/")))
-    };
+            .any(|path| normalized == *path || normalized.starts_with(&format!("{path}/")));
     (!blocked).then_some(normalized)
 }
 
-fn path_array(value: &Value, name: &str, map_path: bool) -> Result<Vec<String>> {
+fn path_array(value: &Value, name: &str) -> Result<Vec<String>> {
     let items = value
         .get(name)
         .and_then(Value::as_array)
@@ -465,7 +499,7 @@ fn path_array(value: &Value, name: &str, map_path: bool) -> Result<Vec<String>> 
     let mut seen = BTreeSet::new();
     for item in items {
         let raw = item.as_str().context("path entry must be a string")?;
-        let path = normalized_path(raw, map_path).context("invalid SUSFS path")?;
+        let path = normalized_path(raw).context("invalid SUSFS path")?;
         ensure!(seen.insert(path.clone()), "duplicate SUSFS path: {path}");
         values.push(path);
     }
@@ -473,9 +507,9 @@ fn path_array(value: &Value, name: &str, map_path: bool) -> Result<Vec<String>> 
 }
 
 fn parse_config(value: &Value) -> Result<SusfsConfig> {
-    let paths = path_array(value, "paths", false)?;
-    let loop_paths = path_array(value, "loopPaths", false)?;
-    let maps = path_array(value, "susMaps", true)?;
+    let paths = path_array(value, "paths")?;
+    let loop_paths = path_array(value, "loopPaths")?;
+    let maps = path_array(value, "susMaps")?;
     let redirect_values = value
         .get("openRedirects")
         .and_then(Value::as_array)
@@ -487,18 +521,16 @@ fn parse_config(value: &Value) -> Result<SusfsConfig> {
     );
     let mut redirects = Vec::with_capacity(redirect_values.len());
     for item in redirect_values {
-        let original = normalized_path(
+        let original = normalized_redirect_path(
             item.get("original")
                 .and_then(Value::as_str)
                 .unwrap_or_default(),
-            false,
         )
         .context("invalid redirect source")?;
-        let redirected = normalized_path(
+        let redirected = normalized_redirect_path(
             item.get("redirected")
                 .and_then(Value::as_str)
                 .unwrap_or_default(),
-            false,
         )
         .context("invalid redirect target")?;
         let uid = item
@@ -558,6 +590,7 @@ fn parse_config(value: &Value) -> Result<SusfsConfig> {
 
 fn removals_require_reboot(previous: &SusfsConfig, next: &SusfsConfig) -> bool {
     (previous.enabled && !next.enabled)
+        || (previous.avc_log_spoofing && !next.avc_log_spoofing)
         || previous.paths.iter().any(|item| !next.paths.contains(item))
         || previous
             .loop_paths
@@ -696,6 +729,11 @@ fn ensure_service() -> Result<()> {
 
 pub fn apply(payload: &Value) -> Result<Value> {
     ensure_gki_mode()?;
+    let current_status = status()?;
+    ensure!(
+        current_status.get("available").and_then(Value::as_bool) == Some(true),
+        "SUSFS kernel interface is unavailable"
+    );
     let value = payload.get("config").unwrap_or(payload);
     ensure!(value.is_object(), "SUSFS config must be an object");
     let previous = read_config();
@@ -723,17 +761,33 @@ pub fn apply(payload: &Value) -> Result<Value> {
 
 #[cfg(test)]
 mod tests {
-    use super::{normalized_path, parse_config};
+    use super::{
+        FALLBACK_SERVICE, SusfsConfig, normalized_path, normalized_redirect_path, parse_config,
+        removals_require_reboot,
+    };
     use serde_json::json;
 
     #[test]
-    fn normalizes_and_blocks_management_paths() {
+    fn normalizes_paths_and_keeps_redirects_guarded() {
         assert_eq!(
-            normalized_path("/data/local/./tmp/example", false).as_deref(),
+            normalized_path("/data/local/./tmp/example").as_deref(),
             Some("/data/local/tmp/example")
         );
-        assert!(normalized_path("/data/adb/ksu/bin", false).is_none());
-        assert!(normalized_path("/data/local/../adb", false).is_none());
+        assert_eq!(
+            normalized_path("/data/adb/ksu").as_deref(),
+            Some("/data/adb/ksu")
+        );
+        assert_eq!(
+            normalized_path("/data/adb/modules").as_deref(),
+            Some("/data/adb/modules")
+        );
+        assert_eq!(
+            normalized_path("/data/adb/modules/example").as_deref(),
+            Some("/data/adb/modules/example")
+        );
+        assert!(normalized_path("/data/local/../adb").is_none());
+        assert!(normalized_redirect_path("/data/adb/ksu/bin").is_none());
+        assert!(normalized_path("/").is_none());
     }
 
     #[test]
@@ -748,5 +802,24 @@ mod tests {
         }))
         .expect_err("invalid uid scheme must fail");
         assert!(error.to_string().contains("UID scheme"));
+    }
+
+    #[test]
+    fn disabling_avc_requires_reboot_without_replaying_unsupported_disable_command() {
+        let previous = SusfsConfig {
+            avc_log_spoofing: true,
+            ..Default::default()
+        };
+        assert!(removals_require_reboot(&previous, &SusfsConfig::default()));
+        assert!(FALLBACK_SERVICE.contains("run_tool avc 1 enable_avc_log_spoofing 1"));
+        assert!(FALLBACK_SERVICE.contains("issue_code=exit_$code"));
+        assert!(!FALLBACK_SERVICE.contains("enable_avc_log_spoofing 0"));
+    }
+
+    #[test]
+    fn fallback_service_uses_bundled_ksud_when_external_tool_is_missing() {
+        assert!(FALLBACK_SERVICE.contains("/data/adb/ksud susfs show version"));
+        assert!(FALLBACK_SERVICE.contains("ksud_susfs() { /data/adb/ksud susfs \"$@\"; }"));
+        assert!(FALLBACK_SERVICE.contains("TOOL=ksud_susfs"));
     }
 }

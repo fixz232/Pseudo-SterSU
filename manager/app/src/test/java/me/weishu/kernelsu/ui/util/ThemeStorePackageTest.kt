@@ -1,7 +1,6 @@
 package me.weishu.kernelsu.ui.util
 
 import com.materialkolor.dynamiccolor.ColorSpec
-import me.weishu.kernelsu.ui.component.custom.CustomCardStyle
 import me.weishu.kernelsu.ui.component.custom.CustomSwitchSource
 import me.weishu.kernelsu.ui.component.custom.CustomSwitchStyle
 import me.weishu.kernelsu.ui.theme.ColorMode
@@ -591,7 +590,6 @@ class ThemeStorePackageTest {
             .put(
                 "components",
                 JSONObject()
-                    .put("cardStyle", CustomCardStyle(id = "card-package-test").toJson())
                     .put(
                         "switchStyle",
                         JSONObject()
@@ -607,7 +605,7 @@ class ThemeStorePackageTest {
 
         validateThemeStoreConfig(config)
 
-        assertEquals(2, countConfiguredThemeStoreResources(config))
+        assertEquals(1, countConfiguredThemeStoreResources(config))
     }
 
     @Test
@@ -617,7 +615,7 @@ class ThemeStorePackageTest {
             .put(
                 "components",
                 JSONObject()
-                    .put("cardStyle", CustomCardStyle(id = "card-only-test").toJson())
+                    .put("cardStyle", JSONObject())
                     .put(
                         "switchStyle",
                         JSONObject()

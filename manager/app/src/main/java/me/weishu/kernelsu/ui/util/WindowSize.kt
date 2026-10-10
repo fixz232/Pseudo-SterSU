@@ -10,5 +10,8 @@ fun shouldShowSplitPane(): Boolean {
     val deviceDensity = LocalResources.current.displayMetrics.density
     val widthDp = windowInfo.containerSize.width / deviceDensity
     val heightDp = windowInfo.containerSize.height / deviceDensity
-    return widthDp >= 840f || (widthDp >= 600f && heightDp / widthDp < 1.2f)
+    return shouldShowSplitPane(widthDp, heightDp)
 }
+
+internal fun shouldShowSplitPane(widthDp: Float, heightDp: Float): Boolean =
+    widthDp >= 600f && heightDp >= 480f

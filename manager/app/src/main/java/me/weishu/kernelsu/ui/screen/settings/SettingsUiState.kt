@@ -16,8 +16,6 @@ import me.weishu.kernelsu.ui.component.DEFAULT_NIGHT_BACKGROUND_PASSTHROUGH_OPAC
 import me.weishu.kernelsu.ui.component.NightBackgroundEffect
 import me.weishu.kernelsu.ui.component.PageTransitionEffect
 import me.weishu.kernelsu.ui.component.SwitchStyle
-import me.weishu.kernelsu.ui.component.decoration.UiDecorationConfig
-import me.weishu.kernelsu.ui.component.decoration.CustomUiDecorationPreset
 import me.weishu.kernelsu.ui.component.snow.SeasonStyle
 import me.weishu.kernelsu.ui.component.snow.DEFAULT_SEASON_CARD_MOTION_ENABLED
 import me.weishu.kernelsu.ui.component.rain.RainStyle
@@ -42,13 +40,6 @@ import me.weishu.kernelsu.ui.util.MediaVisualSettings
 import me.weishu.kernelsu.ui.util.ManagerPlugin
 import me.weishu.kernelsu.ui.util.StartupAnimationSettings
 import me.weishu.kernelsu.stealth.DEFAULT_STEALTH_MODE_CODE
-
-enum class UiDecorationSaveState {
-    Idle,
-    Saving,
-    Saved,
-    Failed,
-}
 
 @Immutable
 data class SettingsUiState(
@@ -92,10 +83,6 @@ data class SettingsUiState(
     val rainCardMotionEnabled: Boolean = DEFAULT_RAIN_CARD_MOTION_ENABLED,
     val pixelStyle: String = PixelStyle.DEFAULT_VALUE,
     val pixelCardMotionEnabled: Boolean = DEFAULT_PIXEL_CARD_MOTION_ENABLED,
-    val uiDecorationConfig: UiDecorationConfig = UiDecorationConfig(),
-    val uiDecorationSaveState: UiDecorationSaveState = UiDecorationSaveState.Idle,
-    val customUiDecorationPresets: List<CustomUiDecorationPreset> = emptyList(),
-    val recentUiDecorationComponents: List<String> = emptyList(),
     val globalSnowEnabled: Boolean = false,
     val globalSnowEffect: String = GlobalSnowEffect.DEFAULT_VALUE,
     val nightBackgroundEffect: String = NightBackgroundEffect.DEFAULT_VALUE,
@@ -255,7 +242,6 @@ data class SettingsScreenActions(
     val onOpenSidebarDesign: () -> Unit,
     val onOpenHomeCardWallpapers: () -> Unit,
     val onOpenVisualEffects: () -> Unit,
-    val onOpenUiDecorationLibrary: () -> Unit,
     val onPickWallpaper: () -> Unit,
     val onPreviewWallpaper: () -> Unit,
     val onEditWallpaperCrop: () -> Unit,

@@ -1773,16 +1773,16 @@ private fun SwitchPixelToolbar(
     ) {
         SwitchToolButton(Icons.AutoMirrored.Rounded.Undo, R.string.component_creator_undo, false, canUndo, onUndo)
         SwitchToolButton(Icons.AutoMirrored.Rounded.Redo, R.string.component_creator_redo, false, canRedo, onRedo)
-        SwitchToolButton(Icons.Rounded.Edit, R.string.card_style_creator_tool_pencil, selectedTool == PixelCanvasTool.Pencil, true) {
+        SwitchToolButton(Icons.Rounded.Edit, R.string.component_style_creator_tool_pencil, selectedTool == PixelCanvasTool.Pencil, true) {
             onToolSelected(PixelCanvasTool.Pencil)
         }
         SwitchToolButton(Icons.Rounded.Brush, R.string.component_creator_eraser, selectedTool == PixelCanvasTool.Eraser, true) {
             onToolSelected(PixelCanvasTool.Eraser)
         }
-        SwitchToolButton(Icons.Rounded.Colorize, R.string.card_style_creator_tool_eyedropper, selectedTool == PixelCanvasTool.Eyedropper, true) {
+        SwitchToolButton(Icons.Rounded.Colorize, R.string.component_style_creator_tool_eyedropper, selectedTool == PixelCanvasTool.Eyedropper, true) {
             onToolSelected(PixelCanvasTool.Eyedropper)
         }
-        SwitchToolButton(Icons.Rounded.FormatColorFill, R.string.card_style_creator_tool_flood_fill, selectedTool == PixelCanvasTool.FloodFill, true) {
+        SwitchToolButton(Icons.Rounded.FormatColorFill, R.string.component_style_creator_tool_flood_fill, selectedTool == PixelCanvasTool.FloodFill, true) {
             onToolSelected(PixelCanvasTool.FloodFill)
         }
         SwitchToolButton(Icons.Rounded.SelectAll, R.string.switch_style_creator_select_region, selectedTool == PixelCanvasTool.Select, true) {
@@ -1790,16 +1790,16 @@ private fun SwitchPixelToolbar(
         }
         SwitchToolButton(Icons.Rounded.Palette, R.string.component_creator_fill, false, true, onFill)
         SwitchToolButton(Icons.Rounded.Flip, R.string.component_creator_mirror, false, true, onMirrorHorizontal)
-        SwitchToolButton(Icons.Rounded.FlipToBack, R.string.card_style_creator_mirror_vertical, false, true, onMirrorVertical)
+        SwitchToolButton(Icons.Rounded.FlipToBack, R.string.component_style_creator_mirror_vertical, false, true, onMirrorVertical)
         SwitchToolButton(Icons.Rounded.ContentCopy, R.string.switch_style_creator_copy_selection, false, hasSelection, onCopySelection)
         SwitchToolButton(Icons.Rounded.ContentPaste, R.string.switch_style_creator_paste_selection, false, canPasteSelection, onPasteSelection)
         SwitchToolButton(Icons.AutoMirrored.Rounded.RotateRight, R.string.switch_style_creator_rotate_selection, false, hasSelection, onRotateSelection)
-        SwitchToolButton(Icons.Rounded.Image, R.string.card_style_creator_import_image, false, true, onConvertImage)
-        SwitchToolButton(Icons.Rounded.DashboardCustomize, R.string.card_style_creator_asset_library, false, true, onOpenAssets)
-        SwitchToolButton(Icons.Rounded.GridOn, R.string.card_style_creator_toggle_grid, showGrid, true) {
+        SwitchToolButton(Icons.Rounded.Image, R.string.component_style_creator_import_image, false, true, onConvertImage)
+        SwitchToolButton(Icons.Rounded.DashboardCustomize, R.string.component_style_creator_asset_library, false, true, onOpenAssets)
+        SwitchToolButton(Icons.Rounded.GridOn, R.string.component_style_creator_toggle_grid, showGrid, true) {
             onShowGridChange(!showGrid)
         }
-        SwitchToolButton(Icons.Rounded.Fullscreen, R.string.card_style_creator_fullscreen, false, true, onOpenFullscreen)
+        SwitchToolButton(Icons.Rounded.Fullscreen, R.string.component_style_creator_fullscreen, false, true, onOpenFullscreen)
         SwitchToolButton(Icons.Rounded.Delete, R.string.component_creator_clear_layer, false, true, onClear)
     }
     if (hasSelection) {
@@ -1996,7 +1996,7 @@ private fun SwitchPixelAssetLibrary(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(
-                stringResource(R.string.card_style_creator_asset_library),
+                stringResource(R.string.component_style_creator_asset_library),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -2504,12 +2504,12 @@ private fun PixelSymmetry.labelRes(): Int = when (this) {
 }
 
 private fun PixelComponentPreset.labelRes(): Int = when (this) {
-    PixelComponentPreset.CornerBrackets -> R.string.card_style_creator_asset_corners
-    PixelComponentPreset.SteppedFrame -> R.string.card_style_creator_asset_frame
-    PixelComponentPreset.DataLine -> R.string.card_style_creator_asset_data_line
-    PixelComponentPreset.SnowCap -> R.string.card_style_creator_asset_snow
-    PixelComponentPreset.WaterRipple -> R.string.card_style_creator_asset_water
-    PixelComponentPreset.LeafVine -> R.string.card_style_creator_asset_leaf
+    PixelComponentPreset.CornerBrackets -> R.string.component_style_creator_asset_corners
+    PixelComponentPreset.SteppedFrame -> R.string.component_style_creator_asset_frame
+    PixelComponentPreset.DataLine -> R.string.component_style_creator_asset_data_line
+    PixelComponentPreset.SnowCap -> R.string.component_style_creator_asset_snow
+    PixelComponentPreset.WaterRipple -> R.string.component_style_creator_asset_water
+    PixelComponentPreset.LeafVine -> R.string.component_style_creator_asset_leaf
 }
 
 private fun CustomSwitchStyle.gridFor(layer: SwitchPixelLayer): PixelGrid = when (layer) {

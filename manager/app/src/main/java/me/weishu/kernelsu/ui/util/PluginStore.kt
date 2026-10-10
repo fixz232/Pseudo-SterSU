@@ -6,6 +6,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.weishu.kernelsu.BuildConfig
+import me.weishu.kernelsu.Natives
 import me.weishu.kernelsu.ksuApp
 import okhttp3.Request
 import org.json.JSONArray
@@ -26,13 +27,14 @@ import java.util.concurrent.atomic.AtomicLong
 enum class ManagerPlugin(
     val id: String,
     val slots: Set<PluginSlot>,
+    val published: Boolean = true,
 ) {
     RescueProtection("rescue-protection", setOf(PluginSlot.ToolboxRescue)),
-    ImageTools("image-tools", setOf(PluginSlot.ToolboxImageTools)),
-    CpuSpoof("cpu-spoof", setOf(PluginSlot.ToolboxCpuSpoof)),
+    ImageTools("image-tools", setOf(PluginSlot.ToolboxImageTools), published = false),
+    CpuSpoof("cpu-spoof", setOf(PluginSlot.ToolboxCpuSpoof), published = false),
     DeviceIdentity("device-identity", setOf(PluginSlot.ToolboxDeviceIdentity)),
-    GraphicsRenderer("graphics-renderer", setOf(PluginSlot.ToolboxGraphicsRenderer)),
-    AiChat("ai-chat", setOf(PluginSlot.ToolboxAiChat)),
+    GraphicsRenderer("graphics-renderer", setOf(PluginSlot.ToolboxGraphicsRenderer), published = false),
+    AiChat("ai-chat", setOf(PluginSlot.ToolboxAiChat), published = false),
     RemoteManagementSuite(
         "remote-management-suite",
         setOf(PluginSlot.MaintenanceWebManager, PluginSlot.MaintenanceStealthMode),
@@ -46,6 +48,8 @@ enum class ManagerPlugin(
         fun fromId(id: String): ManagerPlugin? = entries.firstOrNull { it.id == id }
     }
 }
+
+internal fun publishedManagerPlugins(): List<ManagerPlugin> = ManagerPlugin.entries.filter { it.published }
 
 enum class PluginSlot(val id: String) {
     ToolboxRescue("toolbox.rescue"),
@@ -110,6 +114,7 @@ internal enum class ManagerPluginCompatibilityIssue {
     KsudMissing,
     KsudVersionUnavailable,
     KsudTooOld,
+    LkmModeRequired,
 }
 
 internal data class ManagerPluginCompatibility(
@@ -417,6 +422,9 @@ class ManagerPluginInstaller(
             installedKsud.versionCode >= plugin.minKsudVersionCode) {
             "Plugin requires installed ksud ${plugin.minKsudVersionCode} or newer"
         }
+        require(plugin.id != ManagerPlugin.PathmaskLkm.id || isPathmaskLkmPluginSupported()) {
+            "Pathmask plugin requires LKM mode"
+        }
         var failure: Throwable? = null
         for (url in resolvePluginDownloadUrls(plugin.downloadUrl, route)) {
             try {
@@ -507,6 +515,7 @@ internal fun checkManagerPluginCompatibility(
     plugin: ManagerPluginPackage,
     managerVersionCode: Int = BuildConfig.VERSION_CODE,
     ksudStatus: InstalledKsudStatus,
+    pathmaskSupported: Boolean = plugin.id != ManagerPlugin.PathmaskLkm.id || isPathmaskLkmPluginSupported(),
 ): ManagerPluginCompatibility {
     if (managerVersionCode < plugin.minManagerVersionCode) {
         return ManagerPluginCompatibility(
@@ -534,12 +543,23 @@ internal fun checkManagerPluginCompatibility(
             ksudVersionCode = ksudVersion,
         )
     }
+    if (plugin.id == ManagerPlugin.PathmaskLkm.id && !pathmaskSupported) {
+        return ManagerPluginCompatibility(
+            issue = ManagerPluginCompatibilityIssue.LkmModeRequired,
+            managerVersionCode = managerVersionCode,
+            ksudVersionCode = ksudVersion,
+        )
+    }
     return ManagerPluginCompatibility(
         issue = ManagerPluginCompatibilityIssue.None,
         managerVersionCode = managerVersionCode,
         ksudVersionCode = ksudVersion,
     )
 }
+
+internal fun isPathmaskLkmPluginSupported(): Boolean = runCatching {
+    Natives.version > 0 && Natives.isLkmMode && !Natives.isLateLoadMode
+}.getOrDefault(false)
 
 internal fun InstalledManagerPlugin.isCompatibleWith(
     managerVersionCode: Int = BuildConfig.VERSION_CODE,
@@ -566,10 +586,9 @@ internal suspend fun stopPathmaskPluginForRemoval(
 ): Boolean {
     val before = readStatus().config ?: return false
     if (before.hasPendingCandidate) return false
-    if (!before.loaded && before.targetPaths.isEmpty()) return true
     if (!before.loaded && !before.autoLoadEnabled) return true
     if (before.autoLoadEnabled && !disableAutoLoad().success) return false
-    if (!unload().success) return false
+    if (before.loaded && !unload().success) return false
     val after = readStatus().config ?: return false
     return !after.autoLoadEnabled && !after.loaded && !after.hasPendingCandidate
 }
@@ -596,7 +615,7 @@ internal fun parseManagerPluginCatalog(json: String): ManagerPluginCatalog {
     require(root.optString("schema") == PLUGIN_CATALOG_SCHEMA) { "Unsupported plugin catalog" }
     require(root.optInt("version") == PLUGIN_SCHEMA_VERSION) { "Unsupported plugin catalog version" }
     val items = root.optJSONArray("plugins") ?: error("Plugin catalog has no plugins")
-    require(items.length() in (ManagerPlugin.entries.size - 1)..ManagerPlugin.entries.size) {
+    require(items.length() in 1..ManagerPlugin.entries.size) {
         "Plugin catalog size is invalid"
     }
     val plugins = buildList {
@@ -605,15 +624,13 @@ internal fun parseManagerPluginCatalog(json: String): ManagerPluginCatalog {
         }
     }
     val pluginIds = plugins.mapTo(linkedSetOf()) { it.id }
-    val expectedIds = ManagerPlugin.entries.mapTo(linkedSetOf()) { it.id }
-    require(pluginIds.size == plugins.size &&
-        (pluginIds == expectedIds || pluginIds == expectedIds - ManagerPlugin.PathmaskLkm.id)) {
+    require(pluginIds.size == plugins.size) {
         "Plugin catalog identifiers do not match the Manager"
     }
     return ManagerPluginCatalog(root.optLong("generatedAt").coerceAtLeast(0L), plugins)
 }
 
-private fun parsePlugin(item: JSONObject, requireDownload: Boolean): ManagerPluginPackage {
+internal fun parsePlugin(item: JSONObject, requireDownload: Boolean): ManagerPluginPackage {
     val instructions = item.optJSONArray("instructions") ?: JSONArray()
     val parsedInstructions = buildList {
         for (index in 0 until instructions.length()) {

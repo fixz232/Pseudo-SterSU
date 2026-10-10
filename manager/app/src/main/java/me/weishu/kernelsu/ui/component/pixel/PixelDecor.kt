@@ -42,8 +42,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.weishu.kernelsu.ui.InterfaceStyle
 import me.weishu.kernelsu.ui.LocalInterfaceStyle
-import me.weishu.kernelsu.ui.component.custom.CustomCardTarget
-import me.weishu.kernelsu.ui.component.decoration.uiDecoratedCard
 import me.weishu.kernelsu.ui.theme.isInDarkTheme
 import me.weishu.kernelsu.ui.util.InterfaceStyleTheme
 import me.weishu.kernelsu.ui.util.LocalInterfaceStyleTheme
@@ -152,10 +150,8 @@ fun Modifier.pixelMiuixCardSurface(
     shape: Shape = RectangleShape,
     enabled: Boolean = true,
     paintBackground: Boolean = true,
-    customTarget: CustomCardTarget = CustomCardTarget.Default,
 ): Modifier {
-    if (!enabled) return uiDecoratedCard(shape = shape, enabled = false, customTarget = customTarget)
-    if (!isPixelInterfaceStyle()) return uiDecoratedCard(shape = shape, enabled = true, customTarget = customTarget)
+    if (!enabled || !isPixelInterfaceStyle()) return this
     val style = LocalPixelStyle.current
     val theme = LocalInterfaceStyleTheme.current
     val dark = isInDarkTheme()
@@ -180,7 +176,6 @@ fun Modifier.pixelMiuixCardSurface(
             if (motionEnabled) drawPixelCardMotionOverlay(theme, palette, motionProgress.value)
             drawPixelCardFrame(palette, theme)
         }
-        .uiDecoratedCard(shape = shape, enabled = true, customTarget = customTarget)
 }
 
 @Composable

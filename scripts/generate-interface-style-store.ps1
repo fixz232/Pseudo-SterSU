@@ -3,7 +3,8 @@ param(
     [string]$OutputDirectory,
     [Parameter(Mandatory = $true)]
     [string]$CatalogAsset,
-    [string]$SourceDirectory = (Join-Path $PSScriptRoot '..\interface-style-resources')
+    [string]$SourceDirectory = (Join-Path $PSScriptRoot '..\interface-style-resources'),
+    [string[]]$StyleIds = @()
 )
 
 $ErrorActionPreference = 'Stop'
@@ -109,6 +110,34 @@ function New-ThemeResource([object]$Style, [int]$StyleIndex) {
         ($Style.engine -eq 'pixel' -and $Style.variant -eq 'cyber_hacker')
     $lightPalette = New-StylePalette $Style.accent $false
     $darkPalette = New-StylePalette $Style.accent $true
+    if ($Style.id -eq 'liquid-glass') {
+        $lightPalette = [ordered]@{
+            background = '#FFEDF2F6'
+            backgroundAlt = '#FFF5F8FB'
+            surface = '#FFFAFCFE'
+            surfaceAlt = '#FFF4F8FC'
+            primary = '#FF3C6488'
+            secondary = '#FF4C697F'
+            outline = '#FFC7D4DE'
+            highlight = '#FFFFFFFF'
+            shadow = '#FF34485C'
+            muted = '#FFEBF2F8'
+            content = '#FF192634'
+        }
+        $darkPalette = [ordered]@{
+            background = '#FF101720'
+            backgroundAlt = '#FF18222E'
+            surface = '#FF222C38'
+            surfaceAlt = '#FF283442'
+            primary = '#FFA6CAE8'
+            secondary = '#FFAAC1D4'
+            outline = '#FF65788D'
+            highlight = '#FFF4F8FC'
+            shadow = '#FF000000'
+            muted = '#FF2C3948'
+            content = '#FFEEF4FA'
+        }
+    }
     if ($Style.id -eq 'windows-fluent') {
         $lightPalette = [ordered]@{
             background = '#FFF3F3F3'
@@ -241,7 +270,7 @@ function New-ThemeResource([object]$Style, [int]$StyleIndex) {
     $isGlass = $Style.engine -eq 'liquid_glass'
     $isWindowsFluent = $Style.id -eq 'windows-fluent'
     $isSidebarWidget = $Style.id -eq 'sidebar-widget'
-    if ($isSidebarWidget) {
+    if ($isSidebarWidget -or $isGlass) {
         $scene.primaryCount = 0
         $scene.secondaryCount = 0
         $scene.speed = 0.0
@@ -256,21 +285,21 @@ function New-ThemeResource([object]$Style, [int]$StyleIndex) {
         palette = [ordered]@{ light = $lightPalette; dark = $darkPalette }
         scene = $scene
         chrome = [ordered]@{
-            cardAlpha = if ($isGlass) { 0.54 } elseif ($isPixel) { 0.94 } elseif ($isWindowsFluent -or $isSidebarWidget) { 0.98 } else { 0.76 }
-            borderAlpha = if ($isGlass) { 0.70 } elseif ($isPixel) { 0.72 } elseif ($isWindowsFluent) { 0.56 } elseif ($isSidebarWidget) { 0.58 } else { 0.60 }
+            cardAlpha = if ($isGlass) { 0.86 } elseif ($isPixel) { 0.94 } elseif ($isWindowsFluent -or $isSidebarWidget) { 0.98 } else { 0.76 }
+            borderAlpha = if ($isGlass) { 0.14 } elseif ($isPixel) { 0.72 } elseif ($isWindowsFluent) { 0.56 } elseif ($isSidebarWidget) { 0.58 } else { 0.60 }
             cornerDp = if ($isGlass) { 20.0 } elseif ($isPixel) { 0.0 } elseif ($isWindowsFluent) { 8.0 } elseif ($isSidebarWidget) { 16.0 } else { 14.0 }
             unitDp = if ($isPixel) { 2.0 } elseif ($isWindowsFluent -or $isSidebarWidget) { 1.0 } else { 1.5 }
-            topBarAlpha = if ($isGlass) { 0.18 } elseif ($isWindowsFluent -or $isSidebarWidget) { 0.97 } else { 0.62 }
-            navigationAlpha = if ($isGlass) { 0.54 } elseif ($isPixel) { 0.94 } elseif ($isWindowsFluent) { 0.96 } elseif ($isSidebarWidget) { 0.68 } else { 0.62 }
+            topBarAlpha = if ($isGlass) { 0.94 } elseif ($isWindowsFluent -or $isSidebarWidget) { 0.97 } else { 0.62 }
+            navigationAlpha = if ($isGlass) { 0.94 } elseif ($isPixel) { 0.94 } elseif ($isWindowsFluent) { 0.96 } elseif ($isSidebarWidget) { 0.68 } else { 0.62 }
         }
         glass = [ordered]@{
-            surfaceAlpha = if ($isGlass) { 0.54 } elseif ($isWindowsFluent) { 0.94 } elseif ($isSidebarWidget) { 0.68 } else { 0.70 }
-            blurDp = if ($isGlass) { 18.0 } elseif ($isWindowsFluent) { 16.0 } else { 12.0 }
-            strokeAlpha = if ($isGlass) { 0.70 } elseif ($isWindowsFluent) { 0.48 } elseif ($isSidebarWidget) { 0.58 } else { 0.55 }
-            refraction = $isGlass -or $isSidebarWidget
-            refractionHeightDp = if ($isGlass) { 16.0 } elseif ($isSidebarWidget) { 14.0 } else { 0.0 }
-            refractionAmountDp = if ($isGlass) { 9.0 } elseif ($isSidebarWidget) { 4.0 } else { 0.0 }
-            chromaticAberration = if ($isGlass) { 0.18 } else { 0.0 }
+            surfaceAlpha = if ($isGlass) { 0.86 } elseif ($isWindowsFluent) { 0.94 } elseif ($isSidebarWidget) { 0.68 } else { 0.70 }
+            blurDp = if ($isGlass) { 14.0 } elseif ($isWindowsFluent) { 16.0 } else { 12.0 }
+            strokeAlpha = if ($isGlass) { 0.14 } elseif ($isWindowsFluent) { 0.48 } elseif ($isSidebarWidget) { 0.58 } else { 0.55 }
+            refraction = $isSidebarWidget
+            refractionHeightDp = if ($isSidebarWidget) { 14.0 } else { 0.0 }
+            refractionAmountDp = if ($isSidebarWidget) { 4.0 } else { 0.0 }
+            chromaticAberration = 0.0
         }
     }
 }
@@ -291,41 +320,43 @@ function Write-ZipEntry(
 }
 
 $styles = @(
-    [ordered]@{ id='liquid-glass'; name='毛玻璃 / Frosted glass'; summary='半透明毛玻璃界面'; engine='liquid_glass'; variant=$null; accent=4283987338L },
+    [ordered]@{ id='liquid-glass'; name='毛玻璃 / Frosted glass'; summary='清透毛玻璃：轻描边、柔和冷白与深蓝灰配色，减少灰色叠层和折射；完整卡片与导航优化需新版管理器。'; engine='liquid_glass'; variant=$null; accent=4282147976L },
     [ordered]@{ id='season-spring'; name='春日 / Spring'; summary='四季主题：春日'; engine='snow'; variant='spring'; accent=4283404098L },
     [ordered]@{ id='season-summer'; name='盛夏 / Summer'; summary='四季主题：盛夏'; engine='snow'; variant='summer'; accent=4279663744L },
     [ordered]@{ id='season-autumn'; name='金秋 / Autumn'; summary='四季主题：金秋'; engine='snow'; variant='autumn'; accent=4288309803L },
     [ordered]@{ id='season-winter'; name='冬雪 / Winter'; summary='四季主题：冬雪'; engine='snow'; variant='winter'; accent=4280848006L },
-    [ordered]@{ id='rain-light'; name='细雨 / Light rain'; summary='雨境：细雨'; engine='rain'; variant='light_rain'; accent=4284380326L },
-    [ordered]@{ id='rain-medium'; name='中雨 / Medium rain'; summary='雨境：中雨'; engine='rain'; variant='medium_rain'; accent=4283397015L },
-    [ordered]@{ id='rain-heavy'; name='骤雨 / Heavy rain'; summary='雨境：骤雨'; engine='rain'; variant='heavy_rain'; accent=4282087023L },
-    [ordered]@{ id='rain-thunderstorm'; name='雷暴 / Thunderstorm'; summary='雨境：雷暴'; engine='rain'; variant='thunderstorm'; accent=4284907432L },
-    [ordered]@{ id='rain-after'; name='雨后 / After rain'; summary='雨境：雨后'; engine='rain'; variant='after_rain'; accent=4285631643L },
     [ordered]@{ id='pixel-classic-handheld'; name='经典掌机 / Classic handheld'; summary='像素风：经典掌机'; engine='pixel'; variant='classic_handheld'; accent=4283783999L },
     [ordered]@{ id='pixel-neon-arcade'; name='霓虹街机 / Neon arcade'; summary='像素风：霓虹街机'; engine='pixel'; variant='neon_arcade'; accent=4278222715L },
     [ordered]@{ id='pixel-pastoral-fields'; name='田园原野 / Pastoral fields'; summary='像素风：田园原野'; engine='pixel'; variant='pastoral_fields'; accent=4284380752L },
-    [ordered]@{ id='pixel-star-voyage'; name='星际航行 / Star voyage'; summary='像素风：星际航行'; engine='pixel'; variant='star_voyage'; accent=4283595463L },
     [ordered]@{ id='pixel-ink-jade'; name='墨玉 / Ink jade'; summary='像素风：墨玉'; engine='pixel'; variant='ink_jade'; accent=4282216542L },
-    [ordered]@{ id='pixel-rust-wasteland'; name='锈蚀荒原 / Rust wasteland'; summary='像素风：锈蚀荒原'; engine='pixel'; variant='rust_wasteland'; accent=4286730296L },
     [ordered]@{ id='pixel-ocean-depths'; name='深海 / Ocean depths'; summary='像素风：深海'; engine='pixel'; variant='ocean_depths'; accent=4279696010L },
     [ordered]@{ id='pixel-cyber-hacker'; name='赛博黑客 / Cyber hacker'; summary='像素风：赛博黑客'; engine='pixel'; variant='cyber_hacker'; accent=4288371967L },
     [ordered]@{ id='pixel-three-kingdoms'; name='三国 / Three kingdoms'; summary='像素风：三国'; engine='pixel'; variant='three_kingdoms'; accent=4284242255L },
     [ordered]@{ id='pixel-bianliang-market'; name='汴梁市集 / Bianliang market'; summary='像素风：汴梁市集'; engine='pixel'; variant='bianliang_market'; accent=4285744527L },
     [ordered]@{ id='pixel-fishing-harbor'; name='渔港 / Fishing harbor'; summary='像素风：渔港'; engine='pixel'; variant='fishing_harbor'; accent=4285093797L },
     [ordered]@{ id='pixel-tribal-jungle'; name='部落丛林 / Tribal jungle'; summary='像素风：部落丛林'; engine='pixel'; variant='tribal_jungle'; accent=4283592005L },
-    [ordered]@{ id='pixel-lava-valley'; name='熔岩谷 / Lava valley'; summary='像素风：熔岩谷'; engine='pixel'; variant='lava_valley'; accent=4290266156L },
     [ordered]@{ id='pixel-dunhuang-desert'; name='敦煌沙海 / Dunhuang desert'; summary='像素风：敦煌沙海'; engine='pixel'; variant='dunhuang_desert'; accent=4286278799L },
     [ordered]@{ id='pixel-viking-snowfield'; name='维京雪原 / Viking snowfield'; summary='像素风：维京雪原'; engine='pixel'; variant='viking_snowfield'; accent=4283395978L },
     [ordered]@{ id='pixel-jiangnan-watertown'; name='江南水乡 / Jiangnan watertown'; summary='像素风：江南水乡'; engine='pixel'; variant='jiangnan_watertown'; accent=4283987311L },
-    [ordered]@{ id='pixel-cloud-town'; name='云上小镇 / Cloud town'; summary='像素风：云上小镇'; engine='pixel'; variant='cloud_town'; accent=4285308569L },
-    [ordered]@{ id='windows-fluent'; name='Windows 流畅设计 / Windows Fluent'; summary='Windows 11 Fluent 风格的清爽系统界面，使用 Mica 中性色、紧凑 8dp 圆角，并完整适配浅色与深色模式。'; engine='alpha'; variant=$null; accent=4278221012L },
     [ordered]@{ id='sidebar-widget'; name='侧栏组件'; summary='黑白液态玻璃侧栏，支持左右切换、日夜主题、自定义天气 API、时钟、闹钟、图片和导航排序，适配平板；完整功能需支持新版侧栏的管理器。'; engine='sidebar_widget'; variant=$null; accent=4279637526L },
     [ordered]@{ id='skrootpro'; name='SKRoot 风格'; summary='紫色强调的 SKRoot 风格界面，支持浅色与深色模式。'; engine='skrootpro'; variant=$null; accent=4285137140L },
     [ordered]@{ id='alpha-delta'; name='Alpha / Delta 融合'; summary='下载后可在界面风格设置中切换 Alpha 与 Delta 两种布局。'; engine='alpha'; variant=$null; accent=4278246821L }
 )
 
+$existingCatalog = $null
+if ($StyleIds.Count -gt 0) {
+    foreach ($id in $StyleIds) {
+        if ($id -notin $styles.id) { throw "Unknown style id: $id" }
+    }
+    # Partial releases must retain every other published entry and its hash.
+    $existingCatalog = Get-Content (Join-Path $catalogDirectory 'catalog-v2.json') -Raw | ConvertFrom-Json -AsHashtable
+}
 $styleIndex = 0
 $catalogStyles = foreach ($style in $styles) {
+    if ($StyleIds.Count -gt 0 -and $style.id -notin $StyleIds) {
+        $styleIndex += 1
+        continue
+    }
     if ($style.engine -eq 'snow') {
         $resourceName = 'wallpaper'
         $resourcePath = 'wallpaper.jpg'
@@ -356,8 +387,12 @@ $catalogStyles = foreach ($style in $styles) {
         variant = $style.variant
         resources = @($resource)
     })
-    # Keep the old sidebar URL immutable for Managers with pinned package hashes.
-    $packageFileName = if ($style.id -eq 'sidebar-widget') { 'sidebar-widget-glass-20261003.ksstyle' } else { "$($style.id).ksstyle" }
+    # Keep old URLs immutable for Managers with cached, signed catalogs.
+    $packageFileName = switch ($style.id) {
+        'sidebar-widget' { 'sidebar-widget-glass-20261003.ksstyle' }
+        'liquid-glass' { 'liquid-glass-clear-20261009.ksstyle' }
+        default { "$($style.id).ksstyle" }
+    }
     $packagePath = Join-Path $packageDirectory $packageFileName
     $fileStream = [System.IO.File]::Open(
         $packagePath,
@@ -397,6 +432,21 @@ $catalogStyles = foreach ($style in $styles) {
     $styleIndex += 1
 }
 
+if ($null -ne $existingCatalog) {
+    $replacements = @{}
+    foreach ($entry in $catalogStyles) { $replacements[$entry.id] = $entry }
+    $catalogStyles = @(
+        foreach ($entry in $existingCatalog.styles) {
+            if ($replacements.ContainsKey($entry.id)) {
+                $replacements[$entry.id]
+                $replacements.Remove($entry.id)
+            } else {
+                $entry
+            }
+        }
+        foreach ($entry in $replacements.Values) { $entry }
+    )
+}
 $catalog = [ordered]@{
     schema = 'io.github.fixz.apkesu.interface-style-catalog'
     version = 3
@@ -415,8 +465,10 @@ This directory is generated by `scripts/generate-interface-style-store.ps1` in t
 
 `catalog-v1.json` and its signature remain frozen for older Managers. The generator writes `catalog-v2.json`, which must be signed with `scripts/sign-interface-style-store-v2.py` and the external `STERSU_INTERFACE_STYLE_V2_KEY` before publication. Never commit the private key.
 
-Each `.ksstyle` file is a data-only ZIP bundle. Four-season bundles contain their wallpaper. Rain, pixel, frosted-glass, Fluent, and sidebar-widget bundles contain their full palette, scene, animation, motif, chrome, and material parameters in a strict v3 declarative theme resource. Packages cannot contain scripts, DEX, native libraries, or arbitrary Web content. The Manager verifies the signed catalog, fixed GitHub URL, package and resource SHA-256 values, byte limits, ZIP entry allowlist, exact schema fields, numeric limits, engine, and variant before atomically installing a style.
+Each `.ksstyle` file is a data-only ZIP bundle. Four-season bundles contain their wallpaper. Pixel, frosted-glass, and sidebar-widget bundles contain their full palette, scene, animation, motif, chrome, and material parameters in a strict v3 declarative theme resource. Packages cannot contain scripts, DEX, native libraries, or arbitrary Web content. The Manager verifies the signed catalog, fixed GitHub URL, package and resource SHA-256 values, byte limits, ZIP entry allowlist, exact schema fields, numeric limits, engine, and variant before atomically installing a style.
 '@
 $readme = $readme -replace "`r`n", "`n"
-[System.IO.File]::WriteAllText((Join-Path $catalogDirectory 'README.md'), $readme, $utf8NoBom)
-Write-Host "Generated $($styles.Count) interface style packages at $catalogDirectory"
+if ($null -eq $existingCatalog) {
+    [System.IO.File]::WriteAllText((Join-Path $catalogDirectory 'README.md'), $readme, $utf8NoBom)
+}
+Write-Host "Updated interface style catalog at $catalogDirectory"

@@ -45,7 +45,6 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.sin
 
-val LocalCustomCardStyle = staticCompositionLocalOf<CustomCardStyle?> { null }
 val LocalCustomSwitchStyle = staticCompositionLocalOf<CustomSwitchStyle?> { null }
 val LocalComponentMotionProgressOverride = staticCompositionLocalOf<Float?> { null }
 
@@ -108,110 +107,6 @@ fun rememberCustomSwitchImages(style: CustomSwitchStyle?): CustomSwitchImages {
         }
     }
     return images
-}
-
-fun DrawScope.drawCustomCardInterior(
-    style: CustomCardStyle,
-    target: CustomCardTarget,
-    alpha: Float,
-    motionProgress: Float,
-) {
-    val layers = style.layersFor(target)
-    drawPixelLayer(
-        grid = layers.interior,
-        topLeft = Offset.Zero,
-        destinationSize = size,
-        alpha = alpha * 0.70f * motionAlpha(style.motion, motionProgress),
-        offsetX = motionOffset(style.motion, motionProgress, size.width / layers.interior.width),
-    )
-    drawMotionScan(style.motion, motionProgress, alpha * 0.30f)
-}
-
-fun DrawScope.drawCustomCardChrome(
-    style: CustomCardStyle,
-    target: CustomCardTarget,
-    alpha: Float,
-    motionProgress: Float,
-) {
-    val layers = style.layersFor(target)
-    val motionAlpha = motionAlpha(style.motion, motionProgress)
-    val bodyCellWidth = size.width / layers.border.width
-    val offsetX = motionOffset(style.motion, motionProgress, bodyCellWidth)
-    drawPixelLayer(
-        grid = layers.border,
-        topLeft = Offset.Zero,
-        destinationSize = size,
-        alpha = alpha * motionAlpha,
-        offsetX = offsetX,
-        filter = { x, y, width, height ->
-            x < CARD_BORDER_GRID_CELLS || y < CARD_BORDER_GRID_CELLS ||
-                x >= width - CARD_BORDER_GRID_CELLS || y >= height - CARD_BORDER_GRID_CELLS
-        },
-    )
-    val topHeight = (size.width / layers.top.width * layers.top.height)
-        .coerceAtMost(size.height * MAX_CARD_TOP_HEIGHT_FRACTION)
-    drawPixelLayer(
-        grid = layers.top,
-        topLeft = Offset.Zero,
-        destinationSize = Size(size.width, topHeight),
-        alpha = alpha * motionAlpha,
-        offsetX = motionOffset(style.motion, motionProgress, size.width / layers.top.width),
-    )
-}
-
-fun DrawScope.drawCustomNavigationStyle(
-    style: CustomCardStyle,
-    floating: Boolean,
-    areaHeight: Float,
-    alpha: Float,
-    motionProgress: Float,
-) {
-    val layers = if (floating) style.floatingBottomBar else style.bottomBar
-    val sideInset = if (floating) 16.dp.toPx() else 0f
-    val verticalInset = if (floating) 8.dp.toPx() else 0f
-    val destinationSize = Size(
-        width = (size.width - sideInset * 2f).coerceAtLeast(1f),
-        height = (areaHeight - verticalInset * 2f).coerceAtLeast(1f),
-    )
-    val topLeft = Offset(
-        x = sideInset,
-        y = size.height - areaHeight + verticalInset,
-    )
-    val dynamicAlpha = alpha * motionAlpha(style.motion, motionProgress)
-    val offsetX = motionOffset(style.motion, motionProgress, destinationSize.width / layers.border.width)
-    drawPixelLayer(
-        grid = layers.border,
-        topLeft = topLeft,
-        destinationSize = destinationSize,
-        alpha = dynamicAlpha,
-        offsetX = offsetX,
-        filter = { x, y, width, height ->
-            x < NAVIGATION_BORDER_GRID_CELLS || y < NAVIGATION_BORDER_GRID_CELLS ||
-                x >= width - NAVIGATION_BORDER_GRID_CELLS || y >= height - NAVIGATION_BORDER_GRID_CELLS
-        },
-    )
-    val topHeight = (destinationSize.width / layers.top.width * layers.top.height)
-        .coerceAtMost(destinationSize.height * MAX_NAVIGATION_TOP_HEIGHT_FRACTION)
-    drawPixelLayer(
-        grid = layers.top,
-        topLeft = topLeft,
-        destinationSize = Size(destinationSize.width, topHeight),
-        alpha = dynamicAlpha,
-        offsetX = motionOffset(style.motion, motionProgress, destinationSize.width / layers.top.width),
-    )
-    if (
-        style.motion.enabled &&
-        style.motion.mode == PixelMotionMode.Scan &&
-        motionProgress.isActiveMotionProgress()
-    ) {
-        val scanY = topLeft.y + destinationSize.height * motionProgress.coerceIn(0f, 1f)
-        drawLine(
-            color = Color.White.copy(alpha = alpha * 0.22f),
-            start = Offset(topLeft.x, scanY),
-            end = Offset(topLeft.x + destinationSize.width, scanY),
-            strokeWidth = 1.dp.toPx(),
-        )
-    }
 }
 
 fun DrawScope.drawCustomSwitchStyle(
@@ -627,8 +522,6 @@ private fun motionOffset(rule: PixelMotionRule, progress: Float, cellWidth: Floa
 
 private fun Float.isActiveMotionProgress(): Boolean = isFinite() && this >= 0f
 
-private const val MAX_CARD_TOP_HEIGHT_FRACTION = 0.34f
-private const val MAX_NAVIGATION_TOP_HEIGHT_FRACTION = 0.42f
 private const val PIXEL_OVERDRAW = 0.35f
 private const val MAX_RENDERED_SWITCH_IMAGE_SIDE = 512
 private const val MAX_CACHED_SWITCH_IMAGES = 4

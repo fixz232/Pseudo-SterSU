@@ -35,6 +35,8 @@ import me.weishu.kernelsu.ui.screen.module.ModuleConfirmDialogState
 import me.weishu.kernelsu.ui.screen.module.ModuleConfirmRequest
 import me.weishu.kernelsu.ui.screen.module.ModuleEffect
 import me.weishu.kernelsu.ui.screen.module.ModuleUiState
+import me.weishu.kernelsu.ui.util.KPATCH_NEXT_MODULE_ID
+import me.weishu.kernelsu.ui.util.KernelStatusEvents
 import me.weishu.kernelsu.ui.util.PinyinUtil
 import me.weishu.kernelsu.ui.util.hasMagisk
 import me.weishu.kernelsu.ui.util.module.fetchModuleDetail
@@ -465,6 +467,10 @@ class ModuleViewModel(
         }
     }
 
+    private fun refreshKpmNavigationIfNeeded(module: Module) {
+        if (module.id == KPATCH_NEXT_MODULE_ID) KernelStatusEvents.requestRefresh()
+    }
+
     fun toggleModule(module: Module) {
         if (!beginModuleOperation(module.id)) return
         viewModelScope.launch {
@@ -474,6 +480,7 @@ class ModuleViewModel(
                     toggleModuleUtil(module.id, !module.enabled)
                 }
                 if (success) {
+                    refreshKpmNavigationIfNeeded(module)
                     reloadModulesAfterOperation()
                     emitEffect(ModuleEffect.SnackBar(res.getString(R.string.reboot_to_apply)))
                 } else {
@@ -495,6 +502,7 @@ class ModuleViewModel(
                     uninstallModuleUtil(module.id)
                 }
                 if (success) {
+                    refreshKpmNavigationIfNeeded(module)
                     reloadModulesAfterOperation()
                 }
                 _uiState.update { it.copy(confirmDialogState = null) }
@@ -520,6 +528,7 @@ class ModuleViewModel(
                     undoUninstallModuleUtil(module.id)
                 }
                 if (success) {
+                    refreshKpmNavigationIfNeeded(module)
                     reloadModulesAfterOperation()
                 }
                 emitEffect(

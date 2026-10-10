@@ -39,8 +39,6 @@ import me.weishu.kernelsu.ui.component.NightBackgroundEffect
 import me.weishu.kernelsu.ui.component.SCROLL_HIDE_NAVIGATION_BAR_KEY
 import me.weishu.kernelsu.ui.component.SWITCH_STYLE_KEY
 import me.weishu.kernelsu.ui.component.SwitchStyle
-import me.weishu.kernelsu.ui.component.custom.CUSTOM_CARD_STYLE_ACTIVE_ID_KEY
-import me.weishu.kernelsu.ui.component.custom.CUSTOM_CARD_STYLE_LIBRARY_KEY
 import me.weishu.kernelsu.ui.component.custom.CUSTOM_SWITCH_STYLE_ACTIVE_ID_KEY
 import me.weishu.kernelsu.ui.component.custom.CUSTOM_SWITCH_STYLE_LIBRARY_KEY
 import me.weishu.kernelsu.ui.component.custom.ComponentStyleStore
@@ -56,8 +54,6 @@ import me.weishu.kernelsu.ui.component.pixel.PIXEL_STYLE_KEY
 import me.weishu.kernelsu.ui.component.pixel.PIXEL_CARD_MOTION_ENABLED_KEY
 import me.weishu.kernelsu.ui.component.pixel.DEFAULT_PIXEL_CARD_MOTION_ENABLED
 import me.weishu.kernelsu.ui.component.pixel.PixelStyle
-import me.weishu.kernelsu.ui.component.decoration.UI_DECORATION_CONFIG_KEY
-import me.weishu.kernelsu.ui.component.decoration.UiDecorationConfig
 import me.weishu.kernelsu.ui.theme.AppSettings
 import me.weishu.kernelsu.ui.theme.DELTA_COLOR_VARIANT_KEY
 import me.weishu.kernelsu.ui.theme.DeltaColorVariant
@@ -151,7 +147,6 @@ class MainActivityViewModel(
             scrollHideNavigationBar = settingRepo.scrollHideNavigationBar,
             moduleTopBarAutoHideEnabled = settingRepo.moduleTopBarAutoHideEnabled,
             switchStyle = settingRepo.switchStyle,
-            customCardStyle = componentStyleStore.readActiveCardStyle(),
             customSwitchStyle = componentStyleStore.readActiveSwitchStyle(),
             seasonStyle = settingRepo.seasonStyle,
             seasonCardMotionEnabled = settingRepo.seasonCardMotionEnabled,
@@ -159,7 +154,6 @@ class MainActivityViewModel(
             rainCardMotionEnabled = settingRepo.rainCardMotionEnabled,
             pixelStyle = settingRepo.pixelStyle,
             pixelCardMotionEnabled = settingRepo.pixelCardMotionEnabled,
-            uiDecorationConfig = settingRepo.uiDecorationConfig,
             globalSnowEnabled = settingRepo.globalSnowEnabled,
             globalSnowEffect = settingRepo.globalSnowEffect,
             nightBackgroundEffect = settingRepo.nightBackgroundEffect,
@@ -247,7 +241,6 @@ class MainActivityViewModel(
             scrollHideNavigationBar = false,
             moduleTopBarAutoHideEnabled = false,
             switchStyle = SwitchStyle.DEFAULT_VALUE,
-            customCardStyle = null,
             customSwitchStyle = null,
             seasonStyle = SeasonStyle.DEFAULT_VALUE,
             seasonCardMotionEnabled = DEFAULT_SEASON_CARD_MOTION_ENABLED,
@@ -255,7 +248,6 @@ class MainActivityViewModel(
             rainCardMotionEnabled = DEFAULT_RAIN_CARD_MOTION_ENABLED,
             pixelStyle = PixelStyle.DEFAULT_VALUE,
             pixelCardMotionEnabled = DEFAULT_PIXEL_CARD_MOTION_ENABLED,
-            uiDecorationConfig = UiDecorationConfig(),
             globalSnowEnabled = false,
             globalSnowEffect = GlobalSnowEffect.DEFAULT_VALUE,
             nightBackgroundEffect = NightBackgroundEffect.DEFAULT_VALUE,
@@ -331,8 +323,6 @@ class MainActivityViewModel(
             "ui_mode",
             ACTIVE_INTERFACE_STYLE_ID_KEY,
             SWITCH_STYLE_KEY,
-            CUSTOM_CARD_STYLE_LIBRARY_KEY,
-            CUSTOM_CARD_STYLE_ACTIVE_ID_KEY,
             CUSTOM_SWITCH_STYLE_LIBRARY_KEY,
             CUSTOM_SWITCH_STYLE_ACTIVE_ID_KEY,
             SEASON_STYLE_KEY,
@@ -341,7 +331,6 @@ class MainActivityViewModel(
             RAIN_CARD_MOTION_ENABLED_KEY,
             PIXEL_STYLE_KEY,
             PIXEL_CARD_MOTION_ENABLED_KEY,
-            UI_DECORATION_CONFIG_KEY,
             GLOBAL_SNOW_ENABLED_KEY,
             GLOBAL_SNOW_EFFECT_KEY,
             NIGHT_BACKGROUND_EFFECT_KEY,

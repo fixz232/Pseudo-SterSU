@@ -175,7 +175,8 @@ fun ModulePager(
     )
 
     when (LocalInterfaceStyle.current) {
-        InterfaceStyle.Material.value -> {
+        InterfaceStyle.Material.value,
+        InterfaceStyle.SidebarWidget.value -> {
             ModulePagerMaterial(
                 uiState = rawUiState,
                 confirmDialogState = rawUiState.confirmDialogState,

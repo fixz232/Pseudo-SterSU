@@ -47,7 +47,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import me.weishu.kernelsu.R
 import me.weishu.kernelsu.ui.InterfaceStyle
-import me.weishu.kernelsu.ui.component.decoration.uiDecoratedCard
 import me.weishu.kernelsu.ui.theme.immersiveScrolledTopBarColor
 
 internal val overviewPrimaryCategories = listOf(
@@ -184,7 +183,7 @@ fun SettingsOverviewScreen(
 @Composable
 private fun OverviewIntroCard(shape: RoundedCornerShape, modifier: Modifier = Modifier) {
     Surface(
-        modifier = modifier.uiDecoratedCard(shape),
+        modifier = modifier,
         color = MaterialTheme.colorScheme.primaryContainer,
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
         shape = shape,
@@ -233,7 +232,7 @@ private fun OverviewStyleCard(
         ?: R.string.settings_ui_mode
     val activeStyleName = installedName ?: stringResource(styleRes)
     Surface(
-        modifier = modifier.uiDecoratedCard(shape),
+        modifier = modifier,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         contentColor = MaterialTheme.colorScheme.onSurface,
         shape = shape,
@@ -317,7 +316,7 @@ private fun OverviewPrimaryCard(
     modifier: Modifier = Modifier,
 ) {
     Surface(
-        modifier = modifier.uiDecoratedCard(shape),
+        modifier = modifier,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         contentColor = MaterialTheme.colorScheme.onSurface,
         shape = shape,
@@ -422,7 +421,7 @@ private fun OverviewQuickTile(
 ) {
     val accent = categoryAccent(category)
     Surface(
-        modifier = modifier.uiDecoratedCard(shape).clickable(onClick = onClick),
+        modifier = modifier.clickable(onClick = onClick),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         contentColor = MaterialTheme.colorScheme.onSurface,
         shape = shape,

@@ -27,13 +27,14 @@ internal class SidebarWeatherRepository(
     val state = mutableState.asStateFlow()
 
     suspend fun accept(config: SidebarWeatherConfig, reading: SidebarWeatherReading) = mutex.withLock {
+        if (!config.canFetch()) return@withLock
         val key = config.cacheKey()
         saveCache(key, reading)
         mutableState.value = SidebarWeatherState(key = key, reading = reading, attemptedAt = now())
     }
 
     suspend fun refresh(config: SidebarWeatherConfig, force: Boolean = false) = mutex.withLock {
-        if (!config.enabled) return@withLock
+        if (!config.canFetch()) return@withLock
         val key = config.cacheKey()
         if (mutableState.value.key != key) {
             val cached = loadCache(key)

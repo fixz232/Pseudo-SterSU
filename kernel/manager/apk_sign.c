@@ -419,43 +419,66 @@ module_param_cb(ksu_debug_manager_appid, &debug_manager_appid_param_ops,
 
 #endif
 
+static int get_pkg_from_apk_dir_range(char *pkg, const char *path,
+                                      const char *dir_end)
+{
+    const char *package_start = dir_end;
+    const char *hyphen;
+    size_t pkg_len;
+
+    if (!pkg || !path || dir_end <= path)
+        return -1;
+
+    while (package_start > path && package_start[-1] != '/')
+        package_start--;
+    if (package_start == path)
+        return -1;
+
+    hyphen = memchr(package_start, '-', dir_end - package_start);
+    if (!hyphen)
+        return -1;
+
+    pkg_len = hyphen - package_start;
+    if (!pkg_len || pkg_len >= KSU_MAX_PACKAGE_NAME)
+        return -1;
+
+    memcpy(pkg, package_start, pkg_len);
+    pkg[pkg_len] = '\0';
+
+    return 0;
+}
+
+// /data/app/XXXXX/<PACKAGE_NAME>-YYY
+int get_pkg_from_apk_dir_path(char *pkg, const char *path)
+{
+    size_t len;
+
+    if (!path)
+        return -1;
+    len = strnlen(path, PATH_MAX);
+    if (!len || len >= PATH_MAX)
+        return -1;
+
+    return get_pkg_from_apk_dir_range(pkg, path, path + len);
+}
+
 // /data/app/XXXXX/<PACKAGE_NAME>-YYY/base.apk
 int get_pkg_from_apk_path(char *pkg, const char *path)
 {
     const char *last_slash;
-    const char *parent_start;
-    const char *hyphen;
     size_t len;
-    size_t parent_len;
-    size_t pkg_len;
 
-    if (!pkg || !path)
+    if (!path)
         return -1;
-
     len = strnlen(path, PATH_MAX);
     if (!len || len >= PATH_MAX)
         return -1;
 
     last_slash = strrchr(path, '/');
-    if (!last_slash || last_slash == path || !last_slash[1])
+    if (!last_slash || last_slash == path || strcmp(last_slash + 1, "base.apk"))
         return -1;
 
-    parent_start = last_slash;
-    while (parent_start > path && parent_start[-1] != '/')
-        parent_start--;
-    parent_len = last_slash - parent_start;
-    if (!parent_len)
-        return -1;
-
-    hyphen = memchr(parent_start, '-', parent_len);
-    pkg_len = hyphen ? (size_t)(hyphen - parent_start) : parent_len;
-    if (!pkg_len || pkg_len >= KSU_MAX_PACKAGE_NAME)
-        return -1;
-
-    memcpy(pkg, parent_start, pkg_len);
-    pkg[pkg_len] = '\0';
-
-    return 0;
+    return get_pkg_from_apk_dir_range(pkg, path, last_slash);
 }
 
 static int manager_signature_index(unsigned size, const char *sha256)

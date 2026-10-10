@@ -94,10 +94,10 @@ fun BottomBarMiuix(
         pixelNavigationContainerColor()
     } else if (isRainStyle) {
         rainNavigationContainerColor()
+    } else if (isLiquidGlass) {
+        liquidGlassSurfaceColor().copy(alpha = if (blurBackdrop != null) 0.94f else 1f)
     } else if (blurBackdrop != null) {
         Color.Transparent
-    } else if (isLiquidGlass) {
-        liquidGlassSurfaceColor().copy(alpha = 0.72f)
     } else if (isSnowStyle) {
         seasonNavigationContainerColor()
     } else {

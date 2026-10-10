@@ -241,9 +241,7 @@ private fun parseGlass(value: JSONObject): InterfaceStyleGlass {
     return InterfaceStyleGlass(
         surfaceAlpha = value.strictFloat("surfaceAlpha", 0.1f, 1f),
         // A zero radius is a valid way for a style to opt out of extra blur.
-        // The renderer applies its own minimum effective radius when a
-        // backdrop is available, so accepting 0 here does not create an
-        // invalid drawing operation.
+        // The renderer uses an opaque fallback when blur is disabled.
         blurDp = value.strictFloat("blurDp", 0f, 48f),
         strokeAlpha = value.strictFloat("strokeAlpha", 0f, 1f),
         refraction = value.strictBoolean("refraction"),

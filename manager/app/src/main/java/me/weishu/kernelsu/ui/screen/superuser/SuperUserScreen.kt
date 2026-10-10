@@ -72,7 +72,8 @@ fun SuperUserPager(
     )
 
     when (LocalInterfaceStyle.current) {
-        InterfaceStyle.Material.value -> {
+        InterfaceStyle.Material.value,
+        InterfaceStyle.SidebarWidget.value -> {
             SuperUserPagerMaterial(
                 uiState = uiState,
                 actions = actions,

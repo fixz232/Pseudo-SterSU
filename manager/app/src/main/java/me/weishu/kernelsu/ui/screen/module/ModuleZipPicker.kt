@@ -1,8 +1,8 @@
 package me.weishu.kernelsu.ui.screen.module
 
-import android.app.Activity.RESULT_OK
-import android.content.Intent
+import android.content.ActivityNotFoundException
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -26,19 +26,7 @@ internal fun rememberModuleZipPicker(onOpenFlash: (List<Uri>) -> Unit): () -> Un
     val currentOnOpenFlash by rememberUpdatedState(onOpenFlash)
     var selectedUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
     val confirmDialog = rememberConfirmDialog(onConfirm = { currentOnOpenFlash(selectedUris) })
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode != RESULT_OK) return@rememberLauncherForActivityResult
-        val data = result.data ?: return@rememberLauncherForActivityResult
-        val uris = buildList {
-            val clip = data.clipData
-            if (clip != null) {
-                for (index in 0 until clip.itemCount) {
-                    clip.getItemAt(index)?.uri?.let(::add)
-                }
-            } else {
-                data.data?.let(::add)
-            }
-        }
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         when (uris.size) {
             0 -> Unit
             1 -> currentOnOpenFlash(uris)
@@ -52,9 +40,10 @@ internal fun rememberModuleZipPicker(onOpenFlash: (List<Uri>) -> Unit): () -> Un
         }
     }
     return {
-        launcher.launch(Intent(Intent.ACTION_GET_CONTENT).apply {
-            type = "application/zip"
-            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
-        })
+        try {
+            launcher.launch(arrayOf("application/zip", "application/x-zip-compressed"))
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(context, R.string.module_picker_unavailable, Toast.LENGTH_SHORT).show()
+        }
     }
 }

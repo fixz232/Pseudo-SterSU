@@ -385,6 +385,11 @@ data class SusfsPathApplyResult(
     val error: String = "",
 )
 
+internal fun susfsApplyErrorDetail(result: SusfsPathApplyResult): String =
+    result.issues.firstOrNull { it.category == "avc" }?.let { "AVC ${it.target}: ${it.code}" }
+        ?: result.issues.firstOrNull()?.let { "${it.category} ${it.target}: ${it.code}" }
+        ?: result.error.ifBlank { "apply_failed" }
+
 data class SusfsBackupImportResult(
     val config: SusfsPathConfigState? = null,
     val warnings: List<String> = emptyList(),
@@ -1980,7 +1985,9 @@ private fun normalizeSusfsAbsolutePath(raw: String): String? {
     return normalized
 }
 
-fun normalizeSusfsPath(raw: String): String? {
+fun normalizeSusfsPath(raw: String): String? = normalizeSusfsAbsolutePath(raw)
+
+internal fun normalizeSusfsRedirectPath(raw: String): String? {
     val normalized = normalizeSusfsAbsolutePath(raw) ?: return null
     val blockedManagementPaths = listOf(
         "/data/adb/modules",
@@ -2040,15 +2047,7 @@ private fun normalizeSusfsArgument(raw: String): String? {
     }
 }
 
-internal fun normalizeSusfsMapPath(raw: String): String? {
-    val normalized = normalizeSusfsAbsolutePath(raw) ?: return null
-    // sus_map hides references in process maps. Keep individual module entries
-    // importable, but never accept the management roots themselves.
-    if (normalized == "/data/adb" || normalized == "/data/adb/ksu" || normalized == "/data/adb/ap") {
-        return null
-    }
-    return normalized
-}
+internal fun normalizeSusfsMapPath(raw: String): String? = normalizeSusfsAbsolutePath(raw)
 
 private fun parseSusfsKstatEntry(json: JSONObject): SusfsKstatEntry? {
     val arguments = buildList {
@@ -2133,8 +2132,8 @@ internal fun parseSusfsBackupJson(raw: String): SusfsBackupImportResult = runCat
         if (array != null) {
             for (index in 0 until array.length()) {
                 val item = array.optJSONObject(index) ?: continue
-                val original = normalizeSusfsPath(item.firstString("original", "original_path", "path"))
-                val redirected = normalizeSusfsPath(item.firstString("redirected", "redirected_path", "target"))
+                val original = normalizeSusfsRedirectPath(item.firstString("original", "original_path", "path"))
+                val redirected = normalizeSusfsRedirectPath(item.firstString("redirected", "redirected_path", "target"))
                 if (original == null || redirected == null) {
                     warnings += "skipped_open_redirect"
                     continue
@@ -2204,8 +2203,8 @@ internal fun parseSusfsConfigOutput(
         .map { it.split('|', limit = 3) }
         .mapNotNull { parts ->
             if (parts.size < 2) return@mapNotNull null
-            val original = normalizeSusfsPath(parts[0]) ?: return@mapNotNull null
-            val redirected = normalizeSusfsPath(parts[1]) ?: return@mapNotNull null
+            val original = normalizeSusfsRedirectPath(parts[0]) ?: return@mapNotNull null
+            val redirected = normalizeSusfsRedirectPath(parts[1]) ?: return@mapNotNull null
             val uidScheme = parts.getOrElse(2) { "" }.ifBlank { "3" }
             if (uidScheme.toIntOrNull() !in 0..4) return@mapNotNull null
             SusfsOpenRedirectEntry(original, redirected, uidScheme)
@@ -2339,6 +2338,7 @@ internal fun susfsRequiresReboot(
     next: SusfsPathConfigState,
 ): Boolean {
     if (previous.enabled && !next.enabled) return true
+    if (previous.avcLogSpoofing && !next.avcLogSpoofing) return true
     if (previous.paths.any { it !in next.paths }) return true
     if (previous.loopPaths.any { it !in next.loopPaths }) return true
     if (previous.susMaps.any { it !in next.susMaps }) return true
@@ -2402,7 +2402,7 @@ internal fun buildSusfsCapabilities(
         supportsLogging = has(SUSFS_LOG_FEATURE) ||
             (!effectiveFeatureProbe && version?.atLeast(1, 5, 0) == true),
         // These commands are runtime ABI operations and are version gated.
-        supportsAvcLogSpoofing = version?.atLeast(1, 5, 3) == true,
+        supportsAvcLogSpoofing = version?.atLeast(1, 5, 10) == true,
         supportsHideSusMounts = has(SUSFS_MOUNT_FEATURE) ||
             (!effectiveFeatureProbe && version?.atLeast(1, 5, 7) == true),
     )
@@ -2663,8 +2663,16 @@ private fun StringBuilder.appendTrustedSusfsToolDiscovery() {
     appendLine("  tool=\"${'$'}candidate\"")
     appendLine("  break")
     appendLine("done")
-    // Keep compatibility with the previous manager: SUSFS modules may expose
-    // ksu_susfs through the root shell PATH instead of a fixed directory.
+    appendLine("if [ -z \"${'$'}tool\" ]; then")
+    appendLine("  bundled_ksud=${shellQuote(getKsuDaemonPath())}")
+    appendLine("  if [ -f \"${'$'}bundled_ksud\" ] && [ -x \"${'$'}bundled_ksud\" ] && [ ! -L \"${'$'}bundled_ksud\" ] &&")
+    appendLine("      \"${'$'}bundled_ksud\" susfs show version >/dev/null 2>&1 &&")
+    appendLine("      \"${'$'}bundled_ksud\" susfs show enabled_features 2>/dev/null | grep -qF CONFIG_KSU_SUSFS_SUS_PATH; then")
+    appendLine("    ksud_susfs() { \"${'$'}bundled_ksud\" susfs \"${'$'}@\"; }")
+    appendLine("    tool=ksud_susfs")
+    appendLine("  fi")
+    appendLine("fi")
+    // Keep compatibility with modules that expose ksu_susfs only on PATH.
     appendLine("if [ -z \"${'$'}tool\" ]; then tool=\$(command -v ksu_susfs 2>/dev/null); fi")
 }
 
@@ -2678,8 +2686,8 @@ internal fun validateSusfsConfig(config: SusfsPathConfigState): String {
     if (config.paths.any(config.loopPaths::contains)) return "duplicate_path_mode"
     if (config.susMaps.mapNotNull(::normalizeSusfsMapPath).distinct().size != config.susMaps.size) return "invalid_sus_map"
     if (config.openRedirects.any { entry ->
-            normalizeSusfsPath(entry.originalPath) == null ||
-                normalizeSusfsPath(entry.redirectedPath) == null ||
+            normalizeSusfsRedirectPath(entry.originalPath) == null ||
+                normalizeSusfsRedirectPath(entry.redirectedPath) == null ||
                 entry.uidScheme.toIntOrNull() !in 0..4
         }
     ) return "invalid_open_redirect"
@@ -2777,8 +2785,8 @@ suspend fun saveAndApplySusfsConfig(config: SusfsPathConfigState): SusfsPathAppl
         susMaps = config.susMaps.mapNotNull(::normalizeSusfsMapPath).distinct(),
         openRedirects = config.openRedirects.map {
             it.copy(
-                originalPath = requireNotNull(normalizeSusfsPath(it.originalPath)),
-                redirectedPath = requireNotNull(normalizeSusfsPath(it.redirectedPath)),
+                originalPath = requireNotNull(normalizeSusfsRedirectPath(it.originalPath)),
+                redirectedPath = requireNotNull(normalizeSusfsRedirectPath(it.redirectedPath)),
                 uidScheme = it.uidScheme.toIntOrNull()?.toString() ?: "3",
             )
         }.distinct(),
@@ -2810,7 +2818,7 @@ suspend fun saveAndApplySusfsConfig(config: SusfsPathConfigState): SusfsPathAppl
         "sus_kstat_statically.txt" to susfsLineListText(normalized.kstatEntries.map { it.arguments.joinToString("|") }),
         "settings.conf" to settingsText,
     )
-    val serviceScript = susfsPathServiceScript()
+    val serviceScript = susfsPathServiceScript(getKsuDaemonPath())
     val serviceBase64 = Base64.encodeToString(serviceScript.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
     val stdout = ArrayList<String>()
     val stderr = ArrayList<String>()
@@ -2897,7 +2905,7 @@ suspend fun saveAndApplySusfsConfig(config: SusfsPathConfigState): SusfsPathAppl
     resultFromCurrentState("apply_status_unavailable")
 }
 
-internal fun susfsPathServiceScript(): String = """#!/system/bin/sh
+internal fun susfsPathServiceScript(bundledKsudPath: String = ""): String = """#!/system/bin/sh
 CONFIG=$SUSFS_PATH_CONFIG_FILE
 LOOP_CONFIG=$SUSFS_PATH_LOOP_CONFIG_FILE
 MAP_CONFIG=$SUSFS_MAP_CONFIG_FILE
@@ -2912,6 +2920,8 @@ CONFIG_DIR=$SUSFS_PATH_CONFIG_DIR
 LOG_DIR=$SUSFS_PATH_CONFIG_DIR/logs
 LOG_FILE=${'$'}LOG_DIR/runtime.log
 TOOL=
+BUNDLED_KSUD=${shellQuote(bundledKsudPath)}
+KSUD_SUSFS=
 TOOL_VERSION=
 SUSFS_FEATURES=
 FEATURE_PROBE_OK=0
@@ -3003,8 +3013,11 @@ run_tool() {
         return 0
     fi
     FAILED_COUNT=${'$'}((FAILED_COUNT + 1))
-    record_issue failed "${'$'}category" "${'$'}target" "exit_${'$'}code"
-    log "${'$'}category failed: ${'$'}target"
+    reason=${'$'}(sed -n '1p' "${'$'}output_file" 2>/dev/null | tr -cd '[:print:]' | cut -c 1-160)
+    issue_code="exit_${'$'}code"
+    [ -z "${'$'}reason" ] || issue_code="${'$'}issue_code:${'$'}reason"
+    record_issue failed "${'$'}category" "${'$'}target" "${'$'}issue_code"
+    log "${'$'}category failed: ${'$'}target exit_${'$'}code ${'$'}reason"
     return 1
 }
 skip_entry() {
@@ -3041,13 +3054,26 @@ find_tool() {
             break
         fi
     done
+    if [ -z "${'$'}TOOL" ]; then
+        for candidate in /data/adb/ksud "${'$'}BUNDLED_KSUD"; do
+            [ -n "${'$'}candidate" ] && [ -f "${'$'}candidate" ] && [ -x "${'$'}candidate" ] && [ ! -L "${'$'}candidate" ] || continue
+            if "${'$'}candidate" susfs show version >/dev/null 2>&1 &&
+                "${'$'}candidate" susfs show enabled_features 2>/dev/null | grep -qF CONFIG_KSU_SUSFS_SUS_PATH; then
+                KSUD_SUSFS="${'$'}candidate"
+                TOOL=ksud_susfs
+                break
+            fi
+        done
+    fi
     [ -n "${'$'}TOOL" ] || TOOL=${'$'}(command -v ksu_susfs 2>/dev/null)
-    [ -x "${'$'}TOOL" ]
+    [ -n "${'$'}TOOL" ]
 }
+ksud_susfs() { "${'$'}KSUD_SUSFS" susfs "${'$'}@"; }
 probe_tool() {
     PROBED=1
     PROBE_SUPPORTED=0
     TOOL_VERSION=${'$'}("${'$'}TOOL" show version 2>/dev/null | sed -n '1p')
+    [ -n "${'$'}TOOL_VERSION" ] || return 1
     if SUSFS_FEATURES=${'$'}("${'$'}TOOL" show enabled_features 2>/dev/null) &&
         printf '%s\n' "${'$'}SUSFS_FEATURES" | grep -q 'CONFIG_KSU_SUSFS_'; then
         FEATURE_PROBE_OK=1
@@ -3171,11 +3197,13 @@ apply_settings() {
         skip_entry logging "${'$'}logging_value" unsupported
     fi
     version_value=${'$'}(version_code 2>/dev/null || echo 0)
-    if [ "${'$'}version_value" -ge 10503 ]; then
-        avc=${'$'}(read_setting avc_log_spoofing)
-        avc_value=0
-        if [ "${'$'}enabled" = "1" ] && [ "${'$'}avc" = "1" ]; then avc_value=1; fi
-        run_tool avc "${'$'}avc_value" enable_avc_log_spoofing "${'$'}avc_value" || true
+    avc=${'$'}(read_setting avc_log_spoofing)
+    if [ "${'$'}enabled" = "1" ] && [ "${'$'}avc" = "1" ]; then
+        if [ "${'$'}version_value" -ge 10510 ]; then
+            run_tool avc 1 enable_avc_log_spoofing 1 || true
+        else
+            skip_entry avc 1 unsupported
+        fi
     fi
     hide_non=${'$'}(read_setting hide_sus_mnts_for_non_su_procs)
     if feature_enabled "$SUSFS_MOUNT_FEATURE" || { [ "${'$'}FEATURE_PROBE_OK" -eq 0 ] && supports_version 10507; }; then

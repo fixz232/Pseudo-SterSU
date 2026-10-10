@@ -2,6 +2,7 @@ package me.weishu.kernelsu.ui.util
 
 import java.io.File
 import java.nio.file.Files
+import java.security.MessageDigest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -25,9 +26,14 @@ class SusfsPathConfigTest {
         assertNull(normalizeSusfsPath("/"))
         assertNull(normalizeSusfsPath("data/local/tmp"))
         assertNull(normalizeSusfsPath("/data/local/tmp\nnext"))
-        assertNull(normalizeSusfsPath("/data/adb/modules"))
-        assertNull(normalizeSusfsPath("/data/adb/ksu/bin"))
-        assertNull(normalizeSusfsPath("/data/adb/ap"))
+        assertEquals("/data/adb", normalizeSusfsPath("/data/adb"))
+        assertEquals("/data/adb/modules", normalizeSusfsPath("/data/adb/modules"))
+        assertEquals("/data/adb/modules/example", normalizeSusfsPath("/data/adb/modules/example"))
+        assertEquals("/data/adb/ksu", normalizeSusfsPath("/data/adb/ksu"))
+        assertEquals("/data/adb/ksu/bin", normalizeSusfsPath("/data/adb/ksu/bin"))
+        assertEquals("/data/adb/ap", normalizeSusfsPath("/data/adb/ap"))
+        assertEquals("/data/adb/ksu", normalizeSusfsMapPath("/data/adb/ksu"))
+        assertNull(normalizeSusfsRedirectPath("/data/adb/ksu/bin"))
         assertNull(normalizeSusfsPath(""))
         assertEquals("/" + "a".repeat(254), normalizeSusfsPath("/" + "a".repeat(254)))
         assertNull(normalizeSusfsPath("/" + "a".repeat(255)))
@@ -58,7 +64,11 @@ class SusfsPathConfigTest {
         assertTrue(service.contains("probe_tool || true"))
         assertTrue(service.contains("apply_settings"))
         assertTrue(service.contains("enable_log \"\$logging_value\""))
-        assertTrue(service.contains("enable_avc_log_spoofing \"\$avc_value\""))
+        assertTrue(service.contains("[ \"\$version_value\" -ge 10510 ]"))
+        assertTrue(service.contains("run_tool avc 1 enable_avc_log_spoofing 1"))
+        assertTrue(service.contains("tr -cd '[:print:]' | cut -c 1-160"))
+        assertTrue(service.contains("record_issue failed \"\$category\" \"\$target\" \"\$issue_code\""))
+        assertFalse(service.contains("enable_avc_log_spoofing \"\$avc_value\""))
         assertTrue(service.contains("hide_sus_mnts_for_non_su_procs \"\$hide_value\""))
         assertTrue(service.contains("[ \"\$FEATURE_PROBE_OK\" -eq 0 ] && supports_version 20000"))
         assertTrue(service.contains("[ \"\$FEATURE_PROBE_OK\" -eq 0 ] && supports_version 10500"))
@@ -72,6 +82,18 @@ class SusfsPathConfigTest {
         assertTrue(service.contains("sleep 1"))
         assertFalse(service.contains("\\$("))
         assertFalse(service.contains("\\\""))
+    }
+
+    @Test
+    fun bootServiceFallsBackToBundledKsudAfterExternalToolDisappears() {
+        val service = susfsPathServiceScript("/data/app/test/lib/libksud.so")
+
+        assertTrue(service.contains("BUNDLED_KSUD='/data/app/test/lib/libksud.so'"))
+        assertTrue(service.contains("for candidate in /data/adb/ksud \"\$BUNDLED_KSUD\"; do"))
+        assertTrue(service.contains("\"\$candidate\" susfs show version"))
+        assertTrue(service.contains("\"\$candidate\" susfs show enabled_features"))
+        assertTrue(service.contains("ksud_susfs() { \"\$KSUD_SUSFS\" susfs \"\$@\"; }"))
+        assertTrue(service.contains("TOOL=ksud_susfs"))
     }
 
     @Test
@@ -127,6 +149,57 @@ class SusfsPathConfigTest {
         assertFalse(capabilities.supportsOpenRedirect)
         assertTrue(capabilities.supportsUnameSpoof)
         assertFalse(capabilities.supportsCmdlineSpoof)
+        assertFalse(capabilities.supportsAvcLogSpoofing)
+    }
+
+    @Test
+    fun avcCommandRequiresToolVersionOneFiveTen() {
+        assertFalse(buildSusfsCapabilities(true, "v1.5.9", "", false).supportsAvcLogSpoofing)
+        assertTrue(buildSusfsCapabilities(true, "v1.5.10", "", false).supportsAvcLogSpoofing)
+        assertTrue(buildSusfsCapabilities(true, "v2.3.0", "", false).supportsAvcLogSpoofing)
+    }
+
+    @Test
+    fun partialApplyReportsTheRejectedAvcCommand() {
+        val result = SusfsPathApplyResult(
+            error = "apply_partial",
+            issues = listOf(SusfsApplyIssue("avc", "1", "exit_1:kernel rejected")),
+        )
+        assertEquals("AVC 1: exit_1:kernel rejected", susfsApplyErrorDetail(result))
+    }
+
+    @Test
+    fun recoveryToolRejectsTamperingAndWrongArchitecture() {
+        val file = Files.createTempFile("susfs-recovery-test", ".bin").toFile()
+        try {
+            val bytes = ByteArray(1024)
+            bytes[0] = 0x7f
+            bytes[1] = 'E'.code.toByte()
+            bytes[2] = 'L'.code.toByte()
+            bytes[3] = 'F'.code.toByte()
+            bytes[4] = 2
+            bytes[5] = 1
+            bytes[18] = 183.toByte()
+            file.writeBytes(bytes)
+            val hash = MessageDigest.getInstance("SHA-256").digest(bytes)
+                .joinToString("") { "%02x".format(it) }
+            assertTrue(validSusfsRecoveryTool(file, hash, bytes.size.toLong()))
+            bytes[100] = 1
+            file.writeBytes(bytes)
+            assertFalse(validSusfsRecoveryTool(file, hash, bytes.size.toLong()))
+            bytes[18] = 3
+            assertFalse(isSupportedSusfsToolElf(bytes))
+        } finally {
+            file.delete()
+        }
+    }
+
+    @Test
+    fun reinitializationDoesNotEnableLostRules() {
+        assertFalse(configForSusfsReinitialization(SusfsPathConfigState()).enabled)
+
+        val existing = SusfsPathConfigState(paths = listOf("/data/local/tmp/example"), enabled = true)
+        assertEquals(existing, configForSusfsReinitialization(existing))
     }
 
     @Test
@@ -239,7 +312,7 @@ class SusfsPathConfigTest {
     }
 
     @Test
-    fun importsBackupWithUnameAndSkipsManagementPaths() {
+    fun importsBackupWithUnameAndManagementPaths() {
         val result = parseSusfsBackupJson(
             """
             {
@@ -260,10 +333,10 @@ class SusfsPathConfigTest {
         val config = requireNotNull(result.config)
         assertEquals("6.12-test", config.unameRelease)
         assertEquals("#1 SMP PREEMPT", config.unameVersion)
-        assertEquals(listOf("/system/bin/su"), config.loopPaths)
+        assertEquals(listOf("/data/adb/modules", "/system/bin/su"), config.loopPaths)
         assertEquals(listOf("/data/adb/modules/example"), config.susMaps)
         assertTrue(config.openRedirects.isEmpty())
-        assertTrue(result.warnings.any { it.contains("/data/adb/modules") })
+        assertFalse(result.warnings.any { it.contains("/data/adb/modules") })
     }
 
     @Test

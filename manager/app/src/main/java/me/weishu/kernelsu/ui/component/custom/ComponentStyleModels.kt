@@ -5,43 +5,15 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
 
-const val CUSTOM_CARD_STYLE_LIBRARY_KEY = "custom_card_style_library"
-const val CUSTOM_CARD_STYLE_ACTIVE_ID_KEY = "custom_card_style_active_id"
 const val CUSTOM_SWITCH_STYLE_LIBRARY_KEY = "custom_switch_style_library"
 const val CUSTOM_SWITCH_STYLE_ACTIVE_ID_KEY = "custom_switch_style_active_id"
 
 enum class ComponentStyleKind(val value: String) {
-    Card("card_style"),
     Switch("switch_style");
 
     companion object {
         fun fromValue(value: String?): ComponentStyleKind? = entries.firstOrNull { it.value == value }
     }
-}
-
-enum class CustomCardTarget(val value: String) {
-    Default("default"),
-    Lkm("lkm"),
-    Superuser("superuser"),
-    Module("module"),
-    StatusMonitor("status_monitor"),
-    SystemInfo("system_info"),
-    RebootMenu("reboot_menu");
-
-    companion object {
-        fun fromValue(value: String?): CustomCardTarget? = entries.firstOrNull { it.value == value }
-    }
-}
-
-enum class CardPixelLayer(val value: String) {
-    Top("top"),
-    Border("border"),
-    Interior("interior"),
-}
-
-enum class NavigationPixelLayer(val value: String) {
-    Top("top"),
-    Border("border"),
 }
 
 enum class PixelMotionMode(val value: String) {
@@ -254,203 +226,6 @@ data class PixelMotionRule(
                 durationMillis = json.optInt("duration_ms", DEFAULT_PIXEL_MOTION_DURATION_MS),
                 amplitudeCells = json.optInt("amplitude_cells", DEFAULT_PIXEL_MOTION_AMPLITUDE),
                 repeat = PixelMotionRepeat.fromValue(json.optString("repeat")),
-            ).normalized()
-        }
-    }
-}
-
-@Immutable
-data class CustomCardLayers(
-    val top: PixelGrid = PixelGrid.blank(CARD_GRID_WIDTH, CARD_TOP_GRID_HEIGHT),
-    val border: PixelGrid = PixelGrid.blank(CARD_GRID_WIDTH, CARD_BODY_GRID_HEIGHT),
-    val interior: PixelGrid = PixelGrid.blank(CARD_GRID_WIDTH, CARD_BODY_GRID_HEIGHT),
-) {
-    fun layer(type: CardPixelLayer): PixelGrid = when (type) {
-        CardPixelLayer.Top -> top
-        CardPixelLayer.Border -> border
-        CardPixelLayer.Interior -> interior
-    }
-
-    fun withLayer(type: CardPixelLayer, grid: PixelGrid): CustomCardLayers = when (type) {
-        CardPixelLayer.Top -> copy(top = grid.requireSize(CARD_GRID_WIDTH, CARD_TOP_GRID_HEIGHT))
-        CardPixelLayer.Border -> copy(border = grid.requireSize(CARD_GRID_WIDTH, CARD_BODY_GRID_HEIGHT))
-        CardPixelLayer.Interior -> copy(interior = grid.requireSize(CARD_GRID_WIDTH, CARD_BODY_GRID_HEIGHT))
-    }
-
-    val isBlank: Boolean
-        get() = top.isBlank() && border.isBlank() && interior.isBlank()
-
-    internal fun toJson(): JSONObject = JSONObject()
-        .put("top", top.toJson())
-        .put("border", border.toJson())
-        .put("interior", interior.toJson())
-
-    companion object {
-        internal fun fromJson(json: JSONObject): CustomCardLayers = CustomCardLayers(
-            top = PixelGrid.fromJson(
-                json.optJSONObject("top") ?: error("Card top layer is missing"),
-                CARD_GRID_WIDTH,
-                CARD_TOP_GRID_HEIGHT,
-            ),
-            border = PixelGrid.fromJson(
-                json.optJSONObject("border") ?: error("Card border layer is missing"),
-                CARD_GRID_WIDTH,
-                CARD_BODY_GRID_HEIGHT,
-            ),
-            interior = PixelGrid.fromJson(
-                json.optJSONObject("interior") ?: error("Card interior layer is missing"),
-                CARD_GRID_WIDTH,
-                CARD_BODY_GRID_HEIGHT,
-            ),
-        )
-    }
-}
-
-@Immutable
-data class CustomNavigationLayers(
-    val top: PixelGrid = PixelGrid.blank(NAVIGATION_GRID_WIDTH, NAVIGATION_TOP_GRID_HEIGHT),
-    val border: PixelGrid = PixelGrid.blank(NAVIGATION_GRID_WIDTH, NAVIGATION_BODY_GRID_HEIGHT),
-) {
-    fun layer(type: NavigationPixelLayer): PixelGrid = when (type) {
-        NavigationPixelLayer.Top -> top
-        NavigationPixelLayer.Border -> border
-    }
-
-    fun withLayer(type: NavigationPixelLayer, grid: PixelGrid): CustomNavigationLayers = when (type) {
-        NavigationPixelLayer.Top -> copy(
-            top = grid.requireSize(NAVIGATION_GRID_WIDTH, NAVIGATION_TOP_GRID_HEIGHT)
-        )
-        NavigationPixelLayer.Border -> copy(
-            border = grid.requireSize(NAVIGATION_GRID_WIDTH, NAVIGATION_BODY_GRID_HEIGHT)
-        )
-    }
-
-    val isBlank: Boolean
-        get() = top.isBlank() && border.isBlank()
-
-    internal fun toJson(): JSONObject = JSONObject()
-        .put("top", top.toJson())
-        .put("border", border.toJson())
-
-    companion object {
-        internal fun fromJson(json: JSONObject): CustomNavigationLayers = CustomNavigationLayers(
-            top = PixelGrid.fromJson(
-                json.optJSONObject("top") ?: error("Navigation top layer is missing"),
-                NAVIGATION_GRID_WIDTH,
-                NAVIGATION_TOP_GRID_HEIGHT,
-            ),
-            border = PixelGrid.fromJson(
-                json.optJSONObject("border") ?: error("Navigation border layer is missing"),
-                NAVIGATION_GRID_WIDTH,
-                NAVIGATION_BODY_GRID_HEIGHT,
-            ),
-        )
-    }
-}
-
-@Immutable
-data class CustomCardStyle(
-    val id: String = newComponentStyleId("card"),
-    val name: String = "Pixel card",
-    val author: String = "",
-    val updatedAt: Long = System.currentTimeMillis(),
-    val defaultLayers: CustomCardLayers = CustomCardLayers(),
-    val cardOverrides: Map<CustomCardTarget, CustomCardLayers> = emptyMap(),
-    val bottomBar: CustomNavigationLayers = CustomNavigationLayers(),
-    val floatingBottomBar: CustomNavigationLayers = CustomNavigationLayers(),
-    val palette: List<Long> = DEFAULT_PIXEL_PALETTE,
-    val motion: PixelMotionRule = PixelMotionRule(),
-) {
-    fun normalized(): CustomCardStyle {
-        val safeOverrides = CustomCardTarget.entries
-            .filter { it != CustomCardTarget.Default }
-            .mapNotNull { target -> cardOverrides[target]?.let { target to it } }
-            .toMap()
-        return copy(
-            id = sanitizeComponentStyleId(id, "card"),
-            name = sanitizeComponentStyleName(name).ifBlank { "Pixel card" },
-            author = sanitizeComponentStyleAuthor(author),
-            updatedAt = updatedAt.coerceAtLeast(0L),
-            cardOverrides = safeOverrides,
-            palette = sanitizePixelPalette(palette),
-            motion = motion.normalized(),
-        )
-    }
-
-    fun layersFor(target: CustomCardTarget): CustomCardLayers =
-        if (target == CustomCardTarget.Default) defaultLayers else cardOverrides[target] ?: defaultLayers
-
-    fun withLayers(target: CustomCardTarget, layers: CustomCardLayers): CustomCardStyle {
-        return if (target == CustomCardTarget.Default) {
-            copy(defaultLayers = layers)
-        } else {
-            copy(cardOverrides = cardOverrides.toMutableMap().apply { this[target] = layers })
-        }
-    }
-
-    fun toJsonString(): String = toJson().toString()
-
-    internal fun toJson(): JSONObject = normalized().let { value ->
-        JSONObject()
-            .put("schema", COMPONENT_STYLE_SCHEMA)
-            .put("version", COMPONENT_STYLE_VERSION)
-            .put("kind", ComponentStyleKind.Card.value)
-            .put("id", value.id)
-            .put("name", value.name)
-            .put("author", value.author)
-            .put("updated_at", value.updatedAt)
-            .put("palette", value.palette.toJsonArray())
-            .put("motion", value.motion.toJson())
-            .put("default", value.defaultLayers.toJson())
-            .put("overrides", JSONObject().apply {
-                value.cardOverrides.toSortedMap(compareBy(CustomCardTarget::ordinal)).forEach { (target, layers) ->
-                    put(target.value, layers.toJson())
-                }
-            })
-            .put("bottom_bar", value.bottomBar.toJson())
-            .put("floating_bottom_bar", value.floatingBottomBar.toJson())
-    }
-
-    companion object {
-        fun fromJsonString(raw: String): CustomCardStyle {
-            requireComponentJsonSize(raw)
-            return fromJson(JSONObject(raw))
-        }
-
-        internal fun fromJson(json: JSONObject): CustomCardStyle {
-            validateComponentHeader(json, ComponentStyleKind.Card)
-            val overridesJson = json.optJSONObject("overrides") ?: JSONObject()
-            require(overridesJson.length() <= CustomCardTarget.entries.size - 1) {
-                "Card style contains too many target overrides"
-            }
-            val overrides = buildMap {
-                val keys = overridesJson.keys()
-                while (keys.hasNext()) {
-                    val key = keys.next()
-                    val target = CustomCardTarget.fromValue(key)
-                        ?.takeIf { it != CustomCardTarget.Default }
-                        ?: error("Card style contains an unknown target")
-                    put(target, CustomCardLayers.fromJson(overridesJson.getJSONObject(key)))
-                }
-            }
-            return CustomCardStyle(
-                id = json.optString("id"),
-                name = json.optString("name"),
-                author = json.optString("author"),
-                updatedAt = json.optLong("updated_at", 0L),
-                defaultLayers = CustomCardLayers.fromJson(
-                    json.optJSONObject("default") ?: error("Default card layers are missing")
-                ),
-                cardOverrides = overrides,
-                bottomBar = CustomNavigationLayers.fromJson(
-                    json.optJSONObject("bottom_bar") ?: error("Bottom bar layers are missing")
-                ),
-                floatingBottomBar = CustomNavigationLayers.fromJson(
-                    json.optJSONObject("floating_bottom_bar")
-                        ?: error("Floating bottom bar layers are missing")
-                ),
-                palette = parsePixelPalette(json.optJSONArray("palette")),
-                motion = PixelMotionRule.fromJson(json.optJSONObject("motion")),
             ).normalized()
         }
     }
@@ -764,27 +539,6 @@ fun CustomSwitchStyle.imageAppearanceFor(on: Boolean): SwitchImageAppearance {
     return (if (on) imageOnAppearance else imageOffAppearance)?.normalized() ?: legacy
 }
 
-internal fun encodeCardStyleLibrary(styles: List<CustomCardStyle>): String = JSONObject()
-    .put("schema", COMPONENT_LIBRARY_SCHEMA)
-    .put("version", COMPONENT_LIBRARY_VERSION)
-    .put("kind", ComponentStyleKind.Card.value)
-    .put("items", JSONArray().apply {
-        styles.distinctBy(CustomCardStyle::id).take(MAX_SAVED_COMPONENT_STYLES).forEach { put(it.toJson()) }
-    })
-    .toString()
-
-internal fun decodeCardStyleLibrary(raw: String?): List<CustomCardStyle> {
-    if (raw.isNullOrBlank()) return emptyList()
-    requireComponentJsonSize(raw, MAX_COMPONENT_LIBRARY_JSON_BYTES)
-    val root = JSONObject(raw)
-    validateLibraryHeader(root, ComponentStyleKind.Card)
-    val items = root.optJSONArray("items") ?: error("Card style library is missing")
-    require(items.length() <= MAX_SAVED_COMPONENT_STYLES) { "Card style library is too large" }
-    return buildList {
-        repeat(items.length()) { index -> add(CustomCardStyle.fromJson(items.getJSONObject(index))) }
-    }.distinctBy(CustomCardStyle::id)
-}
-
 internal fun encodeSwitchStyleLibrary(styles: List<CustomSwitchStyle>): String = JSONObject()
     .put("schema", COMPONENT_LIBRARY_SCHEMA)
     .put("version", COMPONENT_LIBRARY_VERSION)
@@ -824,13 +578,6 @@ fun formatArgbHex(argb: Long): String = "#%08X".format(argb and MAX_ARGB)
 
 fun PixelGrid.hasSameDimensionsAs(other: PixelGrid): Boolean =
     width == other.width && height == other.height
-
-private fun PixelGrid.requireSize(expectedWidth: Int, expectedHeight: Int): PixelGrid {
-    require(width == expectedWidth && height == expectedHeight) { "Pixel grid does not match this layer" }
-    return this
-}
-
-private fun PixelGrid.isBlank(): Boolean = pixels.all { it == TRANSPARENT_PIXEL }
 
 private fun validateComponentHeader(json: JSONObject, expectedKind: ComponentStyleKind) {
     require(json.optString("schema") == COMPONENT_STYLE_SCHEMA) { "Unsupported component style" }
@@ -886,14 +633,6 @@ private fun requireComponentJsonSize(raw: String, maxBytes: Int = MAX_COMPONENT_
     require(raw.toByteArray(Charsets.UTF_8).size in 1..maxBytes) { "Component style data is too large" }
 }
 
-const val CARD_GRID_WIDTH = 24
-const val CARD_TOP_GRID_HEIGHT = 5
-const val CARD_BODY_GRID_HEIGHT = 12
-const val CARD_BORDER_GRID_CELLS = 2
-const val NAVIGATION_GRID_WIDTH = 24
-const val NAVIGATION_TOP_GRID_HEIGHT = 4
-const val NAVIGATION_BODY_GRID_HEIGHT = 6
-const val NAVIGATION_BORDER_GRID_CELLS = 1
 const val SWITCH_TRACK_GRID_WIDTH = 28
 const val SWITCH_TRACK_GRID_HEIGHT = 12
 const val SWITCH_THUMB_GRID_SIZE = 12

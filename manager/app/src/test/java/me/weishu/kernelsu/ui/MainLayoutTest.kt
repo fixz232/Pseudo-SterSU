@@ -1,19 +1,26 @@
 package me.weishu.kernelsu.ui
 
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import me.weishu.kernelsu.ui.component.bottombar.MainDestination
+import me.weishu.kernelsu.ui.component.bottombar.MainPagerState
 import me.weishu.kernelsu.ui.component.bottombar.labelFor
 import me.weishu.kernelsu.ui.component.bottombar.mainDestinations
 import me.weishu.kernelsu.ui.component.bottombar.stateFor
 import me.weishu.kernelsu.ui.component.bottombar.shouldAcceptKpmAvailability
 import me.weishu.kernelsu.ui.component.bottombar.shouldResetMainPagerForFeatureAvailability
 import me.weishu.kernelsu.ui.navigation3.Route
+import me.weishu.kernelsu.ui.screen.launchericon.launcherIconColumnCount
 import me.weishu.kernelsu.ui.util.CustomNavigationIconSet
 import me.weishu.kernelsu.ui.util.CustomNavigationIconSlot
 import me.weishu.kernelsu.ui.util.CustomNavigationIconState
 import me.weishu.kernelsu.ui.util.CustomPageBackgroundTarget
 import me.weishu.kernelsu.ui.util.KpmCaps
 import me.weishu.kernelsu.ui.util.KPatchNextStatus
+import me.weishu.kernelsu.ui.util.shouldShowSplitPane
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -21,6 +28,31 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MainLayoutTest {
+    @Test
+    fun portraitTabletsUseRailButShortLandscapeWindowsDoNot() {
+        assertFalse(shouldShowSplitPane(widthDp = 599f, heightDp = 960f))
+        assertTrue(shouldShowSplitPane(widthDp = 600f, heightDp = 960f))
+        assertTrue(shouldShowSplitPane(widthDp = 840f, heightDp = 480f))
+        assertFalse(shouldShowSplitPane(widthDp = 840f, heightDp = 479f))
+    }
+
+    @Test
+    fun mainPagesStayReadableOnWideWindows() {
+        assertEquals(880.dp, mainPagerContentMaxWidth(MainDestination.Home, sidebarStyle = false))
+        assertEquals(880.dp, mainPagerContentMaxWidth(MainDestination.SuperUser, sidebarStyle = false))
+        assertEquals(880.dp, mainPagerContentMaxWidth(MainDestination.Module, sidebarStyle = false))
+        assertEquals(960.dp, mainPagerContentMaxWidth(MainDestination.Kpm, sidebarStyle = false))
+        assertEquals(1120.dp, mainPagerContentMaxWidth(MainDestination.Settings, sidebarStyle = false))
+        assertEquals(1120.dp, mainPagerContentMaxWidth(MainDestination.Home, sidebarStyle = true))
+    }
+
+    @Test
+    fun iconPickerAddsColumnsWithoutStretchingTabletCards() {
+        assertEquals(4, launcherIconColumnCount(360.dp))
+        assertEquals(5, launcherIconColumnCount(600.dp))
+        assertEquals(6, launcherIconColumnCount(840.dp))
+    }
+
     @Test
     fun visibleFloatingBarKeepsScrollableContentClear() {
         assertEquals(
@@ -183,6 +215,33 @@ class MainLayoutTest {
     }
 
     @Test
+    fun confirmedKpmRemovalUpdatesNavigationOnFirstProbe() {
+        val pageCount = mutableIntStateOf(4)
+        val pager = object : PagerState() {
+            override val pageCount: Int get() = pageCount.intValue
+        }
+        val state = MainPagerState(pager, CoroutineScope(Dispatchers.Unconfined), pageCount)
+
+        state.updateKpmAvailability(true)
+        assertTrue(state.kpmActive)
+        assertEquals(5, pageCount.intValue)
+        state.updateKpmAvailability(null)
+        assertTrue(state.kpmActive)
+
+        state.updateKpmAvailability(false)
+        assertFalse(state.kpmActive)
+        assertEquals(4, pageCount.intValue)
+
+        state.markKpmExplicitlyDisabled()
+        state.updateKpmAvailability(true)
+        assertFalse(state.kpmActive)
+        state.clearKpmExplicitDisable()
+        state.updateKpmAvailability(true)
+        assertTrue(state.kpmActive)
+        assertEquals(5, pageCount.intValue)
+    }
+
+    @Test
     fun kpmCapabilityProbeSeparatesNativeGkiFromKpatchNext() {
         assertEquals(
             KpmPageAvailability.Active,
@@ -208,6 +267,12 @@ class MainLayoutTest {
             KpmPageAvailability.Active,
             KpmPageAvailability.fromCaps(
                 KpmCaps(backend = "kpatch-next", managementAvailable = true),
+            ),
+        )
+        assertEquals(
+            KpmPageAvailability.Inactive,
+            KpmPageAvailability.fromCaps(
+                KpmCaps(backend = "kpatch-next", managementAvailable = false),
             ),
         )
         assertEquals(

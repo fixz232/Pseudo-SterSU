@@ -73,6 +73,8 @@ mod soft_reboot;
 mod su;
 #[cfg(target_os = "android")]
 mod sulog;
+#[cfg(all(target_os = "android", target_arch = "aarch64"))]
+mod susfs;
 #[cfg(any(target_os = "android", test))]
 mod uapi_compat;
 #[cfg(target_os = "android")]

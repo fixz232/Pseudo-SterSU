@@ -134,6 +134,8 @@ import me.weishu.kernelsu.R
 import me.weishu.kernelsu.data.model.Module
 import me.weishu.kernelsu.data.model.ModuleUpdateInfo
 import me.weishu.kernelsu.data.repository.isSoftRebootPreferred
+import me.weishu.kernelsu.ui.InterfaceStyle
+import me.weishu.kernelsu.ui.LocalInterfaceStyle
 import me.weishu.kernelsu.ui.component.ObserveAsEvents
 import me.weishu.kernelsu.ui.component.ScrollToTopOnChange
 import me.weishu.kernelsu.ui.component.dialog.rememberConfirmDialog
@@ -201,6 +203,8 @@ fun ModulePagerMaterial(
             expanded
         }
     }
+    val showInstallFab = uiState.installButtonVisible &&
+        LocalInterfaceStyle.current != InterfaceStyle.SidebarWidget.value
 
     val shortcutState = rememberModuleShortcutState(context)
     val showShortcutDialog = remember { mutableStateOf(false) }
@@ -367,7 +371,7 @@ fun ModulePagerMaterial(
             )
         },
         floatingActionButton = {
-            if (uiState.installButtonVisible) {
+            if (showInstallFab) {
                 val moduleInstall = stringResource(id = R.string.module_install)
                 val selectZipLauncher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.StartActivityForResult()
@@ -409,7 +413,7 @@ fun ModulePagerMaterial(
         contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
         snackbarHost = {
             SnackBarHost(hostState = snackBarHost, modifier = Modifier.let {
-                if (!uiState.installButtonVisible) it.padding(
+                if (!showInstallFab) it.padding(
                     bottom =
                         bottomInnerPadding
                 ) else it

@@ -5,27 +5,8 @@ import android.net.Uri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.weishu.kernelsu.ui.component.custom.ComponentStyleKind
-import me.weishu.kernelsu.ui.component.custom.CustomCardStyle
 import me.weishu.kernelsu.ui.component.custom.CustomSwitchStyle
 import java.io.File
-
-suspend fun prepareCardStyleCloudSubmission(
-    context: Context,
-    style: CustomCardStyle,
-    description: String,
-    categoryName: String,
-): CloudThemeSubmissionDraft = prepareComponentStyleCloudSubmission(
-    context = context,
-    kind = ComponentStyleKind.Card,
-    styleId = style.id,
-    styleName = style.name,
-    styleAuthor = style.author,
-    description = description,
-    categoryId = "component-card",
-    categoryName = categoryName,
-    tags = "component,pixel,card,xiaomi",
-    export = { destination -> exportCardComponentStylePackage(context, style, destination) },
-)
 
 suspend fun prepareSwitchStyleCloudSubmission(
     context: Context,
@@ -136,7 +117,9 @@ internal fun buildComponentStyleSubmissionDraft(
 )
 
 internal fun cloudComponentStyleId(kind: ComponentStyleKind, rawId: String): String {
-    val prefix = if (kind == ComponentStyleKind.Card) "card" else "switch"
+    val prefix = when (kind) {
+        ComponentStyleKind.Switch -> "switch"
+    }
     val normalized = rawId
         .trim()
         .lowercase()

@@ -15,23 +15,15 @@ import me.weishu.kernelsu.ui.component.SWITCH_STYLE_KEY
 import me.weishu.kernelsu.ui.component.SwitchStyle
 import me.weishu.kernelsu.ui.component.pixel.PIXEL_STYLE_KEY
 import me.weishu.kernelsu.ui.component.pixel.PixelStyle
-import me.weishu.kernelsu.ui.component.custom.CUSTOM_CARD_STYLE_ACTIVE_ID_KEY
-import me.weishu.kernelsu.ui.component.custom.CUSTOM_CARD_STYLE_LIBRARY_KEY
 import me.weishu.kernelsu.ui.component.custom.CUSTOM_SWITCH_STYLE_ACTIVE_ID_KEY
 import me.weishu.kernelsu.ui.component.custom.CUSTOM_SWITCH_STYLE_LIBRARY_KEY
 import me.weishu.kernelsu.ui.component.custom.ComponentStyleKind
 import me.weishu.kernelsu.ui.component.custom.ComponentStyleStore
-import me.weishu.kernelsu.ui.component.custom.CustomCardStyle
 import me.weishu.kernelsu.ui.component.custom.CustomSwitchSource
 import me.weishu.kernelsu.ui.component.custom.CustomSwitchStyle
 import me.weishu.kernelsu.ui.component.custom.MAX_COMPONENT_IMAGE_BYTES
 import me.weishu.kernelsu.ui.component.custom.MAX_SAVED_COMPONENT_STYLES
-import me.weishu.kernelsu.ui.component.custom.encodeCardStyleLibrary
 import me.weishu.kernelsu.ui.component.custom.encodeSwitchStyleLibrary
-import me.weishu.kernelsu.ui.component.decoration.UI_DECORATION_CONFIG_KEY
-import me.weishu.kernelsu.ui.component.decoration.UiCardDecoration
-import me.weishu.kernelsu.ui.component.decoration.UiDecorationConfig
-import me.weishu.kernelsu.ui.component.decoration.UiNavigationDecoration
 import me.weishu.kernelsu.ui.theme.ColorMode
 import me.weishu.kernelsu.ui.theme.ThemeAppearanceDefaults
 import me.weishu.kernelsu.ui.theme.ThemePreset
@@ -461,15 +453,11 @@ data class ThemeStorePackagePreviewResult(
 )
 
 data class ComponentStylePackageContent(
-    val cardStyle: CustomCardStyle? = null,
     val switchStyle: CustomSwitchStyle? = null,
 ) {
     val kind: ComponentStyleKind
-        get() = when {
-            cardStyle != null && switchStyle == null -> ComponentStyleKind.Card
-            switchStyle != null && cardStyle == null -> ComponentStyleKind.Switch
-            else -> error("Component package must contain exactly one style")
-        }
+        get() = switchStyle?.let { ComponentStyleKind.Switch }
+            ?: error("Component package must contain a switch style")
 }
 
 internal data class ExtractedThemeStoreArchive(
@@ -1173,16 +1161,6 @@ fun exportThemeStorePackage(context: Context, destination: Uri): ThemeStorePacka
     }
 }
 
-fun exportCardComponentStylePackage(
-    context: Context,
-    style: CustomCardStyle,
-    destination: Uri,
-): ThemeStorePackageResult = exportComponentStylePackage(
-    context = context,
-    destination = destination,
-    content = ComponentStylePackageContent(cardStyle = style.normalized()),
-)
-
 fun exportSwitchComponentStylePackage(
     context: Context,
     style: CustomSwitchStyle,
@@ -1211,7 +1189,7 @@ private fun exportComponentStylePackage(
     }
     return runCatching {
         val profile = readThemeAuthorProfile(appContext)
-        val styleAuthor = content.cardStyle?.author ?: content.switchStyle?.author.orEmpty()
+        val styleAuthor = content.switchStyle?.author.orEmpty()
         val config = createEmptyThemeStoreConfig(
             displayName = styleAuthor.ifBlank { profile.displayName },
             bio = profile.bio,
@@ -1268,13 +1246,9 @@ fun readComponentStylePackage(
         validateEmbeddedThemeStoreMedia(appContext, config, assetsDir)
         val components = config.optJSONObject("components")
             ?: error("Theme package does not contain a component style")
-        val hasCardStyle = components.optJSONObject("cardStyle") != null
         val hasSwitchStyle = components.optJSONObject("switchStyle") != null
-        val actualKind = when {
-            hasCardStyle && !hasSwitchStyle -> ComponentStyleKind.Card
-            hasSwitchStyle && !hasCardStyle -> ComponentStyleKind.Switch
-            else -> error("Component package must contain exactly one style")
-        }
+        val actualKind = if (hasSwitchStyle) ComponentStyleKind.Switch
+            else error("Component package must contain a switch style")
         require(actualKind == expectedKind) { "Component package type does not match this editor" }
         val content = parseComponentStyleContent(appContext, config, assetsDir)
         content
@@ -1464,7 +1438,6 @@ fun importThemeStorePackage(
             val componentOnlyPackage = config.optString("packageType") == COMPONENT_ONLY_PACKAGE_TYPE
             val componentsJson = config.optJSONObject("components")
             val pendingComponentStyles = if (
-                componentsJson?.optJSONObject("cardStyle") != null ||
                 componentsJson?.optJSONObject("switchStyle") != null
             ) {
                 parseComponentStyleContent(appContext, config, tempAssetsDir).also { content ->
@@ -1482,7 +1455,6 @@ fun importThemeStorePackage(
                 val prefs = themeStorePrefs(appContext)
                 val editor = prefs.edit()
                 replacedSwitchStyles = stageImportedComponentStyles(
-                    prefs = prefs,
                     editor = editor,
                     content = content,
                     store = componentStyleStore,
@@ -2021,7 +1993,6 @@ fun importThemeStorePackage(
 
             pendingComponentStyles?.let { content ->
                 replacedSwitchStyles = stageImportedComponentStyles(
-                    prefs = prefs,
                     editor = editor,
                     content = content,
                     store = componentStyleStore,
@@ -2123,32 +2094,10 @@ private fun SharedPreferences.Editor.putThemeStoreAppearance(
 }
 
 private fun stageImportedComponentStyles(
-    prefs: SharedPreferences,
     editor: SharedPreferences.Editor,
     content: ComponentStylePackageContent,
     store: ComponentStyleStore,
 ): Pair<List<CustomSwitchStyle>, List<CustomSwitchStyle>>? {
-    content.cardStyle?.let { style ->
-        val current = store.readCardStyles()
-        require(current.size < MAX_SAVED_COMPONENT_STYLES || current.any { it.id == style.id }) {
-            "Card style library is full"
-        }
-        val updated = ComponentStyleStore.upsertCardStyle(current, style)
-        val currentDecoration = UiDecorationConfig.fromJsonString(
-            prefs.getString(UI_DECORATION_CONFIG_KEY, null)
-        )
-        editor
-            .putString(CUSTOM_CARD_STYLE_LIBRARY_KEY, encodeCardStyleLibrary(updated))
-            .putString(CUSTOM_CARD_STYLE_ACTIVE_ID_KEY, style.id)
-            .putString(
-                UI_DECORATION_CONFIG_KEY,
-                currentDecoration.copy(
-                    enabled = true,
-                    card = UiCardDecoration.Custom,
-                    navigation = UiNavigationDecoration.Custom,
-                ).normalized().toJsonString(),
-            )
-    }
     return content.switchStyle?.let { style ->
         val current = store.readSwitchStyles()
         require(current.size < MAX_SAVED_COMPONENT_STYLES || current.any { it.id == style.id }) {
@@ -2519,19 +2468,11 @@ private fun ZipOutputStream.writeActiveComponentStyles(
 ): JSONObject {
     val store = ComponentStyleStore(context)
     val prefs = themeStorePrefs(context)
-    val decoration = UiDecorationConfig.fromJsonString(
-        prefs.getString(UI_DECORATION_CONFIG_KEY, null)
-    )
-    val cardStyleActive = decoration.enabled && (
-        decoration.card == UiCardDecoration.Custom ||
-            decoration.navigation == UiNavigationDecoration.Custom
-        )
     val switchStyleActive = prefs.getString(SWITCH_STYLE_KEY, SwitchStyle.DEFAULT_VALUE) ==
         SwitchStyle.Custom.value
     return writeComponentStyles(
         context = context,
         content = ComponentStylePackageContent(
-            cardStyle = store.readActiveCardStyle().takeIf { cardStyleActive },
             switchStyle = store.readActiveSwitchStyle().takeIf { switchStyleActive },
         ),
         warnings = warnings,
@@ -2546,9 +2487,6 @@ private fun ZipOutputStream.writeComponentStyles(
     budget: ThemeStoreAssetBudget,
 ): JSONObject {
     return JSONObject().apply {
-        content.cardStyle?.normalized()?.let { style ->
-            put("cardStyle", style.toJson())
-        }
         content.switchStyle?.normalized()?.let { style ->
             fun writeSwitchImage(uri: String?, sha256: String?, assetId: String): ExportedThemeAsset? {
                 if (uri.isNullOrBlank()) return null
@@ -2591,7 +2529,6 @@ private fun parseComponentStyleContent(
 ): ComponentStylePackageContent {
     val components = config.optJSONObject("components")
         ?: error("Theme package does not contain a component style")
-    val cardStyle = components.optJSONObject("cardStyle")?.let(CustomCardStyle::fromJson)
     val switchOwner = components.optJSONObject("switchStyle")
     val switchStyle = switchOwner?.let { owner ->
         val packaged = CustomSwitchStyle.fromJson(
@@ -2646,8 +2583,8 @@ private fun parseComponentStyleContent(
             ).normalized()
         }
     }
-    require(cardStyle != null || switchStyle != null) { "Component style data is empty" }
-    return ComponentStylePackageContent(cardStyle = cardStyle, switchStyle = switchStyle)
+    require(switchStyle != null) { "Component style data is empty" }
+    return ComponentStylePackageContent(switchStyle = switchStyle)
 }
 
 private fun safeComponentAssetFile(assetsDir: File, packagePath: String): File {
@@ -2916,10 +2853,9 @@ internal fun validateThemeStoreConfig(config: JSONObject) {
     if (config.optString("packageType") == COMPONENT_ONLY_PACKAGE_TYPE) {
         val components = config.optJSONObject("components")
             ?: error("Component package does not contain a component style")
-        val styleCount = listOf("cardStyle", "switchStyle").count { key ->
-            components.optJSONObject(key) != null
+        require(components.optJSONObject("switchStyle") != null) {
+            "Component package must contain a switch style"
         }
-        require(styleCount == 1) { "Component package must contain exactly one style" }
     }
     val version = config.optInt("version", 0)
     require(version in 1..THEME_STORE_VERSION) {
@@ -3183,10 +3119,9 @@ private const val LEGACY_PIXEL_PET_STYLE = "pet_companion"
 private fun validateComponentStyleConfig(config: JSONObject) {
     val components = config.optJSONObject("components") ?: return
     val keys = components.keys().asSequence().toSet()
-    require(keys.all { it == "cardStyle" || it == "switchStyle" }) {
+    require(keys.all { it == "switchStyle" }) {
         "Theme package contains an unknown component style"
     }
-    components.optJSONObject("cardStyle")?.let { CustomCardStyle.fromJson(it) }
     components.optJSONObject("switchStyle")?.let { owner ->
         val styleJson = owner.optJSONObject("style") ?: error("Switch style data is missing")
         require(styleJson.optString("image_uri").length <= MAX_COMPONENT_PACKAGE_URI_LENGTH) {
@@ -3566,7 +3501,6 @@ internal fun countConfiguredThemeStoreResources(config: JSONObject): Int {
     if (hasResource(config.optJSONObject("backgroundMusic"))) count++
     if (hasResource(config.optJSONObject("startupAnimation"))) count++
     val components = config.optJSONObject("components")
-    if (components?.optJSONObject("cardStyle") != null) count++
     if (components?.optJSONObject("switchStyle") != null) count++
     val fontPreset = config.optJSONObject("font")?.optString("preset")
     if (!fontPreset.isNullOrBlank() && fontPreset != AppFontPreset.System.value) count++

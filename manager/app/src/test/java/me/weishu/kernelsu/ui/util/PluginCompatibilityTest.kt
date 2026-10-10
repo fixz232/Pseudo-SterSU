@@ -31,6 +31,16 @@ class PluginCompatibilityTest {
         ).isCompatible)
     }
 
+    @Test
+    fun pathmaskRequiresResolvedLkmMode() {
+        val pathmask = plugin(ManagerPlugin.PathmaskLkm.id, 10, 20)
+        val ksud = InstalledKsudStatus(present = true, versionCode = 20)
+
+        assertEquals(ManagerPluginCompatibilityIssue.LkmModeRequired,
+            checkManagerPluginCompatibility(pathmask, 10, ksud, pathmaskSupported = false).issue)
+        assertTrue(checkManagerPluginCompatibility(pathmask, 10, ksud, pathmaskSupported = true).isCompatible)
+    }
+
     private fun plugin(id: String, minManager: Int, minKsud: Int) = ManagerPluginPackage(
         id = id,
         version = 1,

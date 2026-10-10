@@ -19,16 +19,6 @@ class ComponentStyleSubmissionTest {
     }
 
     @Test
-    fun cloudStyleIdKeepsGeneratedStyleIdentity() {
-        val id = cloudComponentStyleId(
-            ComponentStyleKind.Card,
-            "card-123e4567-e89b-12d3-a456-426614174000",
-        )
-
-        assertEquals("card.card-123e4567-e89b-12d3-a456-426614174000", id)
-    }
-
-    @Test
     fun componentSubmissionReplacesPackageStateButKeepsCreatorIdentity() {
         val previous = CloudThemeSubmissionDraft(
             githubLogin = "fixz232",
@@ -57,14 +47,14 @@ class ComponentStyleSubmissionTest {
         val draft = buildComponentStyleSubmissionDraft(
             previous = previous,
             inspection = inspection,
-            kind = ComponentStyleKind.Card,
-            styleId = "card-example",
+            kind = ComponentStyleKind.Switch,
+            styleId = "switch-example",
             styleName = "Example",
             styleAuthor = "",
-            description = "Pixel cards",
-            categoryId = "component-card",
-            categoryName = "Card styles",
-            tags = "component,pixel,card",
+            description = "Pixel switches",
+            categoryId = "component-switch",
+            categoryName = "Switch styles",
+            tags = "component,pixel,switch",
             packageName = "example.kstheme",
         )
 
@@ -72,7 +62,7 @@ class ComponentStyleSubmissionTest {
         assertEquals("Existing creator", draft.authorName)
         assertEquals("Profile bio", draft.authorBio)
         assertEquals(inspection.sha256, draft.packageSha256)
-        assertEquals("component-card", draft.categoryId)
+        assertEquals("component-switch", draft.categoryId)
         assertEquals("", draft.packageUrl)
         assertEquals("", draft.coverUrl)
         assertEquals("", draft.screenshotUrlsText)

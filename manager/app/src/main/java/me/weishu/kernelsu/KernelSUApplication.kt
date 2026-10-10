@@ -13,6 +13,7 @@ import okhttp3.Cache
 import okhttp3.OkHttpClient
 import org.lsposed.hiddenapibypass.HiddenApiBypass
 import me.weishu.kernelsu.ui.util.AppLanguageManager
+import me.weishu.kernelsu.ui.util.reconcileLauncherIcon
 import me.weishu.kernelsu.stealth.StealthModeStore
 import me.weishu.kernelsu.ui.webmanager.ManagerAppSettingsStore
 import java.io.File
@@ -64,6 +65,7 @@ class KernelSUApplication : Application(), ViewModelStoreOwner {
             return
         }
 
+        reconcileLauncherIcon(this)
         StealthModeStore.reconcileFromRootAsync(this)
         ManagerAppSettingsStore.reconcileFromRootAsync(this)
 

@@ -1,19 +1,19 @@
 {
   "schema": "io.github.fixz.apkesu.interface-style-catalog",
   "version": 3,
-  "generatedAt": 1791377383297,
+  "generatedAt": 1791539922633,
   "styles": [
     {
       "id": "liquid-glass",
       "name": "毛玻璃 / Frosted glass",
-      "summary": "半透明毛玻璃界面",
+      "summary": "清透毛玻璃：轻描边、柔和冷白与深蓝灰配色，减少灰色叠层和折射；完整卡片与导航优化需新版管理器。",
       "engine": "liquid_glass",
       "variant": null,
       "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/liquid-glass.ksstyle",
-      "sha256": "49b1bbac8b486ca47cf3d1b7fecc3d7e8659a3a2255e45a40fc3694981b20b4c",
-      "sizeBytes": 1033,
-      "accent": 4283987338
+      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/liquid-glass-clear-20261009.ksstyle",
+      "sha256": "a6dd2ece892dfffcb114340e0c2928a0e99fb687ba372068334d3f85560b36cb",
+      "sizeBytes": 1020,
+      "accent": 4282147976
     },
     {
       "id": "season-spring",
@@ -64,66 +64,6 @@
       "accent": 4280848006
     },
     {
-      "id": "rain-light",
-      "name": "细雨 / Light rain",
-      "summary": "雨境：细雨",
-      "engine": "rain",
-      "variant": "light_rain",
-      "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/rain-light.ksstyle",
-      "sha256": "13585c230d29d9e55589ba03ca08a1be2fcd7c80f75d55a1724a615336a54915",
-      "sizeBytes": 1142,
-      "accent": 4284380326
-    },
-    {
-      "id": "rain-medium",
-      "name": "中雨 / Medium rain",
-      "summary": "雨境：中雨",
-      "engine": "rain",
-      "variant": "medium_rain",
-      "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/rain-medium.ksstyle",
-      "sha256": "51d5dd6fad46b5553939270ada9a7e58b7ca2711b660fb92b5650a4ae31c8185",
-      "sizeBytes": 1150,
-      "accent": 4283397015
-    },
-    {
-      "id": "rain-heavy",
-      "name": "骤雨 / Heavy rain",
-      "summary": "雨境：骤雨",
-      "engine": "rain",
-      "variant": "heavy_rain",
-      "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/rain-heavy.ksstyle",
-      "sha256": "aee06bc2281e2545a7a6d33bc5ac26719aa7bbedf295b0181f8fe5090366e8ff",
-      "sizeBytes": 1151,
-      "accent": 4282087023
-    },
-    {
-      "id": "rain-thunderstorm",
-      "name": "雷暴 / Thunderstorm",
-      "summary": "雨境：雷暴",
-      "engine": "rain",
-      "variant": "thunderstorm",
-      "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/rain-thunderstorm.ksstyle",
-      "sha256": "0b14212a790ab23acf7b65611c8b0aabe00c52ba1ba9463c7e226ecf60eddb86",
-      "sizeBytes": 1164,
-      "accent": 4284907432
-    },
-    {
-      "id": "rain-after",
-      "name": "雨后 / After rain",
-      "summary": "雨境：雨后",
-      "engine": "rain",
-      "variant": "after_rain",
-      "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/rain-after.ksstyle",
-      "sha256": "87289bcfbc5021a3da638b644564fdef78d731b9f5725c435240f2b322146be9",
-      "sizeBytes": 1145,
-      "accent": 4285631643
-    },
-    {
       "id": "pixel-classic-handheld",
       "name": "经典掌机 / Classic handheld",
       "summary": "像素风：经典掌机",
@@ -160,18 +100,6 @@
       "accent": 4284380752
     },
     {
-      "id": "pixel-star-voyage",
-      "name": "星际航行 / Star voyage",
-      "summary": "像素风：星际航行",
-      "engine": "pixel",
-      "variant": "star_voyage",
-      "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/pixel-star-voyage.ksstyle",
-      "sha256": "8b6dc1635bb6b3e4336d433adfb6a163c1d246f45c17ee3dcedaf1e3e14afce5",
-      "sizeBytes": 1241,
-      "accent": 4283595463
-    },
-    {
       "id": "pixel-ink-jade",
       "name": "墨玉 / Ink jade",
       "summary": "像素风：墨玉",
@@ -182,18 +110,6 @@
       "sha256": "c5d42f8fd135e7844659c40cc7c7319188b80565fc58884e9e610aca1afbedb2",
       "sizeBytes": 1240,
       "accent": 4282216542
-    },
-    {
-      "id": "pixel-rust-wasteland",
-      "name": "锈蚀荒原 / Rust wasteland",
-      "summary": "像素风：锈蚀荒原",
-      "engine": "pixel",
-      "variant": "rust_wasteland",
-      "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/pixel-rust-wasteland.ksstyle",
-      "sha256": "551b5588acc73ae71a28e96727d0f2bbe00acfd4113a51de348e18e542fe9957",
-      "sizeBytes": 1240,
-      "accent": 4286730296
     },
     {
       "id": "pixel-ocean-depths",
@@ -268,18 +184,6 @@
       "accent": 4283592005
     },
     {
-      "id": "pixel-lava-valley",
-      "name": "熔岩谷 / Lava valley",
-      "summary": "像素风：熔岩谷",
-      "engine": "pixel",
-      "variant": "lava_valley",
-      "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/pixel-lava-valley.ksstyle",
-      "sha256": "549283e2f07fa6e041e5ae41ba7a36f6e6d8409f44bef24a5ad84165ae8a1a84",
-      "sizeBytes": 1256,
-      "accent": 4290266156
-    },
-    {
       "id": "pixel-dunhuang-desert",
       "name": "敦煌沙海 / Dunhuang desert",
       "summary": "像素风：敦煌沙海",
@@ -314,30 +218,6 @@
       "sha256": "31204f93e9cda1dcc9c632128599608024e546ce6b586bff04d3d2e8af348349",
       "sizeBytes": 1249,
       "accent": 4283987311
-    },
-    {
-      "id": "pixel-cloud-town",
-      "name": "云上小镇 / Cloud town",
-      "summary": "像素风：云上小镇",
-      "engine": "pixel",
-      "variant": "cloud_town",
-      "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/pixel-cloud-town.ksstyle",
-      "sha256": "bf35b431c7ad3b7434caffcb4f8c2456eaea8ff00dfd2d546ef22369648a4559",
-      "sizeBytes": 1239,
-      "accent": 4285308569
-    },
-    {
-      "id": "windows-fluent",
-      "name": "Windows 流畅设计 / Windows Fluent",
-      "summary": "Windows 11 Fluent 风格的清爽系统界面，使用 Mica 中性色、紧凑 8dp 圆角，并完整适配浅色与深色模式。",
-      "engine": "alpha",
-      "variant": null,
-      "version": 3,
-      "downloadUrl": "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/packages/windows-fluent.ksstyle",
-      "sha256": "9b476797051de3ce4ada7ba16746f074ab26fb4260e95127e3e3ba167a9753e6",
-      "sizeBytes": 1098,
-      "accent": 4278221012
     },
     {
       "id": "sidebar-widget",

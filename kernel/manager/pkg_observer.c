@@ -29,7 +29,7 @@ static void ksu_track_throne_tw_func(struct callback_head *cb)
     // Runs after exit_fs() if the task is exiting; path lookups would oops
     if (current->flags & PF_EXITING)
         return;
-    track_throne(TRACK_THRONE_FORCE_SEARCH_MGR | TRACK_THRONE_FORCE_SYNCHRONOUS);
+    track_throne(TRACK_THRONE_FORCE_SYNCHRONOUS);
 }
 
 // Never scan from the fsnotify handler: fsnotify_mark_srcu and the rename's dir
@@ -51,7 +51,7 @@ static void ksu_defer_track_throne(void)
         }
     }
     pr_warn("defer track_throne failed, queue manager scan instead\n");
-    track_throne(TRACK_THRONE_FORCE_SEARCH_MGR);
+    track_throne(0);
 }
 
 static int ksu_handle_inode_event(struct fsnotify_mark *mark, u32 mask, struct inode *inode, struct inode *dir,

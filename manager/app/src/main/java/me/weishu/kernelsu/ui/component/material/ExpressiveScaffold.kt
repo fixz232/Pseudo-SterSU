@@ -66,13 +66,11 @@ fun ExpressiveScaffold(
         contentColor = contentColor,
         contentWindowInsets = contentWindowInsets,
         content = { padding ->
-            if (sidebar) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-                    Box(Modifier.widthIn(max = contentMaxWidth).fillMaxSize()) {
-                        content(padding)
-                    }
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+                Box(Modifier.widthIn(max = contentMaxWidth).fillMaxSize()) {
+                    content(padding)
                 }
-            } else content(padding)
+            }
         },
     )
 }
