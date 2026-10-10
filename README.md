@@ -1,6 +1,6 @@
 <div align="center">
   <h1>SterSU</h1>
-  <p>面向 GKI Android 设备的内核 Root 管理器</p>
+  <p>基于 KernelSU 的 Android 内核 Root 管理器</p>
   <p>
     <strong>简体中文</strong> ·
     <a href="README.en.md">English</a> ·
@@ -10,84 +10,53 @@
     <a href="README.ko.md">한국어</a> ·
     <a href="README.es.md">Español</a>
   </p>
-  <p>
-    <a href="#项目说明">项目说明</a> ·
-    <a href="#主要功能">主要功能</a> ·
-    <a href="#上游项目信息">上游信息</a> ·
-    <a href="#开源协议遵守说明">开源协议</a> ·
-    <a href="#免责声明">免责声明</a>
-  </p>
-  <p>
-    <a href="https://t.me/+LkrMQKXtXvpmYmNl">Telegram</a>
-  </p>
+  <p><a href="https://t.me/+LkrMQKXtXvpmYmNl">Telegram</a></p>
 </div>
 
----
+SterSU 是基于 [KernelSU](https://github.com/tiann/KernelSU) 的开源衍生项目，面向 GKI 与 LKM 场景。它保留 Root 授权和模块管理能力，并扩展内核维护、管理器界面及可选功能。部分实现参考 [SukiSU-Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra) 等项目；SterSU 不是 KernelSU 或 SukiSU-Ultra 的官方发行版。
 
-SterSU 是基于 [KernelSU](https://github.com/tiann/KernelSU) 官方上游仓库进行二次修改的衍生开源项目和 [SukiSU-Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra) 面向 GKI Android 设备的内核 Root 管理器，关注 KMI 匹配、SuSFS 配置可靠性和可恢复维护进行二次修改的衍生开源项目。主要面向 KernelSU 管理器体验、界面扩展、LKM 修补与个人设备调试场景。
+## 功能概览
 
-## 项目说明
+- **Root 与模块管理**：管理应用授权、模块安装和启停。
+- **GKI / LKM 维护**：关注 KMI 匹配、内核安装与镜像修补；具体可用能力取决于设备和内核构建。
+- **动态管理器**：允许一个已安装的兼容应用获得副管理器权限。该权限等同于完整 Root 管理权限，启用前请阅读[安全与使用说明](./docs/DYNAMIC_MANAGER.md)。
+- **GKI KPM**：在 AArch64 GKI 且启用 `CONFIG_KSU=y`、`CONFIG_KPM=y` 的内核上提供兼容接口；LKM 使用独立的 KPatch-Next 后端。详见 [KPM 来源与兼容性声明](./docs/SUKISU_KPM_NOTICE.md)。
+- **ABK Control**：在启用 `CONFIG_ABK_CONTROL` 时提供兼容桥，并校验管理器的包名、证书大小和 SHA-256。详见 [ABK Control 说明](./docs/ABK_CONTROL.md)。
+- **界面扩展**：提供多种管理器界面风格及可选商店功能。
 
-本项目继承 KernelSU 的开源授权结构：`kernel/` 目录遵循上游 KernelSU/Linux kernel 的 **GPL-2.0-only** 授权；除 `kernel/` 之外的 KernelSU 衍生代码遵循 **GPL-3.0-or-later** 授权；第三方依赖遵循各自上游许可证，清单见 [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md)。
+## 侧栏天气
 
-**备用仓库许可声明：**本仓库（[Pseudo-SterSU](https://github.com/fixz232/Pseudo-SterSU)）是 SterSU 源码的备用发布位置，并非单独重新授权的版本。仓库根目录 `LICENSE` 提供 GPL 第 3 版文本；`kernel/` 仍遵循 GPL-2.0-only 及各文件头，非内核 KernelSU 衍生代码遵循 GPL-3.0-or-later，第三方文件遵循各自许可证。分发此仓库构建的内核、APK 或模块时，请保留上游来源、版权和许可声明，并提供完整对应源码。
+天气功能需在设置中阅读声明并确认启用；选择数据源本身不会立即查询。不同数据源的接口和数据处理方式如下：
 
-Native GKI KPM 接口的来源、兼容范围、SukiSU-Ultra 参考提交、KernelPatch
-快照和许可证边界见 [SukiSU 兼容 GKI KPM 声明](./docs/SUKISU_KPM_NOTICE.md)。
+- **小米天气**：读取设备本机天气提供方的数据，不申请定位权限；设备未提供接口时显示不可用。详见 [小米天气接口说明](./docs/XIAOMI_WEATHER_PROVIDER.md)。
+- **Open-Meteo**：使用用户填写的经纬度请求第三方天气服务，服务端可见网络 IP；显示名称仅保存在本机。使用条件与署名见 [Open-Meteo 接口说明](./docs/OPEN_METEO_SIDEBAR.md)。
 
-## 主要功能
+## 许可与来源
 
-- **动态管理器**：保留 SterSU 内置主管理器，同时允许用户为一个已安装且兼容的管理器授予副管理器权限。身份同时绑定包名、App ID、APK v2 证书大小和证书 SHA-256，并在软件包变化后由内核重新校验。该功能授予完整 Root 管理权限，使用前请阅读[动态管理器安全与使用说明](./docs/DYNAMIC_MANAGER.md)。
-- **Native GKI KPM 接口**：在满足 GKI、AArch64、`CONFIG_KSU=y` 和 `CONFIG_KPM=y` 时提供 SukiSU 兼容的 KPM ABI；LKM 模式继续使用独立的 KPatch-Next 后端。该功能不是 SukiSU-Ultra 官方发行版，使用前请阅读 [KPM 声明](./docs/SUKISU_KPM_NOTICE.md)。
-- **ABK Control 兼容桥**：在启用 `CONFIG_ABK_CONTROL` 时，通过现有 supercall fd 提供公开的 ABK 状态/命令 ABI，并以包名、证书大小和 SHA-256 同时校验 ABK 管理器。GKI 和 LKM 构建都支持该桥，LKM 外部构建默认随 `CONFIG_KSU` 继承，也可显式关闭。实现边界和构建开关见 [ABK Control 说明](./docs/ABK_CONTROL.md)。
+SterSU 继承上游的许可边界，具体以各文件声明为准：
 
-- **侧栏小米天气**：经用户阅读并确认启用声明后，从本机小米天气 ContentProvider 读取当前天气；接口来源、数据范围与可用性说明见 [小米天气侧栏接口说明](./docs/XIAOMI_WEATHER_PROVIDER.md)。
-- **侧栏 Open-Meteo 天气**：手填经纬度并确认联网与数据声明后，将实时天气映射到侧栏中部天气组件；数据来源、图标映射和使用条款见 [Open-Meteo 侧栏说明](./docs/OPEN_METEO_SIDEBAR.md)。
+- `kernel/` 目录遵循 **GPL-2.0-only**，除非单个文件另有声明。
+- `kernel/` 以外的 KernelSU 衍生代码遵循 **GPL-3.0-or-later**。
+- 第三方文件保留各自的许可证与版权声明，详见 [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md) 和 [NOTICE](./NOTICE)。
 
-## 上游项目信息
+本仓库 [Pseudo-SterSU](https://github.com/fixz232/Pseudo-SterSU) 是 SterSU 的备用源码发布位置，不构成重新授权。根目录 [LICENSE](./LICENSE) 提供 GPL 第 3 版文本，不改变 `kernel/` 的许可。分发构建产物时，应遵守适用许可证、保留来源与声明，并提供完整对应源码。更多说明见 [GPL 合规说明](./GPL-COMPLIANCE.md)。
 
-上游主项目：KernelSU
+界面设计参考了开源项目，但 SterSU 的 MIUI 风格不是小米官方产品，也未使用小米官方源码。侧栏相关设计来源见 [Aster UI 说明](./docs/ASTER_UI_DESIGN_NOTICE.md)。
 
-上游仓库地址：https://github.com/tiann/KernelSU
+## 使用须知
 
-本项目会不定期同步上游官方源码更新、安全补丁与功能迭代。
-
-## 开源协议遵守说明
-
-1. 本项目所有修改、编译后的衍生代码全程开源，所有对外发布的编译成品（内核、APK、模块），同步提供完整修改源码；
-2. 任何人可以在对应许可证条款下自由获取、修改、分发本项目代码；二次分发时必须保留上游来源、许可证和完整对应源码；
-3. 若你对本项目代码进行二次修改并公开发布，同样需要公开你的全部修改源码，并标注上游来源。
-> 重要声明：本项目仅在上游基础上扩展功能，底层权限模型保持KernelSU原生实现；
-> MIUI风格主题为独立视觉实现，未使用小米官方源码。
-## 项目用途
-
-本工具仅用于安卓设备本地技术研究、个人设备调试学习，请勿用于违规篡改应用权限、绕过风控、恶意入侵等非法场景。
-
-## 免责声明
-
-1. 本项目仅面向安卓底层技术学习、开源技术交流用途，所有工具、源码仅供个人合法研究参考。因自行刷机、刷入内核、安装本项目相关文件所引发的设备卡开机、无限重启、系统变砖、硬件损坏等一切设备故障，开发者不承担任何维修、赔偿、售后相关责任，相关风险由使用者自行全部承担。<br>
-​
-2. 金融、网络游戏、企业办公、政务类应用普遍搭载Root环境、内核权限风控检测机制。若使用本工具后出现账号封禁、设备拉黑、功能限制、资产损失等后果，全部使用风险由使用者自行承担，项目开发者不提供任何账号申诉、风控解除相关协助。<br>
-​
-3. 严禁将本项目源码、衍生工具用于未经设备所有者授权的权限篡改、APP逆向破解、数据窃取、恶意程序捆绑、作弊外挂开发等违反《网络安全法》《著作权法》及其他现行法律法规的行为。一旦发生违规使用，全部民事、行政、刑事责任由实际使用者独立承担，与项目开发者无关。<br>
-​
-4. 本项目仅在正规开源社区免费公开分发，全程无任何官方付费售卖、定制服务。任何第三方平台、个人有偿售卖的安装包、修改版工具均与本项目无关，其安全性、完整性无法保障，下载使用第三方修改包产生的盗号、隐私泄露、设备中毒等风险请使用者自行甄别承担。<br>
-​
-5. 使用者下载、编译、刷入本项目相关文件，即代表完整阅读、理解并同意以上全部免责条款，若不认可本声明内容，请立即删除相关源码与文件，停止一切使用行为。<br>
+- 修改内核、刷入镜像或安装模块可能导致无法开机、数据丢失或设备损坏。操作前请核对设备与内核版本并做好备份；项目不提供维修、赔偿或售后服务。
+- 金融、游戏、企业及政务应用可能限制 Root 设备的使用。SterSU 不保证绕过检测，也不提供账号申诉或风控解除服务。
+- 请仅在自己拥有或获授权的设备上合法使用；不得用于未授权的权限篡改、破解、数据窃取、恶意捆绑或作弊。
+- 项目无官方付费销售或定制服务。第三方安装包和修改版的来源、完整性及安全性需自行核验。
+- 使用前请阅读本页、适用许可证和相关功能文档；如不接受上述风险，请勿安装或刷入。
 
 ## 致谢
 
-- [KernelSU](https://github.com/tiann/KernelSU)，感谢作者weishu与全部贡献者
-- [SukiSU-Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra) SuSFS 集成方案参考
-- [simonpunk/susfs4ksu](https://gitlab.com/simonpunk/susfs4ksu) GKI SUSFS 源码补丁来源（固定版本见 [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md)）
-- [ReSukiSU](https://github.com/ReSukiSU/ReSukiSU) 动态管理器功能设计、IOCTL 编号与加载思路参考
-- [FolkPatch](https://github.com/LyraVoid/FolkPatch) UI框架代码引用
-- [Aster](https://github.com/LyraVoid/Aster) 侧栏导航、页面布局与统一界面结构的设计参考；感谢 LyraVoid 与贡献者。SterSU 为独立适配，非 Aster 官方发行版，详见 [UI 设计来源说明](./docs/ASTER_UI_DESIGN_NOTICE.md)。
-- [skrootpro](https://github.com/abcz316/SKRoot-linuxKernelRoot)UI框架借鉴
-- [kowsu](https://github.com/KOWX712/KernelSU.git) ko文件来源
-- [Kernel-Assisted Superuser](https://git.zx2c4.com/kernel-assisted-superuser/about/): KernelSU设计灵感来源
-- [Magisk](https://github.com/topjohnwu/Magisk): 知名Root开源项目
-- [genuine](https://github.com/brevent/genuine/): APK签名校验方案
-- [Diamorphine](https://github.com/m0nad/Diamorphine): 底层隐藏技术参考
-
-##频道https://t.me/ApkeSu
+- [KernelSU](https://github.com/tiann/KernelSU)：主上游项目，感谢 weishu 与所有贡献者。
+- [SukiSU-Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra) 与 [susfs4ksu](https://gitlab.com/simonpunk/susfs4ksu)：SuSFS 集成与补丁来源。
+- [ReSukiSU](https://github.com/ReSukiSU/ReSukiSU)：动态管理器设计与接口参考。
+- [FolkPatch](https://github.com/LyraVoid/FolkPatch)、[Aster](https://github.com/LyraVoid/Aster) 与 [SKRoot](https://github.com/abcz316/SKRoot-linuxKernelRoot)：界面代码与设计参考。
+- [KOWX712/KernelSU](https://github.com/KOWX712/KernelSU)：内核模块文件来源。
+- [Kernel-Assisted Superuser](https://git.zx2c4.com/kernel-assisted-superuser/about/) 与 [Magisk](https://github.com/topjohnwu/Magisk)：技术思路参考。
+- [genuine](https://github.com/brevent/genuine/) 与 [Diamorphine](https://github.com/m0nad/Diamorphine)：签名校验与底层实现参考。
