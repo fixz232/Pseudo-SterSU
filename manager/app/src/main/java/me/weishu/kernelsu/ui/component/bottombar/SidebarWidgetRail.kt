@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -40,6 +41,8 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Alarm
@@ -64,11 +67,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -81,8 +86,10 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -408,6 +415,12 @@ internal fun SidebarHeaderWidget(
 private fun SidebarClockWidget(config: SidebarWidgetConfig, now: Long, compact: Boolean) {
     val context = LocalContext.current
     val locale = Locale.getDefault()
+    val ink = LocalContentColor.current
+    val colors = LocalSidebarAppearance.current.colors
+    val fontScale = LocalDensity.current.fontScale
+    val numberBrush = remember(config.clockStyle, colors) {
+        Brush.linearGradient(sidebarClockGradientStops(config.clockStyle, colors))
+    }
     val timePattern = if (DateFormat.is24HourFormat(LocalContext.current)) "HH:mm" else "h:mm"
     val time = remember(now / 1_000L, locale, timePattern) {
         SimpleDateFormat(timePattern, locale).format(Date(now))
@@ -420,6 +433,12 @@ private fun SidebarClockWidget(config: SidebarWidgetConfig, now: Long, compact: 
     }
     val weekday = remember(now / 60_000L, locale) {
         SimpleDateFormat("EEE", locale).format(Date(now))
+    }
+    val month = remember(now / 60_000L, locale) {
+        SimpleDateFormat("MMM", locale).format(Date(now))
+    }
+    val day = remember(now / 60_000L, locale) {
+        SimpleDateFormat("d", locale).format(Date(now))
     }
     val battery = remember(now / 60_000L, context) {
         context.getSystemService(BatteryManager::class.java)
@@ -453,11 +472,157 @@ private fun SidebarClockWidget(config: SidebarWidgetConfig, now: Long, compact: 
                 Text(shortDate, fontSize = if (compact) 22.sp else 28.sp, lineHeight = if (compact) 26.sp else 32.sp, fontWeight = FontWeight.Bold)
                 Text(time, fontSize = if (compact) 14.sp else 17.sp, lineHeight = if (compact) 18.sp else 21.sp)
             }
+
+            SidebarClockStyle.Minimal -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    time,
+                    fontSize = if (compact) 19.sp else 24.sp,
+                    lineHeight = if (compact) 23.sp else 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                HorizontalDivider(
+                    modifier = Modifier.width(if (compact) 34.dp else 44.dp).padding(vertical = 5.dp),
+                    color = ink.copy(alpha = 0.45f),
+                )
+                Text(shortDate, fontSize = if (compact) 11.sp else 13.sp, lineHeight = 15.sp, fontWeight = FontWeight.Medium)
+            }
+
+            SidebarClockStyle.Calendar -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    modifier = Modifier.background(ink.copy(alpha = 0.09f), RoundedCornerShape(14.dp))
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(month, fontSize = if (compact) 10.sp else 12.sp, lineHeight = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(day, fontSize = if (compact) 29.sp else 34.sp, lineHeight = if (compact) 32.sp else 38.sp, fontWeight = FontWeight.Bold)
+                    Text(weekday, fontSize = if (compact) 10.sp else 12.sp, lineHeight = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                Text(time, fontSize = if (compact) 14.sp else 17.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+
+            SidebarClockStyle.Dial -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(
+                    modifier = Modifier.size(if (compact) 60.dp else 72.dp)
+                        .border(1.dp, ink.copy(alpha = 0.55f), CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(time, fontSize = if (compact) 14.sp else 17.sp, lineHeight = 19.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(shortDate, fontSize = if (compact) 10.sp else 11.sp, lineHeight = 13.sp, maxLines = 1)
+                    }
+                }
+                Text(weekday, fontSize = if (compact) 10.sp else 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+
+            SidebarClockStyle.AuroraDigits -> {
+                val parts = time.split(':', limit = 2)
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    GradientClockDigits(parts.firstOrNull().orEmpty(), numberBrush, if (compact) 30 else 36, if (compact) 34 else 40)
+                    Box(Modifier.width(if (compact) 28.dp else 36.dp).height(2.dp).background(numberBrush, RoundedCornerShape(2.dp)))
+                    GradientClockDigits(parts.getOrNull(1).orEmpty(), numberBrush, if (compact) 30 else 36, if (compact) 34 else 40)
+                    Text(shortDate, fontSize = if (compact) 10.sp else 12.sp, lineHeight = 14.sp, fontWeight = FontWeight.Medium)
+                    Text(weekday, fontSize = if (compact) 10.sp else 12.sp, lineHeight = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+
+            SidebarClockStyle.SunsetDigits -> {
+                val parts = time.split(':', limit = 2)
+                Column(
+                    modifier = Modifier.background(ink.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 3.dp, vertical = 7.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    if (fontScale <= 1.4f) {
+                        GradientClockDigits(time, numberBrush, if (compact) 16 else 18, if (compact) 21 else 24)
+                    } else {
+                        GradientClockDigits(parts.firstOrNull().orEmpty(), numberBrush, if (compact) 22 else 26, if (compact) 26 else 30)
+                        GradientClockDigits(parts.getOrNull(1).orEmpty(), numberBrush, if (compact) 22 else 26, if (compact) 26 else 30)
+                    }
+                    Text(weekday, fontSize = if (compact) 10.sp else 12.sp, lineHeight = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(shortDate, fontSize = if (compact) 10.sp else 12.sp, lineHeight = 14.sp, maxLines = 1)
+                }
+            }
+
+            SidebarClockStyle.DualTiles -> {
+                val parts = time.split(':', limit = 2)
+                val stacked = fontScale > 1.4f
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    if (stacked) {
+                        GradientClockTile(parts.firstOrNull().orEmpty(), numberBrush, ink, compact, fontScale, true)
+                        GradientClockTile(parts.getOrNull(1).orEmpty(), numberBrush, ink, compact, fontScale, true)
+                    } else {
+                        Row(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
+                            GradientClockTile(parts.firstOrNull().orEmpty(), numberBrush, ink, compact, fontScale, false)
+                            Text(":", fontSize = if (compact) 12.sp else 14.sp, fontWeight = FontWeight.Bold)
+                            GradientClockTile(parts.getOrNull(1).orEmpty(), numberBrush, ink, compact, fontScale, false)
+                        }
+                    }
+                    Text(shortDate, fontSize = if (compact) 10.sp else 12.sp, lineHeight = 14.sp, fontWeight = FontWeight.Medium)
+                    Text(weekday, fontSize = if (compact) 10.sp else 12.sp, lineHeight = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
         }
+        if (config.clockWeatherEnabled) SidebarWeatherSummary(config, compact)
         if (battery != null) Text("$battery%", fontSize = if (compact) 11.sp else 12.sp, lineHeight = if (compact) 14.sp else 16.sp, fontWeight = FontWeight.SemiBold)
-        SidebarWeatherSummary(config, compact)
     }
 }
+
+@Composable
+private fun GradientClockDigits(value: String, brush: Brush, fontSize: Int, lineHeight: Int) {
+    Text(
+        text = value,
+        style = TextStyle(
+            brush = brush,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.Bold,
+            fontSize = fontSize.sp,
+            lineHeight = lineHeight.sp,
+            letterSpacing = (-0.5).sp,
+        ),
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
+@Composable
+private fun GradientClockTile(
+    value: String,
+    brush: Brush,
+    ink: Color,
+    compact: Boolean,
+    fontScale: Float,
+    stacked: Boolean,
+) {
+    val width = (if (stacked) { if (compact) 52.dp else 66.dp } else { if (compact) 27.dp else 34.dp }) * fontScale.coerceIn(1f, 1.2f)
+    val height = (if (compact) 32.dp else 38.dp) * fontScale.coerceIn(1f, 1.6f)
+    Box(
+        modifier = Modifier.width(width).height(height).background(ink.copy(alpha = 0.1f), RoundedCornerShape(8.dp)),
+        contentAlignment = Alignment.Center,
+    ) {
+        GradientClockDigits(value, brush, if (compact) 18 else 21, if (compact) 23 else 26)
+    }
+}
+
+internal fun sidebarClockGradientStops(style: SidebarClockStyle, colors: SidebarColors): List<Color> {
+    val lightInk = colors.content.luminance() > 0.5f
+    val desired = when (style) {
+        SidebarClockStyle.AuroraDigits -> if (lightInk) listOf(Color(0xFF78D9FF), Color(0xFFD3A7FF))
+            else listOf(Color(0xFF075D78), Color(0xFF643595))
+        SidebarClockStyle.SunsetDigits -> if (lightInk) listOf(Color(0xFFFFA3C5), Color(0xFFFFD28D))
+            else listOf(Color(0xFF91254D), Color(0xFF95420E))
+        SidebarClockStyle.DualTiles -> if (lightInk) listOf(Color(0xFF78E7C5), Color(0xFF8CCFFF))
+            else listOf(Color(0xFF11634E), Color(0xFF165A8D))
+        else -> listOf(colors.content, colors.content)
+    }
+    return desired.map { stop ->
+        if (sidebarContrast(stop, colors.background) >= 4.5f && sidebarContrast(stop, colors.backgroundEnd) >= 4.5f) stop
+        else colors.content
+    }
+}
+
 @Composable
 private fun SidebarAlarmWidget(context: Context, now: Long, compact: Boolean) {
     val nextAlarm = remember(now / 60_000L) {

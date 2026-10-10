@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -103,6 +104,7 @@ internal fun SidebarMaterialOptions(
     var hex by rememberSaveable(material, editingDark, role, savedColor) { mutableStateOf(formatSidebarRgb(savedColor)) }
     var pendingColor by remember(material, editingDark, role, savedColor) { mutableStateOf(savedColor) }
     var showRgb by rememberSaveable { mutableStateOf(false) }
+    var colorsExpanded by rememberSaveable { mutableStateOf(false) }
     val previewPalette = role.update(saved, pendingColor)
     val contrast = sidebarMinimumContrast(sidebarColors(previewPalette), material != SidebarMaterial.Flat)
 
@@ -144,6 +146,13 @@ internal fun SidebarMaterialOptions(
             }
         }
         Text(stringResource(R.string.sidebar_palette_help), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        OutlinedButton(onClick = { colorsExpanded = !colorsExpanded }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+            Text(stringResource(if (colorsExpanded) R.string.sidebar_palette_editor_hide else R.string.sidebar_palette_editor_show), modifier = Modifier.weight(1f))
+            listOf(saved.background, saved.backgroundEnd, saved.selection, saved.content).forEach { color ->
+                Box(Modifier.padding(start = 4.dp).size(16.dp).background(Color(color.toInt()), CircleShape).border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape))
+            }
+        }
+        if (colorsExpanded) {
         HorizontalDivider()
         Text(stringResource(R.string.sidebar_palette_colors_title), style = MaterialTheme.typography.titleSmall)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -249,6 +258,7 @@ internal fun SidebarMaterialOptions(
             onClick = { onUpdate(config.copy(palettes = config.palettes.reset(material, editingDark))) },
             modifier = Modifier.heightIn(min = 48.dp),
         ) { Text(stringResource(R.string.sidebar_palette_reset)) }
+        }
     }
 }
 

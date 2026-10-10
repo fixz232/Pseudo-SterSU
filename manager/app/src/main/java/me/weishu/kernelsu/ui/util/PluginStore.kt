@@ -105,8 +105,6 @@ data class ManagerPluginCatalogSnapshot(
 
 enum class PluginCatalogSource { Network, Cache, Bundled }
 
-enum class PluginDownloadRoute { Direct, Accelerator }
-
 /** Why an installed declarative plugin cannot be exposed to the current runtime. */
 internal enum class ManagerPluginCompatibilityIssue {
     None,
@@ -171,7 +169,6 @@ private val ALLOWED_GITHUB_HOSTS = setOf(
     "objects.githubusercontent.com",
     "release-assets.githubusercontent.com",
 )
-private const val ACCELERATOR_HOST = "ghproxy.net"
 
 internal const val PLUGIN_STORE_RESULT_KEY = "plugin_store_result"
 
@@ -295,7 +292,7 @@ class ManagerPluginCatalogRepository(
 
     suspend fun fetch(
         forceNetwork: Boolean = false,
-        route: PluginDownloadRoute = PluginDownloadRoute.Accelerator,
+        settings: StoreDownloadSettings = readStoreDownloadSettings(appContext),
     ): ManagerPluginCatalogSnapshot = withContext(Dispatchers.IO) {
         val cached = readCatalog(catalogCache, signatureCache)
         val cachedIsStale = cached?.let { isPluginCatalogStale(it.generatedAt) } ?: false
@@ -311,7 +308,7 @@ class ManagerPluginCatalogRepository(
             val catalogUrl = validatePluginUrl(DEFAULT_CATALOG_URL)
             var failure: Throwable? = null
             for ((candidateCatalogUrl, candidateSignatureUrl) in
-                resolvePluginCatalogUrls(catalogUrl, route)) {
+                resolvePluginCatalogUrls(catalogUrl, settings)) {
                 try {
                     // Keep the catalog and its signature on the same route. A
                     // proxy can return a different revision or fail one file;
@@ -407,9 +404,11 @@ class ManagerPluginInstaller(
     private val registry: ManagerPluginRegistry = ManagerPluginRegistry(context),
     private val client: okhttp3.OkHttpClient = ksuApp.okhttpClient,
 ) {
+    private val appContext = context.applicationContext
+
     suspend fun install(
         plugin: ManagerPluginPackage,
-        route: PluginDownloadRoute = PluginDownloadRoute.Accelerator,
+        settings: StoreDownloadSettings = readStoreDownloadSettings(appContext),
         onProgress: (PluginDownloadProgress) -> Unit = {},
     ): InstalledManagerPlugin = withContext(Dispatchers.IO) {
         validatePlugin(plugin, requireDownload = true)
@@ -426,7 +425,7 @@ class ManagerPluginInstaller(
             "Pathmask plugin requires LKM mode"
         }
         var failure: Throwable? = null
-        for (url in resolvePluginDownloadUrls(plugin.downloadUrl, route)) {
+        for (url in resolvePluginDownloadUrls(plugin.downloadUrl, settings)) {
             try {
                 return@withContext downloadAndInstall(plugin, url, onProgress)
             } catch (cancelled: CancellationException) {
@@ -706,15 +705,10 @@ private fun validatePluginUrl(raw: String): String {
     return raw
 }
 
-internal fun resolvePluginDownloadUrls(raw: String, route: PluginDownloadRoute): List<String> {
+internal fun resolvePluginDownloadUrls(raw: String, settings: StoreDownloadSettings): List<String> {
     val original = validatePluginUrl(raw)
     val directUrls = listOfNotNull(migrateLegacyPluginStoreUrl(original), original).distinct()
-    return when (route) {
-        PluginDownloadRoute.Direct -> directUrls
-        PluginDownloadRoute.Accelerator -> directUrls.flatMap { url ->
-            listOf("https://$ACCELERATOR_HOST/$url", url)
-        }
-    }
+    return directUrls.flatMap { url -> resolveStoreDownloadUrls(url, settings) }.distinct()
 }
 
 private fun migrateLegacyPluginStoreUrl(raw: String): String? {
@@ -725,8 +719,8 @@ private fun migrateLegacyPluginStoreUrl(raw: String): String? {
 
 internal fun resolvePluginCatalogUrls(
     raw: String,
-    route: PluginDownloadRoute,
-): List<Pair<String, String>> = resolvePluginDownloadUrls(raw, route).map { catalogUrl ->
+    settings: StoreDownloadSettings,
+): List<Pair<String, String>> = resolvePluginDownloadUrls(raw, settings).map { catalogUrl ->
     catalogUrl to siblingPluginSignatureUrl(catalogUrl)
 }
 
@@ -745,7 +739,7 @@ private fun siblingPluginSignatureUrl(catalogUrl: String): String {
 
 private fun isAllowedPluginHost(host: String): Boolean {
     val normalized = host.lowercase(Locale.ROOT)
-    return normalized in ALLOWED_GITHUB_HOSTS || normalized == ACCELERATOR_HOST
+    return normalized in ALLOWED_GITHUB_HOSTS
 }
 
 internal fun verifyManagerPluginCatalogSignature(

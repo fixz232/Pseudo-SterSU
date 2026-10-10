@@ -40,6 +40,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Error
 import androidx.compose.material.icons.rounded.FontDownload
 import androidx.compose.material.icons.rounded.Explore
@@ -63,6 +64,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.IconButton
@@ -124,18 +126,17 @@ import me.weishu.kernelsu.ui.util.ThemeStoreSummary
 import me.weishu.kernelsu.ui.util.exportThemeStorePackage
 import me.weishu.kernelsu.ui.util.importThemeStorePackage
 import me.weishu.kernelsu.ui.util.InterfaceStyleCatalogRepository
-import me.weishu.kernelsu.ui.util.InterfaceStyleCatalogSource
 import me.weishu.kernelsu.ui.util.InterfaceStyleInstaller
 import me.weishu.kernelsu.ui.util.InterfaceStylePackage
-import me.weishu.kernelsu.ui.util.InterfaceStyleProxyMode
 import me.weishu.kernelsu.ui.util.InterfaceStyleRegistry
 import me.weishu.kernelsu.ui.util.InstalledInterfaceStyle
 import me.weishu.kernelsu.ui.util.InterfaceStyleDownloadProgress
 import me.weishu.kernelsu.ui.util.INTERFACE_STYLE_PACKAGE_MIME_TYPE
 import me.weishu.kernelsu.ui.util.INTERFACE_STYLE_RESULT_KEY
 import me.weishu.kernelsu.ui.util.interfaceStylePackageFileName
-import me.weishu.kernelsu.ui.util.readInterfaceStyleDownloadPreferences
-import me.weishu.kernelsu.ui.util.saveInterfaceStyleDownloadPreferences
+import me.weishu.kernelsu.ui.util.isValidStoreAcceleratorAddress
+import me.weishu.kernelsu.ui.util.readStoreDownloadSettings
+import me.weishu.kernelsu.ui.util.saveStoreDownloadSettings
 import me.weishu.kernelsu.ui.util.safeInterfaceStyleMessage
 import me.weishu.kernelsu.data.repository.SettingsRepositoryImpl
 import me.weishu.kernelsu.ui.util.previewThemeStorePackage
@@ -402,6 +403,7 @@ fun ThemeStoreScreen(
                             StoreSectionHeading(stringResource(R.string.store_tab_library),
                                 stringResource(R.string.store_redesign_library_intro))
                             ThemeStoreCurrentThemeStatus(summary)
+                            StoreDownloadSettingsCard()
                             StoreExpandableSection(stringResource(R.string.store_redesign_backup)) {
                                 Text(stringResource(R.string.theme_store_transfer_panel_summary), style = MaterialTheme.typography.bodyMedium)
                                 FilledTonalButton(onClick = actions.onExport, enabled = !busy && !libraryBusy,
@@ -798,6 +800,63 @@ private fun ThemeStoreCurrentThemeStatus(summary: ThemeStoreSummary) {
 }
 
 @Composable
+private fun StoreDownloadSettingsCard() {
+    val context = LocalContext.current
+    var settings by remember { mutableStateOf(readStoreDownloadSettings(context)) }
+    var address by rememberSaveable { mutableStateOf(settings.acceleratorAddress) }
+    val addressValid = isValidStoreAcceleratorAddress(address)
+
+    ThemeStoreSurface {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Icon(Icons.Rounded.Download, contentDescription = null, tint = themeStoreTextColor())
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.store_download_acceleration),
+                        style = MaterialTheme.typography.titleSmall, color = themeStoreTextColor())
+                    Text(stringResource(R.string.store_download_acceleration_summary),
+                        style = MaterialTheme.typography.bodySmall, color = themeStoreMutedColor())
+                }
+                Switch(
+                    checked = settings.accelerated,
+                    onCheckedChange = { enabled ->
+                        settings = settings.copy(accelerated = enabled)
+                        saveStoreDownloadSettings(context, settings)
+                    },
+                )
+            }
+            OutlinedTextField(
+                value = address,
+                onValueChange = { value ->
+                    address = value.take(240)
+                    if (isValidStoreAcceleratorAddress(address)) {
+                        settings = settings.copy(acceleratorAddress = address.trim())
+                        saveStoreDownloadSettings(context, settings)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = settings.accelerated,
+                isError = !addressValid,
+                singleLine = true,
+                label = { Text(stringResource(R.string.store_download_address)) },
+                placeholder = { Text("https://ghproxy.net/") },
+                supportingText = {
+                    if (!addressValid) Text(stringResource(R.string.store_download_invalid_address))
+                },
+            )
+            Text(stringResource(R.string.store_download_explanation),
+                style = MaterialTheme.typography.bodySmall, color = themeStoreMutedColor())
+        }
+    }
+}
+
+@Composable
 private fun ThemeStoreSectionHeader(title: String) {
     Text(
         text = title,
@@ -989,8 +1048,6 @@ private fun InterfaceStyleStoreContent(
     var busyId by remember { mutableStateOf<String?>(null) }
     var progress by remember { mutableStateOf<InterfaceStyleDownloadProgress?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
-    var preferences by remember { mutableStateOf(readInterfaceStyleDownloadPreferences(context)) }
-    var customProxy by rememberSaveable { mutableStateOf(preferences.customProxy) }
     var query by rememberSaveable { mutableStateOf("") }
     var selectedCategoryKey by rememberSaveable { mutableStateOf(InterfaceStyleCategory.All.name) }
     var catalogLoading by remember { mutableStateOf(false) }
@@ -1022,7 +1079,7 @@ private fun InterfaceStyleStoreContent(
         scope.launch {
             try {
                 val result = withContext(Dispatchers.IO) {
-                    installer.install(style, preferences) { next ->
+                    installer.install(style) { next ->
                         scope.launch(Dispatchers.Main.immediate) { progress = next }
                     }
                 }
@@ -1120,7 +1177,7 @@ private fun InterfaceStyleStoreContent(
         progress = null
         scope.launch {
             try {
-                val bytes = installer.downloadPackage(style, preferences) { next ->
+                val bytes = installer.downloadPackage(style) { next ->
                     scope.launch(Dispatchers.Main.immediate) { progress = next }
                 }
                 consume(bytes)
@@ -1247,54 +1304,14 @@ private fun InterfaceStyleStoreContent(
                 }
             },
         )
+        Text(stringResource(R.string.interface_style_store_notice),
+            style = MaterialTheme.typography.bodySmall, color = themeStoreMutedColor())
         StoreSearchField(query, { query = it }, stringResource(R.string.interface_style_search_hint))
         StoreFilters(
             InterfaceStyleCategory.entries.map { stringResource(it.labelRes) },
             selectedCategory.ordinal,
             { selectedCategoryKey = InterfaceStyleCategory.entries[it].name },
         )
-        StoreExpandableSection(
-            title = stringResource(R.string.store_redesign_network),
-            summary = stringResource(when (preferences.mode) {
-                InterfaceStyleProxyMode.Direct -> R.string.interface_style_proxy_direct
-                InterfaceStyleProxyMode.Auto -> R.string.interface_style_proxy_auto
-                InterfaceStyleProxyMode.Custom -> R.string.interface_style_proxy_custom
-            }),
-        ) {
-            StoreFilters(
-                InterfaceStyleProxyMode.entries.map { mode -> stringResource(when (mode) {
-                    InterfaceStyleProxyMode.Direct -> R.string.interface_style_proxy_direct
-                    InterfaceStyleProxyMode.Auto -> R.string.interface_style_proxy_auto
-                    InterfaceStyleProxyMode.Custom -> R.string.interface_style_proxy_custom
-                }) },
-                preferences.mode.ordinal,
-                { index ->
-                    preferences = preferences.copy(mode = InterfaceStyleProxyMode.entries[index])
-                    saveInterfaceStyleDownloadPreferences(context, preferences)
-                },
-            )
-            if (preferences.mode == InterfaceStyleProxyMode.Custom) {
-                OutlinedTextField(
-                    value = customProxy, onValueChange = { customProxy = it.take(240) },
-                    modifier = Modifier.fillMaxWidth(), singleLine = true,
-                    label = { Text(stringResource(R.string.interface_style_proxy_custom_hint)) },
-                    supportingText = { Text(stringResource(R.string.interface_style_proxy_custom_summary)) },
-                )
-                TextButton(onClick = {
-                    preferences = preferences.copy(customProxy = customProxy.trim())
-                    saveInterfaceStyleDownloadPreferences(context, preferences)
-                }) { Text(stringResource(R.string.interface_style_proxy_save)) }
-            }
-            Text(stringResource(R.string.interface_style_store_notice),
-                style = MaterialTheme.typography.bodySmall, color = themeStoreMutedColor())
-            snapshot?.source?.let { source ->
-                Text(stringResource(when (source) {
-                    InterfaceStyleCatalogSource.Network -> R.string.interface_style_source_network
-                    InterfaceStyleCatalogSource.Cache -> R.string.interface_style_source_cache
-                    InterfaceStyleCatalogSource.Bundled -> R.string.interface_style_source_bundled
-                }), style = MaterialTheme.typography.labelMedium, color = themeStoreMutedColor())
-            }
-        }
         snapshot?.errorMessage?.let { ThemeStoreNotice(stringResource(R.string.interface_style_catalog_offline, it)) }
         error?.let { ThemeStoreNotice(stringResource(R.string.interface_style_operation_failed, it)) }
         if (catalogLoading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())

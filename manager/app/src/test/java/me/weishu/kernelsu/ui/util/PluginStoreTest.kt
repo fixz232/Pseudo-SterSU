@@ -88,7 +88,7 @@ class PluginStoreTest {
     @Test
     fun remoteManagementDownloadUsesAcceleratorAndDirectFallback() {
         val url = "https://raw.githubusercontent.com/fixz232/ApkeSU-PluginStore/main/packages/remote-management-suite.ksplugin"
-        val urls = resolvePluginDownloadUrls(url, PluginDownloadRoute.Accelerator)
+        val urls = resolvePluginDownloadUrls(url, StoreDownloadSettings(accelerated = true))
 
         assertEquals(4, urls.size)
         assertEquals(
@@ -105,7 +105,7 @@ class PluginStoreTest {
     @Test
     fun catalogRouteKeepsCatalogAndSignatureOnTheSameRoute() {
         val url = managerPluginCatalogUrl()
-        val pairs = resolvePluginCatalogUrls(url, PluginDownloadRoute.Accelerator)
+        val pairs = resolvePluginCatalogUrls(url, StoreDownloadSettings(accelerated = true))
 
         assertEquals(2, pairs.size)
         assertTrue(pairs.first().first.startsWith("https://ghproxy.net/"))
@@ -115,6 +115,19 @@ class PluginStoreTest {
             "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/plugin-store/catalog-v2.sig",
             pairs.last().second,
         )
+    }
+
+    @Test
+    fun customCatalogRouteKeepsItsSignatureOnTheSameRoute() {
+        val url = managerPluginCatalogUrl()
+        val pairs = resolvePluginCatalogUrls(
+            url, StoreDownloadSettings(true, "https://proxy.example/download"),
+        )
+
+        assertEquals(2, pairs.size)
+        assertEquals("https://proxy.example/download/$url", pairs.first().first)
+        assertEquals("https://proxy.example/download/${url.removeSuffix(".json")}.sig", pairs.first().second)
+        assertEquals(url, pairs.last().first)
     }
 
     @Test
@@ -225,7 +238,7 @@ class PluginStoreTest {
 
     @Test(expected = IllegalArgumentException::class)
     fun downloadRejectsNonHttps() {
-        resolvePluginDownloadUrls("http://raw.githubusercontent.com/fixz232/plugin", PluginDownloadRoute.Direct)
+        resolvePluginDownloadUrls("http://raw.githubusercontent.com/fixz232/plugin", StoreDownloadSettings(accelerated = false))
     }
 
     @Test

@@ -23,10 +23,16 @@ enum class SidebarWidgetType(val value: String) {
     }
 }
 
-enum class SidebarClockStyle(val value: String) {
+enum class SidebarClockStyle(val value: String, val gradient: Boolean = false) {
     Stacked("stacked"),
     Compact("compact"),
-    DateFirst("date_first");
+    DateFirst("date_first"),
+    Minimal("minimal"),
+    Calendar("calendar"),
+    Dial("dial"),
+    AuroraDigits("aurora_digits", true),
+    SunsetDigits("sunset_digits", true),
+    DualTiles("dual_tiles", true);
 
     companion object {
         fun fromValue(value: String?): SidebarClockStyle =
@@ -97,6 +103,7 @@ val SIDEBAR_NAVIGATION_IDS = listOf(
 data class SidebarWidgetConfig(
     val widgetType: SidebarWidgetType = SidebarWidgetType.Clock,
     val clockStyle: SidebarClockStyle = SidebarClockStyle.Stacked,
+    val clockWeatherEnabled: Boolean = true,
     val weatherLabel: String = "",
     val weatherTemperature: String = "",
     // Retain the original image preference keys so existing artwork becomes the avatar.
@@ -144,6 +151,7 @@ fun readSidebarWidgetConfig(context: Context): SidebarWidgetConfig {
     return SidebarWidgetConfig(
         widgetType = SidebarWidgetType.fromValue(prefs.getString(SIDEBAR_WIDGET_TYPE_KEY, null)),
         clockStyle = SidebarClockStyle.fromValue(prefs.getString(SIDEBAR_CLOCK_STYLE_KEY, null)),
+        clockWeatherEnabled = prefs.getBoolean(SIDEBAR_CLOCK_WEATHER_ENABLED_KEY, true),
         weatherLabel = prefs.getString(SIDEBAR_WEATHER_LABEL_KEY, "").orEmpty(),
         weatherTemperature = prefs.getString(SIDEBAR_WEATHER_TEMPERATURE_KEY, "").orEmpty(),
         imageUriString = prefs.getString(SIDEBAR_IMAGE_URI_KEY, null),
@@ -171,6 +179,7 @@ fun writeSidebarWidgetConfig(context: Context, config: SidebarWidgetConfig) {
     sidebarWidgetPreferences(context).edit(commit = true) {
         putString(SIDEBAR_WIDGET_TYPE_KEY, value.widgetType.value)
         putString(SIDEBAR_CLOCK_STYLE_KEY, value.clockStyle.value)
+        putBoolean(SIDEBAR_CLOCK_WEATHER_ENABLED_KEY, value.clockWeatherEnabled)
         putString(SIDEBAR_WEATHER_LABEL_KEY, value.weatherLabel)
         putString(SIDEBAR_WEATHER_TEMPERATURE_KEY, value.weatherTemperature)
         if (value.imageUriString == null) {
@@ -221,6 +230,7 @@ const val SIDEBAR_WIDGET_IMAGE_STORAGE_KEY = "sidebar_widget_custom_image"
 private const val SIDEBAR_WIDGET_PREFS_NAME = "settings"
 private const val SIDEBAR_WIDGET_TYPE_KEY = "sidebar_widget_type"
 private const val SIDEBAR_CLOCK_STYLE_KEY = "sidebar_widget_clock_style"
+private const val SIDEBAR_CLOCK_WEATHER_ENABLED_KEY = "sidebar_widget_clock_weather_enabled"
 private const val SIDEBAR_WEATHER_LABEL_KEY = "sidebar_widget_weather_label"
 private const val SIDEBAR_WEATHER_TEMPERATURE_KEY = "sidebar_widget_weather_temperature"
 private const val SIDEBAR_IMAGE_URI_KEY = "sidebar_widget_image_uri"
@@ -235,6 +245,7 @@ private const val MAX_WEATHER_TEMPERATURE_LENGTH = 12
 private val SIDEBAR_WIDGET_KEYS = setOf(
     SIDEBAR_WIDGET_TYPE_KEY,
     SIDEBAR_CLOCK_STYLE_KEY,
+    SIDEBAR_CLOCK_WEATHER_ENABLED_KEY,
     SIDEBAR_WEATHER_LABEL_KEY,
     SIDEBAR_WEATHER_TEMPERATURE_KEY,
     SIDEBAR_IMAGE_URI_KEY,

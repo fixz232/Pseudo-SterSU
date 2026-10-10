@@ -260,8 +260,26 @@ class CloudThemeInstaller(
     private suspend fun downloadThemePackage(
         theme: CloudTheme,
         onProgress: (CloudThemeOperationProgress) -> Unit,
-    ): File = withContext(Dispatchers.IO) {
+    ): File {
         val validatedUrl = validateCloudThemeUrl(theme.downloadUrl, allowPackage = true)
+        var failure: Throwable? = null
+        for (url in resolveStoreDownloadUrls(validatedUrl, readStoreDownloadSettings(appContext))) {
+            try {
+                return downloadThemePackageFromUrl(theme, url, onProgress)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                failure = error
+            }
+        }
+        throw failure ?: IOException("Cloud theme download failed")
+    }
+
+    private suspend fun downloadThemePackageFromUrl(
+        theme: CloudTheme,
+        url: String,
+        onProgress: (CloudThemeOperationProgress) -> Unit,
+    ): File = withContext(Dispatchers.IO) {
         require(theme.sizeBytes in 1..CLOUD_THEME_MAX_PACKAGE_BYTES) {
             "Cloud theme package size is invalid"
         }
@@ -271,7 +289,7 @@ class CloudThemeInstaller(
             ".${theme.id}-${theme.versionCode}-${System.nanoTime()}.kstheme.part",
         )
         val request = Request.Builder()
-            .url(validatedUrl)
+            .url(url)
             .header("Accept", "application/zip, application/octet-stream")
             .build()
         val call = client.newCall(request)
@@ -282,7 +300,8 @@ class CloudThemeInstaller(
                 if (!response.isSuccessful) throw IOException("Cloud theme download HTTP ${response.code}")
                 require(
                     response.request.url.scheme == "https" &&
-                        isAllowedCloudThemeHost(response.request.url.host)
+                        (response.request.url.host == request.url.host ||
+                            isAllowedCloudThemeHost(response.request.url.host))
                 ) {
                     "Cloud theme download redirected to an unsupported host"
                 }

@@ -7,9 +7,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -61,6 +64,7 @@ import java.util.Date
 
 @Composable
 internal fun SidebarWeatherSummary(config: SidebarWidgetConfig, compact: Boolean) {
+    if (!config.weatherApi.canFetch() && config.weatherTemperature.isBlank() && config.weatherLabel.isBlank()) return
     val state = rememberSidebarWeatherState(config.weatherApi)
     val temperature = if (config.weatherApi.canFetch()) {
         state.reading?.let { reading ->
@@ -68,18 +72,35 @@ internal fun SidebarWeatherSummary(config: SidebarWidgetConfig, compact: Boolean
         }.orEmpty()
     } else config.weatherTemperature
     val description = if (config.weatherApi.canFetch()) state.reading?.description.orEmpty() else config.weatherLabel
-    val text = listOf(description, temperature).filter(String::isNotBlank).joinToString(" ").ifBlank {
-        if (state.loading) stringResource(R.string.sidebar_weather_updating) else "—"
+    val headline = temperature.ifBlank { description.ifBlank { if (state.loading) "…" else "—" } }
+    val condition = state.reading?.condition ?: weatherCondition(description)
+    Column(
+        modifier = Modifier.fillMaxWidth()
+            .background(LocalContentColor.current.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+            .padding(horizontal = 3.dp, vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+            Icon(condition.icon(), contentDescription = stringResource(R.string.sidebar_widget_type_weather), modifier = Modifier.size(if (compact) 12.dp else 14.dp))
+            Spacer(Modifier.width(2.dp))
+            Text(
+                text = headline,
+                fontSize = if (compact) 10.sp else 12.sp,
+                lineHeight = if (compact) 14.sp else 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (temperature.isNotBlank() && description.isNotBlank()) Text(
+            text = description,
+            fontSize = if (compact) 9.sp else 11.sp,
+            lineHeight = if (compact) 12.sp else 14.sp,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
-    Text(
-        text = text,
-        fontSize = if (compact) 10.sp else 12.sp,
-        lineHeight = if (compact) 14.sp else 16.sp,
-        fontWeight = FontWeight.Medium,
-        textAlign = TextAlign.Center,
-        maxLines = 2,
-        overflow = TextOverflow.Ellipsis,
-    )
 }
 
 @Composable

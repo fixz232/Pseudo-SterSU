@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -81,7 +82,7 @@ internal fun SidebarHomeCardOptions(config: SidebarWidgetConfig, onUpdate: (Side
     val latestUpdate by rememberUpdatedState(onUpdate)
     val systemDark = isInDarkTheme()
     var editingDark by rememberSaveable { mutableStateOf(systemDark) }
-    var layoutName by rememberSaveable { mutableStateOf(config.homeLayout.value) }
+    var layoutName by rememberSaveable(config.homeLayout) { mutableStateOf(config.homeLayout.value) }
     val layout = SidebarHomeLayout.fromValue(layoutName)
     val ids = sidebarHomeCardIds(layout)
     var selectedName by rememberSaveable { mutableStateOf(ids.first().value) }
@@ -145,7 +146,8 @@ internal fun SidebarHomeCardOptions(config: SidebarWidgetConfig, onUpdate: (Side
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(stringResource(R.string.sidebar_home_cards_scope), style = MaterialTheme.typography.bodySmall)
+        Text(stringResource(R.string.sidebar_home_cards_scope), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource(R.string.sidebar_home_cards_edit_layout), style = MaterialTheme.typography.labelLarge)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             SidebarHomeLayout.entries.forEach { item ->
                 FilterChip(selected = layout == item, onClick = {
@@ -155,12 +157,14 @@ internal fun SidebarHomeCardOptions(config: SidebarWidgetConfig, onUpdate: (Side
                 }, enabled = !importing, label = { Text(stringResource(item.cardLayoutLabel())) }, modifier = Modifier.heightIn(min = 48.dp))
             }
         }
+        Text(stringResource(R.string.sidebar_home_cards_edit_card), style = MaterialTheme.typography.labelLarge)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ids.forEach { id ->
                 FilterChip(selected = selected == id, onClick = { selectedName = id.value; imageError = false }, enabled = !importing,
                     label = { Text(stringResource(id.cardLabel())) }, modifier = Modifier.heightIn(min = 48.dp))
             }
         }
+        Text(stringResource(R.string.sidebar_palette_mode), style = MaterialTheme.typography.labelLarge)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf(false, true).forEach { dark ->
                 FilterChip(selected = editingDark == dark, onClick = { editingDark = dark; imageError = false }, enabled = !importing,
@@ -168,6 +172,7 @@ internal fun SidebarHomeCardOptions(config: SidebarWidgetConfig, onUpdate: (Side
                     modifier = Modifier.heightIn(min = 48.dp))
             }
         }
+        HorizontalDivider()
         // Preview the selected theme, never a captured frame from the settings page.
         CompositionLocalProvider(LocalSidebarGlassBackdrop provides null) {
             MaterialTheme(colorScheme = if (editingDark) darkColorScheme() else lightColorScheme()) {
@@ -179,7 +184,7 @@ internal fun SidebarHomeCardOptions(config: SidebarWidgetConfig, onUpdate: (Side
                 }
             }
         }
-        Text(stringResource(R.string.sidebar_home_cards_preview_hint), style = MaterialTheme.typography.bodySmall)
+        HorizontalDivider()
         Text(stringResource(R.string.sidebar_home_cards_image), style = MaterialTheme.typography.titleSmall)
         if (importing) {
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
@@ -210,6 +215,7 @@ internal fun SidebarHomeCardOptions(config: SidebarWidgetConfig, onUpdate: (Side
                 releaseUnused(style.imageUri, cards)
             }, enabled = !importing, modifier = Modifier.heightIn(min = 48.dp)) { Text(stringResource(R.string.sidebar_home_cards_inherit)) }
         }
+        HorizontalDivider()
         Text(stringResource(R.string.sidebar_home_cards_material), style = MaterialTheme.typography.titleSmall)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             SidebarCardMaterial.entries.forEach { material ->
@@ -233,6 +239,7 @@ internal fun SidebarHomeCardOptions(config: SidebarWidgetConfig, onUpdate: (Side
                 modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = tintLabel })
         }
         if (style.material != SidebarCardMaterial.Default || style.imageUri != null || !style.inheritImage) {
+            Text(stringResource(R.string.sidebar_palette_colors_title), style = MaterialTheme.typography.titleSmall)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 CardColorRole.entries.filter { role ->
                     when {
@@ -250,6 +257,7 @@ internal fun SidebarHomeCardOptions(config: SidebarWidgetConfig, onUpdate: (Side
                 }
             }
         }
+        HorizontalDivider()
         Text(stringResource(R.string.sidebar_home_cards_readability), style = MaterialTheme.typography.bodySmall)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = { confirmAction = "apply" }, enabled = !importing, modifier = Modifier.heightIn(min = 48.dp)) {

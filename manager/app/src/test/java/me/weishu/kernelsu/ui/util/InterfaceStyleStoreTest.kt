@@ -198,7 +198,7 @@ class InterfaceStyleStoreTest {
         val original = "https://raw.githubusercontent.com/fixz232/store/main/spring.ksstyle"
         val urls = resolveInterfaceStyleUrls(
             original,
-            InterfaceStyleDownloadPreferences(mode = InterfaceStyleProxyMode.Auto),
+            StoreDownloadSettings(accelerated = true),
         )
 
         assertEquals(2, urls.size)
@@ -207,29 +207,24 @@ class InterfaceStyleStoreTest {
     }
 
     @Test
-    fun customProxyNeverReceivesAnythingExceptOriginalUrl() {
+    fun customAcceleratorFallsBackToOriginalUrl() {
         val original = "https://raw.githubusercontent.com/fixz232/store/main/spring.ksstyle"
         val urls = resolveInterfaceStyleUrls(
             original,
-            InterfaceStyleDownloadPreferences(
-                mode = InterfaceStyleProxyMode.Custom,
-                customProxy = "https://proxy.example/download",
-            ),
+            StoreDownloadSettings(accelerated = true, acceleratorAddress = "https://proxy.example/download"),
         )
 
-        assertEquals(1, urls.size)
-        assertTrue(urls.single().startsWith("https://proxy.example/download/https://raw.githubusercontent.com/"))
+        assertEquals(2, urls.size)
+        assertTrue(urls.first().startsWith("https://proxy.example/download/https://raw.githubusercontent.com/"))
+        assertEquals(original, urls.last())
     }
 
     @Test
-    fun emptyCustomProxyFallsBackToDirectGithub() {
+    fun disabledAccelerationUsesDirectGithub() {
         val original = "https://raw.githubusercontent.com/fixz232/store/main/spring.ksstyle"
         val urls = resolveInterfaceStyleUrls(
             original,
-            InterfaceStyleDownloadPreferences(
-                mode = InterfaceStyleProxyMode.Custom,
-                customProxy = "",
-            ),
+            StoreDownloadSettings(accelerated = false),
         )
 
         assertEquals(listOf(original), urls)

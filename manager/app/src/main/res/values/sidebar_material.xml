@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="sidebar_material_title">Material and colors</string>
-    <string name="sidebar_material_saved_hint">Changes save automatically. Fine-tuning sliders apply when released.</string>
+    <string name="sidebar_material_saved_hint">Auto-saved · sliders apply when released.</string>
     <string name="sidebar_design_home_tab">Home</string>
     <string name="sidebar_material_liquid">Liquid glass</string>
     <string name="sidebar_material_neumorphic">Neumorphic glass</string>
@@ -11,9 +11,11 @@
     <string name="sidebar_material_flat_summary">Solid surfaces with no blur or refraction. The lowest-overhead option.</string>
     <string name="sidebar_palette_light">Day colors</string>
     <string name="sidebar_palette_dark">Night colors</string>
-    <string name="sidebar_palette_help">Each material has separate day and night colors. Edits save automatically; custom image icons keep their original colors.</string>
+    <string name="sidebar_palette_help">Day and night colors are saved separately. Custom image icons keep their colors.</string>
     <string name="sidebar_palette_mode">Color mode</string>
     <string name="sidebar_palette_colors_title">Colors</string>
+    <string name="sidebar_palette_editor_show">Edit colors and effects</string>
+    <string name="sidebar_palette_editor_hide">Hide colors and effects</string>
     <string name="sidebar_palette_effects_title">Glass effects</string>
     <string name="sidebar_palette_background">Top color</string>
     <string name="sidebar_palette_background_end">Bottom color</string>

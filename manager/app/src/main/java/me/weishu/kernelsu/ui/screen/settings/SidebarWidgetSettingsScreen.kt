@@ -19,18 +19,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.ViewSidebar
 import androidx.compose.material.icons.rounded.Alarm
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
@@ -44,20 +41,24 @@ import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -188,25 +189,23 @@ fun SidebarWidgetSettingsScreen() {
                     modifier = Modifier.fillMaxSize(),
                     horizontalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
-                    SidebarWidgetControls(
-                        config = config,
-                        onUpdate = ::update,
-                        selectedSection = selectedSection,
-                        onSelectSection = { selectedSection = it },
-                        editingDark = editingDark,
-                        onEditingDarkChange = { editingDark = it },
-                        onEditNavigationIcons = { navigator.push(Route.NavigationIcons) },
-                        onPickImage = { imageLauncher.launch(arrayOf("image/*")) },
-                        onClearImage = {
-                            releaseCustomImageReference(context, config.imageUriString)
-                            update(config.copy(imageUriString = null))
-                        },
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .verticalScroll(controlsScrollState)
-                            .padding(bottom = 24.dp),
-                    )
+                    Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                        SidebarDesignTabs(selectedSection) { selectedSection = it }
+                        SidebarWidgetControls(
+                            config = config,
+                            onUpdate = ::update,
+                            selectedSection = selectedSection,
+                            editingDark = editingDark,
+                            onEditingDarkChange = { editingDark = it },
+                            onEditNavigationIcons = { navigator.push(Route.NavigationIcons) },
+                            onPickImage = { imageLauncher.launch(arrayOf("image/*")) },
+                            onClearImage = {
+                                releaseCustomImageReference(context, config.imageUriString)
+                                update(config.copy(imageUriString = null))
+                            },
+                            modifier = Modifier.weight(1f).verticalScroll(controlsScrollState).padding(bottom = 24.dp),
+                        )
+                    }
                     MaterialTheme(colorScheme = if (previewDark) darkColorScheme() else lightColorScheme()) {
                         SidebarWidgetPreview(
                             config = config,
@@ -220,17 +219,16 @@ fun SidebarWidgetSettingsScreen() {
                 }
             } else {
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(controlsScrollState)
-                        .padding(bottom = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    modifier = Modifier.fillMaxSize(),
                 ) {
+                    SidebarDesignTabs(selectedSection) {
+                        selectedSection = it
+                        previewExpanded = false
+                    }
                     SidebarWidgetControls(
                         config = config,
                         onUpdate = ::update,
                         selectedSection = selectedSection,
-                        onSelectSection = { selectedSection = it },
                         editingDark = editingDark,
                         onEditingDarkChange = { editingDark = it },
                         previewExpanded = previewExpanded,
@@ -241,7 +239,7 @@ fun SidebarWidgetSettingsScreen() {
                                     config = config,
                                     dark = previewDark,
                                     compact = selectedSection == 0,
-                                    modifier = Modifier.fillMaxWidth().height(if (selectedSection == 0) 252.dp else 360.dp),
+                                    modifier = Modifier.fillMaxWidth().height(if (selectedSection == 0) 248.dp else 320.dp),
                                 )
                             }
                         },
@@ -251,9 +249,29 @@ fun SidebarWidgetSettingsScreen() {
                             releaseCustomImageReference(context, config.imageUriString)
                             update(config.copy(imageUriString = null))
                         },
+                        modifier = Modifier.weight(1f).verticalScroll(controlsScrollState).padding(bottom = 24.dp),
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SidebarDesignTabs(selectedSection: Int, onSelectSection: (Int) -> Unit) {
+    val labels = listOf(
+        R.string.sidebar_design_appearance_tab,
+        R.string.sidebar_design_widgets_tab,
+        R.string.sidebar_design_navigation_tab,
+        R.string.sidebar_design_home_tab,
+    )
+    PrimaryTabRow(selectedTabIndex = selectedSection, containerColor = Color.Transparent) {
+        labels.forEachIndexed { index, label ->
+            Tab(
+                selected = selectedSection == index,
+                onClick = { onSelectSection(index) },
+                text = { Text(stringResource(label), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            )
         }
     }
 }
@@ -263,7 +281,6 @@ private fun SidebarWidgetControls(
     config: SidebarWidgetConfig,
     onUpdate: (SidebarWidgetConfig) -> Unit,
     selectedSection: Int,
-    onSelectSection: (Int) -> Unit,
     editingDark: Boolean,
     onEditingDarkChange: (Boolean) -> Unit,
     previewExpanded: Boolean = false,
@@ -274,46 +291,17 @@ private fun SidebarWidgetControls(
     onClearImage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            listOf(
-                R.string.sidebar_design_appearance_tab,
-                R.string.sidebar_design_widgets_tab,
-                R.string.sidebar_design_navigation_tab,
-                R.string.sidebar_design_home_tab,
-            ).forEachIndexed { index, label ->
-                FilterChip(
-                    selected = selectedSection == index,
-                    onClick = { onSelectSection(index) },
-                    label = { Text(stringResource(label)) },
-                    modifier = Modifier.heightIn(min = 48.dp),
-                )
-            }
-        }
-        Text(
-            text = stringResource(when (selectedSection) {
-                0 -> R.string.sidebar_material_saved_hint
-                3 -> R.string.sidebar_home_cards_saved_hint
-                else -> R.string.sidebar_design_saved_hint
-            }),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+    var homeCardsExpanded by rememberSaveable { mutableStateOf(false) }
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(20.dp)) {
         if (preview != null) {
-            if (selectedSection != 0) {
-                OutlinedButton(onClick = onTogglePreview, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(if (previewExpanded) R.string.sidebar_design_preview_hide else R.string.sidebar_design_preview_show))
-                }
+            OutlinedButton(onClick = onTogglePreview, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                Text(stringResource(if (previewExpanded) R.string.sidebar_design_preview_hide else R.string.sidebar_design_preview_show))
             }
-            if (selectedSection == 0 || previewExpanded) preview()
+            if (previewExpanded) preview()
         }
         if (selectedSection == 3) {
             SettingsSection(
                 title = stringResource(R.string.sidebar_home_layout_title),
-                icon = Icons.Rounded.Home,
             ) {
                 Text(
                     stringResource(R.string.sidebar_home_layout_summary),
@@ -331,14 +319,16 @@ private fun SidebarWidgetControls(
                     }
                 }
             }
-            SettingsSection(title = stringResource(R.string.sidebar_home_cards_title), icon = Icons.Rounded.Home) {
-                SidebarHomeCardOptions(config, onUpdate)
+            SettingsSection(title = stringResource(R.string.sidebar_home_cards_title)) {
+                OutlinedButton(onClick = { homeCardsExpanded = !homeCardsExpanded }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    Text(stringResource(if (homeCardsExpanded) R.string.sidebar_home_cards_customize_hide else R.string.sidebar_home_cards_customize_show))
+                }
+                if (homeCardsExpanded) SidebarHomeCardOptions(config, onUpdate)
             }
         }
         if (selectedSection == 0) {
             SettingsSection(
                 title = stringResource(R.string.sidebar_material_title),
-                icon = Icons.Rounded.Tune,
             ) {
                 SidebarMaterialOptions(config, editingDark, onEditingDarkChange, onUpdate)
             }
@@ -346,7 +336,6 @@ private fun SidebarWidgetControls(
         if (selectedSection == 1) {
             SettingsSection(
                 title = stringResource(R.string.sidebar_avatar_title),
-                icon = Icons.Rounded.Image,
             ) {
                 Text(
                     stringResource(R.string.sidebar_avatar_summary),
@@ -357,7 +346,6 @@ private fun SidebarWidgetControls(
             }
             SettingsSection(
                 title = stringResource(R.string.sidebar_widget_component_title),
-                icon = Icons.Rounded.Tune,
             ) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     SidebarWidgetType.entries.forEach { type ->
@@ -366,6 +354,7 @@ private fun SidebarWidgetControls(
                             onClick = { onUpdate(config.copy(widgetType = type)) },
                             label = { Text(stringResource(type.labelRes())) },
                             leadingIcon = { Icon(type.icon(), contentDescription = null, modifier = Modifier.size(18.dp)) },
+                            modifier = Modifier.heightIn(min = 48.dp),
                         )
                     }
                 }
@@ -382,9 +371,9 @@ private fun SidebarWidgetControls(
         }
         if (selectedSection == 2) {
             SettingsSection(
-                title = stringResource(R.string.sidebar_widget_side_title),
-                icon = Icons.AutoMirrored.Rounded.ViewSidebar,
+                title = stringResource(R.string.sidebar_navigation_layout_title),
             ) {
+                Text(stringResource(R.string.sidebar_widget_side_title), style = MaterialTheme.typography.labelLarge)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     SidebarSide.entries.forEach { side ->
                         FilterChip(
@@ -395,29 +384,25 @@ private fun SidebarWidgetControls(
                         )
                     }
                 }
-            }
-            OutlinedButton(onClick = onEditNavigationIcons, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Rounded.Image, contentDescription = null, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.sidebar_design_icons))
-            }
-            SettingsSection(
-                title = stringResource(R.string.sidebar_widget_navigation_position_title),
-                icon = Icons.Rounded.Schedule,
-            ) {
+                Text(stringResource(R.string.sidebar_widget_navigation_position_title), style = MaterialTheme.typography.labelLarge)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     SidebarNavigationPosition.entries.forEach { position ->
                         FilterChip(
                             selected = config.navigationPosition == position,
                             onClick = { onUpdate(config.copy(navigationPosition = position)) },
                             label = { Text(stringResource(position.labelRes())) },
+                            modifier = Modifier.heightIn(min = 48.dp),
                         )
                     }
+                }
+                OutlinedButton(onClick = onEditNavigationIcons, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    Icon(Icons.Rounded.Image, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.sidebar_design_icons))
                 }
             }
             SettingsSection(
                 title = stringResource(R.string.sidebar_widget_navigation_order_title),
-                icon = Icons.Rounded.Home,
             ) {
                 config.navigationOrder.forEachIndexed { index, id ->
                     val spec = navigationSpec(id) ?: return@forEachIndexed
@@ -426,15 +411,7 @@ private fun SidebarWidgetControls(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        Box(
-                            modifier = Modifier.size(36.dp).background(
-                                MaterialTheme.colorScheme.primaryContainer,
-                                CircleShape,
-                            ),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(spec.icon, contentDescription = null, modifier = Modifier.size(20.dp))
-                        }
+                        Icon(spec.icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(
                             text = stringResource(spec.labelRes),
                             modifier = Modifier.weight(1f),
@@ -454,27 +431,75 @@ private fun SidebarWidgetControls(
                             Icon(Icons.Rounded.ArrowDownward, contentDescription = stringResource(R.string.sidebar_widget_move_down))
                         }
                     }
+                    if (index < config.navigationOrder.lastIndex) HorizontalDivider()
                 }
             }
         }
+        Text(
+            text = stringResource(when (selectedSection) {
+                0 -> R.string.sidebar_material_saved_hint
+                3 -> R.string.sidebar_home_cards_saved_hint
+                else -> R.string.sidebar_design_saved_hint
+            }),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
 @Composable
 private fun ClockOptions(config: SidebarWidgetConfig, onUpdate: (SidebarWidgetConfig) -> Unit) {
+    var weatherSettingsExpanded by rememberSaveable { mutableStateOf(false) }
+    var gradientStyles by rememberSaveable { mutableStateOf(config.clockStyle.gradient) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = stringResource(R.string.sidebar_widget_clock_style_title),
             style = MaterialTheme.typography.labelLarge,
         )
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SidebarClockStyle.entries.forEach { style ->
+            listOf(false, true).forEach { gradient ->
+                FilterChip(
+                    selected = gradientStyles == gradient,
+                    onClick = { gradientStyles = gradient },
+                    label = { Text(stringResource(if (gradient) R.string.sidebar_widget_clock_gradient_group else R.string.sidebar_widget_clock_classic_group)) },
+                    modifier = Modifier.heightIn(min = 48.dp),
+                )
+            }
+        }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SidebarClockStyle.entries.filter { it.gradient == gradientStyles }.forEach { style ->
                 FilterChip(
                     selected = config.clockStyle == style,
                     onClick = { onUpdate(config.copy(clockStyle = style)) },
                     label = { Text(stringResource(style.labelRes())) },
+                    modifier = Modifier.heightIn(min = 48.dp),
                 )
             }
+        }
+        HorizontalDivider()
+        Row(
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.sidebar_widget_clock_weather_title), style = MaterialTheme.typography.labelLarge)
+                Text(
+                    stringResource(R.string.sidebar_widget_clock_weather_summary),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Switch(
+                checked = config.clockWeatherEnabled,
+                onCheckedChange = { onUpdate(config.copy(clockWeatherEnabled = it)) },
+            )
+        }
+        if (config.clockWeatherEnabled) {
+            TextButton(onClick = { weatherSettingsExpanded = !weatherSettingsExpanded }) {
+                Text(stringResource(if (weatherSettingsExpanded) R.string.sidebar_widget_clock_weather_hide_settings else R.string.sidebar_widget_clock_weather_settings))
+            }
+            if (weatherSettingsExpanded) SidebarWeatherOptions(config, onUpdate)
         }
     }
 }
@@ -511,6 +536,7 @@ private fun AvatarOptions(
                     selected = config.imageShape == shape,
                     onClick = { onUpdate(config.copy(imageShape = shape)) },
                     label = { Text(stringResource(shape.labelRes())) },
+                    modifier = Modifier.heightIn(min = 48.dp),
                 )
             }
         }
@@ -520,23 +546,15 @@ private fun AvatarOptions(
 @Composable
 private fun SettingsSection(
     title: String,
-    icon: ImageVector,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-        shape = RoundedCornerShape(16.dp),
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            }
-            content()
-        }
+        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        content()
+        HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
     }
 }
 
@@ -736,6 +754,12 @@ private fun SidebarClockStyle.labelRes(): Int = when (this) {
     SidebarClockStyle.Stacked -> R.string.sidebar_widget_clock_stacked
     SidebarClockStyle.Compact -> R.string.sidebar_widget_clock_compact
     SidebarClockStyle.DateFirst -> R.string.sidebar_widget_clock_date_first
+    SidebarClockStyle.Minimal -> R.string.sidebar_widget_clock_minimal
+    SidebarClockStyle.Calendar -> R.string.sidebar_widget_clock_calendar
+    SidebarClockStyle.Dial -> R.string.sidebar_widget_clock_dial
+    SidebarClockStyle.AuroraDigits -> R.string.sidebar_widget_clock_aurora_digits
+    SidebarClockStyle.SunsetDigits -> R.string.sidebar_widget_clock_sunset_digits
+    SidebarClockStyle.DualTiles -> R.string.sidebar_widget_clock_dual_tiles
 }
 
 @StringRes

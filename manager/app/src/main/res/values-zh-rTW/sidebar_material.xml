@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="sidebar_material_title">側欄材質與配色</string>
-    <string name="sidebar_material_saved_hint">修改會自動儲存；微調滑桿在放開後套用。</string>
+    <string name="sidebar_material_saved_hint">自動儲存 · 滑桿放開後套用。</string>
     <string name="sidebar_design_home_tab">首頁</string>
     <string name="sidebar_material_liquid">液態玻璃</string>
     <string name="sidebar_material_neumorphic">擬態玻璃</string>
@@ -11,9 +11,11 @@
     <string name="sidebar_material_flat_summary">純色表面，不使用模糊或折射，繪製負擔最低。</string>
     <string name="sidebar_palette_light">日間配色</string>
     <string name="sidebar_palette_dark">夜間配色</string>
-    <string name="sidebar_palette_help">每種材質的日夜配色分別儲存。修改會自動儲存；自訂圖片圖示保留原色。</string>
+    <string name="sidebar_palette_help">日夜配色分別儲存；自訂圖片圖示保留原色。</string>
     <string name="sidebar_palette_mode">配色模式</string>
     <string name="sidebar_palette_colors_title">顏色</string>
+    <string name="sidebar_palette_editor_show">調整顏色與效果</string>
+    <string name="sidebar_palette_editor_hide">收起顏色與效果</string>
     <string name="sidebar_palette_effects_title">玻璃效果</string>
     <string name="sidebar_palette_background">頂部底色</string>
     <string name="sidebar_palette_background_end">底部底色</string>

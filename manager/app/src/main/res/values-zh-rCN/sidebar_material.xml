@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="sidebar_material_title">侧栏材质与配色</string>
-    <string name="sidebar_material_saved_hint">修改自动保存；精调滑块在松手后应用。</string>
+    <string name="sidebar_material_saved_hint">自动保存 · 滑块松手后应用。</string>
     <string name="sidebar_design_home_tab">主页</string>
     <string name="sidebar_material_liquid">液态玻璃</string>
     <string name="sidebar_material_neumorphic">拟态玻璃</string>
@@ -11,9 +11,11 @@
     <string name="sidebar_material_flat_summary">纯色表面，不使用模糊或折射，渲染开销最低。</string>
     <string name="sidebar_palette_light">日间配色</string>
     <string name="sidebar_palette_dark">夜间配色</string>
-    <string name="sidebar_palette_help">每种材质的日夜配色独立保存。修改自动保存；自定义图片图标保留原色。</string>
+    <string name="sidebar_palette_help">日夜配色分别保存；自定义图片图标保留原色。</string>
     <string name="sidebar_palette_mode">配色模式</string>
     <string name="sidebar_palette_colors_title">颜色</string>
+    <string name="sidebar_palette_editor_show">调整颜色与效果</string>
+    <string name="sidebar_palette_editor_hide">收起颜色与效果</string>
     <string name="sidebar_palette_effects_title">玻璃效果</string>
     <string name="sidebar_palette_background">顶部底色</string>
     <string name="sidebar_palette_background_end">底部底色</string>

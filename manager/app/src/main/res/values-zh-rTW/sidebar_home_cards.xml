@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="sidebar_home_cards_title">首頁卡片</string>
-    <string name="sidebar_home_cards_saved_hint">變更自動儲存。顏色需點選「套用顏色」，透明度在放開滑桿後儲存。</string>
-    <string name="sidebar_home_cards_scope">僅影響側欄元件首頁。依序選擇版面、卡片和日夜模式；編輯版面不會切換目前首頁。「支援開發」和「瞭解」在兩種版面間共用外觀。隱藏的卡片不會重新顯示，安全警告保持原樣。</string>
+    <string name="sidebar_home_cards_customize_show">自訂卡片</string>
+    <string name="sidebar_home_cards_customize_hide">收起卡片設定</string>
+    <string name="sidebar_home_cards_edit_layout">編輯版面</string>
+    <string name="sidebar_home_cards_edit_card">編輯卡片</string>
+    <string name="sidebar_home_cards_saved_hint">自動儲存 · 顏色確認後套用，滑桿放開後儲存。</string>
+    <string name="sidebar_home_cards_scope">選擇要編輯的版面、卡片與日夜配色。編輯版面不會切換目前首頁。</string>
     <string name="sidebar_home_cards_preview">卡片預覽 · 不會修改真實裝置資訊</string>
     <string name="sidebar_home_cards_preview_hint">此處預覽選中的卡片外觀，原桌布需返回首頁查看。折射效果取決於裝置和背景，不支援時使用靜態漸層。</string>
     <string name="sidebar_home_cards_image">卡片圖片</string>

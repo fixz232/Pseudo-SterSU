@@ -640,4 +640,13 @@
     <string name="module_tools_title">模組工具</string>
     <string name="module_tools_repository_summary">瀏覽並安裝已設定儲存庫中的模組。</string>
     <string name="module_tools_wallpaper_summary">備份、還原及管理模組卡片桌布。</string>
+    <string name="sidebar_design_appearance_tab">外觀</string>
+    <string name="sidebar_design_widgets_tab">元件</string>
+    <string name="sidebar_design_navigation_tab">導覽</string>
+    <string name="sidebar_navigation_layout_title">側欄導覽</string>
+    <string name="store_download_acceleration">加速下載</string>
+    <string name="store_download_acceleration_summary">為 GitHub 下載資源啟用加速通道</string>
+    <string name="store_download_address">加速位址</string>
+    <string name="store_download_invalid_address">請輸入 HTTPS 加速位址，不能填寫 github.com 來源站</string>
+    <string name="store_download_explanation">來源站：https://github.com/。留空使用內建加速通道。第三方加速服務可看到所請求的資源位址；失敗時回退 GitHub 直連，下載後仍會驗證簽章或 SHA-256。</string>
 </resources>

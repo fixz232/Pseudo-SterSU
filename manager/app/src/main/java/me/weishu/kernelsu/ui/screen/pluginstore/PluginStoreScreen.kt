@@ -90,7 +90,6 @@ import me.weishu.kernelsu.ui.util.ManagerPluginRegistry
 import me.weishu.kernelsu.ui.util.PluginRemovalResult
 import me.weishu.kernelsu.ui.util.PluginCatalogSource
 import me.weishu.kernelsu.ui.util.PluginDownloadProgress
-import me.weishu.kernelsu.ui.util.PluginDownloadRoute
 import me.weishu.kernelsu.ui.util.PluginSlot
 import me.weishu.kernelsu.ui.util.checkManagerPluginCompatibility
 import me.weishu.kernelsu.ui.util.disableNativeWebManagerAndVerify
@@ -103,8 +102,6 @@ import me.weishu.kernelsu.ui.util.stopPathmaskPluginForRemoval
 import me.weishu.kernelsu.ui.util.unloadHiddenPathKernelPaths
 import me.weishu.kernelsu.ui.webmanager.WebManagerPreferences
 import me.weishu.kernelsu.ui.webmanager.WebManagerServer
-import java.text.DateFormat
-import java.util.Date
 
 @Composable
 fun PluginStoreScreen() {
@@ -118,7 +115,6 @@ fun PluginStoreScreen() {
     var installed by remember { mutableStateOf(emptyList<InstalledManagerPlugin>()) }
     var busyId by remember { mutableStateOf<String?>(null) }
     var progress by remember { mutableStateOf<PluginDownloadProgress?>(null) }
-    var route by remember { mutableStateOf(PluginDownloadRoute.Accelerator) }
     var detailsId by rememberSaveable { mutableStateOf<String?>(null) }
     var confirmRemoval by remember { mutableStateOf<ManagerPluginPackage?>(null) }
     var refreshing by remember { mutableStateOf(false) }
@@ -148,7 +144,7 @@ fun PluginStoreScreen() {
             }
             try {
                 val snapshot = try {
-                    repository.fetch(forceNetwork = force, route = route)
+                    repository.fetch(forceNetwork = force)
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (error: Throwable) {
@@ -159,7 +155,7 @@ fun PluginStoreScreen() {
                 if (!force && snapshot?.source == PluginCatalogSource.Cache && snapshot.stale) {
                     try {
                         catalog = ManagerPluginCatalogSnapshotState.Ready(
-                            repository.fetch(forceNetwork = true, route = route),
+                            repository.fetch(forceNetwork = true),
                         )
                     } catch (cancelled: CancellationException) {
                         throw cancelled
@@ -193,7 +189,7 @@ fun PluginStoreScreen() {
         progress = null
         scope.launch {
             try {
-                installer.install(plugin, route) {
+                installer.install(plugin) {
                     scope.launch(Dispatchers.Main.immediate) {
                         if (busyId == plugin.id) progress = it
                     }
@@ -363,6 +359,9 @@ fun PluginStoreScreen() {
                             item(key = "heading") {
                                 StoreSectionHeading(stringResource(R.string.store_tab_plugins),
                                     stringResource(R.string.store_redesign_plugin_intro))
+                                Text(stringResource(R.string.plugin_store_security_notice),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             item(key = "search") {
                                 StoreSearchField(query, { query = it }, stringResource(R.string.store_redesign_plugin_search))
@@ -371,27 +370,6 @@ fun PluginStoreScreen() {
                                 StoreFilters(listOf(stringResource(R.string.cloud_theme_category_all),
                                     stringResource(R.string.store_redesign_installed), stringResource(R.string.store_redesign_updates)),
                                     selectedFilter, { selectedFilter = it })
-                            }
-                            item(key = "network") {
-                                StoreExpandableSection(stringResource(R.string.store_redesign_network),
-                                    stringResource(if (route == PluginDownloadRoute.Accelerator)
-                                        R.string.plugin_store_accelerated else R.string.plugin_store_direct)) {
-                                    StoreFilters(listOf(stringResource(R.string.plugin_store_accelerated), stringResource(R.string.plugin_store_direct)),
-                                        if (route == PluginDownloadRoute.Accelerator) 0 else 1,
-                                        { route = if (it == 0) PluginDownloadRoute.Accelerator else PluginDownloadRoute.Direct })
-                                    Text(stringResource(R.string.plugin_store_security_notice),
-                                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    (catalog as? ManagerPluginCatalogSnapshotState.Ready)?.snapshot?.let { snapshot ->
-                                        Text(stringResource(when (snapshot.source) {
-                                            PluginCatalogSource.Network -> R.string.plugin_store_source_network
-                                            PluginCatalogSource.Cache -> R.string.plugin_store_source_cache
-                                            PluginCatalogSource.Bundled -> R.string.plugin_store_source_bundled
-                                        }), style = MaterialTheme.typography.labelMedium)
-                                        Text(stringResource(if (snapshot.stale) R.string.plugin_store_catalog_stale else R.string.plugin_store_catalog_generated,
-                                            DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(snapshot.catalog.generatedAt))),
-                                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                }
                             }
                             if (refreshing) item { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
                             when (val state = catalog) {

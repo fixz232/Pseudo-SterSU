@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="sidebar_home_cards_title">主页卡片</string>
-    <string name="sidebar_home_cards_saved_hint">更改自动保存。颜色需点击“应用颜色”，透明度在松开滑块后保存。</string>
-    <string name="sidebar_home_cards_scope">仅影响侧栏组件主页。依次选择布局、卡片和日夜模式；编辑布局不会切换当前主页。“支持开发”和“了解”在两种布局间共用外观。隐藏的卡片不会重新显示，安全警告保持原样。</string>
+    <string name="sidebar_home_cards_customize_show">自定义卡片</string>
+    <string name="sidebar_home_cards_customize_hide">收起卡片设置</string>
+    <string name="sidebar_home_cards_edit_layout">编辑布局</string>
+    <string name="sidebar_home_cards_edit_card">编辑卡片</string>
+    <string name="sidebar_home_cards_saved_hint">自动保存 · 颜色确认后应用，滑块松手后保存。</string>
+    <string name="sidebar_home_cards_scope">选择要编辑的布局、卡片和日夜配色。编辑布局不会切换当前主页。</string>
     <string name="sidebar_home_cards_preview">卡片预览 · 不会修改真实设备信息</string>
     <string name="sidebar_home_cards_preview_hint">此处预览选中的卡片外观，原壁纸需返回主页查看。折射效果取决于设备和背景，不支持时使用静态渐变。</string>
     <string name="sidebar_home_cards_image">卡片图片</string>

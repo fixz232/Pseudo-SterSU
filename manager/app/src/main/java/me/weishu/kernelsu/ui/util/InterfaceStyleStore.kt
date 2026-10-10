@@ -4,7 +4,6 @@ import android.content.Context
 import android.graphics.BitmapFactory
 import android.util.AtomicFile
 import android.util.Log
-import androidx.core.content.edit
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -63,13 +62,6 @@ data class InterfaceStyleCatalogSnapshot(
 
 enum class InterfaceStyleCatalogSource { Network, Cache, Bundled }
 
-enum class InterfaceStyleProxyMode { Direct, Auto, Custom }
-
-data class InterfaceStyleDownloadPreferences(
-    val mode: InterfaceStyleProxyMode = InterfaceStyleProxyMode.Auto,
-    val customProxy: String = "",
-)
-
 data class InterfaceStyleDownloadProgress(
     val downloaded: Long,
     val total: Long,
@@ -100,9 +92,6 @@ private const val CATALOG_SIGNATURE_CACHE_NAME = "catalog-v2.sig"
 private const val STATE_NAME = "installed-v2.json"
 private const val BUNDLES_DIRECTORY_NAME = "packages"
 private const val PACKAGE_CACHE_DIRECTORY_NAME = "package-cache"
-private const val PREFS_NAME = "interface-style-download"
-private const val MODE_KEY = "proxy_mode"
-private const val CUSTOM_PROXY_KEY = "custom_proxy"
 private const val DEFAULT_CATALOG_URL =
     "https://raw.githubusercontent.com/fixz232/SterSU-ThemeStore/main/interface-styles/catalog-v2.json"
 private const val DEFAULT_CATALOG_SIGNATURE_URL =
@@ -139,7 +128,6 @@ private val ALLOWED_VARIANTS = mapOf(
     ),
 )
 private val ALLOWED_GITHUB_HOSTS = setOf("raw.githubusercontent.com", "github.com", "objects.githubusercontent.com")
-private val ALLOWED_PROXY_HOSTS = setOf("ghproxy.net")
 private val ALLOWED_BUNDLE_PATHS = setOf(BUNDLE_MANIFEST_PATH, THEME_RESOURCE_PATH, WALLPAPER_RESOURCE_PATH)
 private val APK_TRUSTED_INTERFACE_STYLES = listOf(
     InterfaceStylePackage(
@@ -207,25 +195,6 @@ fun interfaceStyleCatalogUrl(): String = DEFAULT_CATALOG_URL
 
 fun interfaceStylePackageFileName(style: InterfaceStylePackage): String =
     "${style.id}-v${style.version}.$INTERFACE_STYLE_PACKAGE_EXTENSION"
-
-fun readInterfaceStyleDownloadPreferences(context: Context): InterfaceStyleDownloadPreferences {
-    val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    return InterfaceStyleDownloadPreferences(
-        mode = runCatching { InterfaceStyleProxyMode.valueOf(prefs.getString(MODE_KEY, null).orEmpty()) }
-            .getOrDefault(InterfaceStyleProxyMode.Auto),
-        customProxy = prefs.getString(CUSTOM_PROXY_KEY, "").orEmpty().trim().take(240),
-    )
-}
-
-fun saveInterfaceStyleDownloadPreferences(
-    context: Context,
-    preferences: InterfaceStyleDownloadPreferences,
-) {
-    context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit {
-        putString(MODE_KEY, preferences.mode.name)
-        putString(CUSTOM_PROXY_KEY, preferences.customProxy.trim().take(240))
-    }
-}
 
 class InterfaceStyleRegistry(context: Context) {
     internal companion object Changes {
@@ -599,19 +568,19 @@ class InterfaceStyleInstaller(
 
     suspend fun install(
         style: InterfaceStylePackage,
-        preferences: InterfaceStyleDownloadPreferences = readInterfaceStyleDownloadPreferences(appContext),
+        settings: StoreDownloadSettings = readStoreDownloadSettings(appContext),
         onProgress: (InterfaceStyleDownloadProgress) -> Unit = {},
     ): InstalledInterfaceStyle = withContext(Dispatchers.IO) {
-        val verified = downloadVerifiedPackage(style, preferences, onProgress)
+        val verified = downloadVerifiedPackage(style, settings, onProgress)
         registry.install(style, verified.bundle).also { cacheVerifiedPackage(style, verified.bytes) }
     }
 
     suspend fun downloadPackage(
         style: InterfaceStylePackage,
-        preferences: InterfaceStyleDownloadPreferences = readInterfaceStyleDownloadPreferences(appContext),
+        settings: StoreDownloadSettings = readStoreDownloadSettings(appContext),
         onProgress: (InterfaceStyleDownloadProgress) -> Unit = {},
     ): ByteArray = withContext(Dispatchers.IO) {
-        downloadVerifiedPackage(style, preferences, onProgress).bytes.also { cacheVerifiedPackage(style, it) }
+        downloadVerifiedPackage(style, settings, onProgress).bytes.also { cacheVerifiedPackage(style, it) }
     }
 
     private fun cacheVerifiedPackage(style: InterfaceStylePackage, bytes: ByteArray) {
@@ -621,7 +590,7 @@ class InterfaceStyleInstaller(
 
     private fun downloadVerifiedPackage(
         style: InterfaceStylePackage,
-        preferences: InterfaceStyleDownloadPreferences,
+        settings: StoreDownloadSettings,
         onProgress: (InterfaceStyleDownloadProgress) -> Unit,
     ): VerifiedInterfaceStylePackage {
         validatePackage(style)
@@ -633,7 +602,7 @@ class InterfaceStyleInstaller(
         }
         val directUrl = validateStyleUrl(style.downloadUrl)
         val urls = runCatching {
-            resolveInterfaceStyleUrls(directUrl, preferences)
+            resolveInterfaceStyleUrls(directUrl, settings)
         }.getOrElse {
             // A stale or incomplete custom proxy setting must not prevent a
             // verified package from using GitHub directly.
@@ -953,39 +922,10 @@ private fun validateStyleUrl(raw: String): String {
 
 private fun isAllowedStyleHost(host: String): Boolean = host.lowercase(Locale.ROOT) in ALLOWED_GITHUB_HOSTS
 
-private fun validateStyleProxyUrl(raw: String): String {
-    val uri = URI(raw)
-    require(uri.scheme.equals("https", ignoreCase = true) && uri.userInfo == null && uri.fragment == null)
-    require(uri.host != null && uri.host.lowercase(Locale.ROOT) in ALLOWED_PROXY_HOSTS)
-    return raw
-}
-
 internal fun resolveInterfaceStyleUrls(
     raw: String,
-    preferences: InterfaceStyleDownloadPreferences,
-): List<String> {
-    val original = validateStyleUrl(raw)
-    return when (preferences.mode) {
-        InterfaceStyleProxyMode.Direct -> listOf(original)
-        InterfaceStyleProxyMode.Auto -> {
-            val uri = URI(original)
-            listOf("https://ghproxy.net/${uri}".also(::validateStyleProxyUrl), original)
-        }
-        InterfaceStyleProxyMode.Custom -> {
-            val proxy = preferences.customProxy.trim().removeSuffix("/")
-            if (proxy.isBlank()) return listOf(original)
-            val proxyUri = URI(proxy)
-            require(proxyUri.scheme.equals("https", ignoreCase = true) && proxyUri.userInfo == null) {
-                "Custom proxy must use HTTPS"
-            }
-            val path = if (proxyUri.path.endsWith("/")) proxyUri.path.dropLast(1) else proxyUri.path
-            val rewritten = URI(proxyUri.scheme, proxyUri.authority, "$path/${original}", null, null).toString()
-            // Custom hosts are intentionally limited to the user-entered HTTPS proxy host.
-            require(URI(rewritten).scheme.equals("https", ignoreCase = true))
-            listOf(rewritten)
-        }
-    }
-}
+    settings: StoreDownloadSettings,
+): List<String> = resolveStoreDownloadUrls(validateStyleUrl(raw), settings)
 
 internal fun verifyInterfaceStyleCatalogSignature(
     catalog: ByteArray,

@@ -72,6 +72,27 @@ class SidebarWidgetStyleTest {
     }
 
     @Test
+    fun clockStylesRoundTripAndWeatherToggleKeepsOtherOptions() {
+        SidebarClockStyle.entries.forEach { style ->
+            assertEquals(style, SidebarClockStyle.fromValue(style.value))
+        }
+        assertEquals(3, SidebarClockStyle.entries.count { it.gradient })
+        assertEquals(false, SidebarClockStyle.Stacked.gradient)
+        assertEquals(true, SidebarClockStyle.AuroraDigits.gradient)
+        assertTrue(SidebarWidgetConfig().clockWeatherEnabled)
+        assertTrue(isSidebarWidgetPreference("sidebar_widget_clock_weather_enabled"))
+        val original = SidebarWidgetConfig(
+            clockStyle = SidebarClockStyle.Dial,
+            weatherLabel = "Cloudy",
+            weatherTemperature = "21°",
+            side = SidebarSide.Right,
+        )
+        val hidden = original.copy(clockWeatherEnabled = false).normalized()
+        assertEquals(false, hidden.clockWeatherEnabled)
+        assertEquals(original, hidden.copy(clockWeatherEnabled = true))
+    }
+
+    @Test
     fun sidebarStaysOnTheChosenPhysicalSideInBothLayoutDirections() {
         assertEquals(true, SidebarSide.Left.isAtStart(LayoutDirection.Ltr))
         assertEquals(false, SidebarSide.Left.isAtStart(LayoutDirection.Rtl))

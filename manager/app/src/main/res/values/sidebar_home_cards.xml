@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="sidebar_home_cards_title">Home cards</string>
-    <string name="sidebar_home_cards_saved_hint">Changes save automatically. Apply a color to save it; opacity saves when you release the slider.</string>
-    <string name="sidebar_home_cards_scope">Only affects Sidebar Widget home cards. Choose a layout, card and day/night palette. Editing a layout does not activate it. Support and Learn share their appearance across both layouts. Hidden cards stay hidden; security warnings keep their original appearance.</string>
+    <string name="sidebar_home_cards_customize_show">Customize cards</string>
+    <string name="sidebar_home_cards_customize_hide">Hide card settings</string>
+    <string name="sidebar_home_cards_edit_layout">Edit layout</string>
+    <string name="sidebar_home_cards_edit_card">Edit card</string>
+    <string name="sidebar_home_cards_saved_hint">Auto-saved · confirm colors in the editor; release sliders to apply.</string>
+    <string name="sidebar_home_cards_scope">Choose a layout, card and day/night palette to edit. Editing a layout does not activate it.</string>
     <string name="sidebar_home_cards_preview">Card preview · Your device information remains unchanged</string>
     <string name="sidebar_home_cards_preview_hint">This previews the selected card finish. Existing wallpaper is shown on Home; refraction depends on the device and wallpaper. Unsupported effects use a static gradient.</string>
     <string name="sidebar_home_cards_image">Card image</string>
