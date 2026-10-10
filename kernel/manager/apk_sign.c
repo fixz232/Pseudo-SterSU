@@ -436,13 +436,8 @@ int get_pkg_from_apk_path(char *pkg, const char *path)
     if (!len || len >= PATH_MAX)
         return -1;
 
-    last_slash = path + len;
-    while (last_slash > path) {
-        last_slash--;
-        if (*last_slash == '/')
-            break;
-    }
-    if (*last_slash != '/' || last_slash == path || !last_slash[1])
+    last_slash = strrchr(path, '/');
+    if (!last_slash || last_slash == path || !last_slash[1])
         return -1;
 
     parent_start = last_slash;
