@@ -8,15 +8,15 @@ class SuperUserOverflowMenuTest {
     @Test
     fun phoneAndTabletMenusDoNotExpandToFillThePage() {
         for (width in listOf(360f, 412f, 840f, 1280f)) {
-            assertEquals(208f, superUserOverflowMenuWidth(width, 1f), 0.01f)
+            assertEquals(232f, superUserOverflowMenuWidth(width, 1f), 0.01f)
         }
     }
 
     @Test
     fun largeTextGetsMoreSpaceWithoutAnUnboundedPopup() {
-        assertEquals(249.6f, superUserOverflowMenuWidth(412f, 1.2f), 0.01f)
-        assertEquals(260f, superUserOverflowMenuWidth(412f, 2f), 0.01f)
-        assertEquals(208f, superUserOverflowMenuWidth(412f, 0.85f), 0.01f)
+        assertEquals(278.4f, superUserOverflowMenuWidth(412f, 1.2f), 0.01f)
+        assertEquals(290f, superUserOverflowMenuWidth(412f, 2f), 0.01f)
+        assertEquals(232f, superUserOverflowMenuWidth(412f, 0.85f), 0.01f)
     }
 
     @Test

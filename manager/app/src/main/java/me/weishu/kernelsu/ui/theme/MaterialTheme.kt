@@ -20,6 +20,10 @@ import me.weishu.kernelsu.ui.component.rain.withRainAppearance
 import me.weishu.kernelsu.ui.util.AppFontState
 import me.weishu.kernelsu.ui.util.resolveAppFontFamily
 import me.weishu.kernelsu.ui.webui.MonetColorsProvider
+import top.yukonga.miuix.kmp.theme.ColorSchemeMode
+import top.yukonga.miuix.kmp.theme.LocalContentColor as MiuixLocalContentColor
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.theme.ThemeController
 
 @Composable
 fun MaterialKernelSUTheme(
@@ -63,6 +67,15 @@ fun MaterialKernelSUTheme(
     val materialTypography = remember(appFontFamily) {
         Typography(fontFamily = appFontFamily)
     }
+    // Material/sidebar screens also host native Miuix preferences and cards.
+    // Supply their palette before UiPassthroughTheme records the original colors.
+    val miuixController = remember(darkTheme, effectiveColorScheme.primary) {
+        ThemeController(
+            if (darkTheme) ColorSchemeMode.Dark else ColorSchemeMode.Light,
+            keyColor = effectiveColorScheme.primary,
+            isDark = darkTheme,
+        )
+    }
 
     MaterialExpressiveTheme(
         colorScheme = animatedColorScheme,
@@ -70,13 +83,15 @@ fun MaterialKernelSUTheme(
         typography = materialTypography,
         shapes = if (sidebar) SidebarUiTokens.Shapes else null,
         content = {
-            CompositionLocalProvider(
-                LocalContentColor provides animatedColorScheme.onBackground.copy(
-                    alpha = appFontState.opacity,
-                ),
-            ) {
-                MonetColorsProvider.UpdateCss()
-                content()
+            MiuixTheme(controller = miuixController) {
+                val contentColor = animatedColorScheme.onBackground.copy(alpha = appFontState.opacity)
+                CompositionLocalProvider(
+                    LocalContentColor provides contentColor,
+                    MiuixLocalContentColor provides contentColor,
+                ) {
+                    MonetColorsProvider.UpdateCss()
+                    content()
+                }
             }
         }
     )

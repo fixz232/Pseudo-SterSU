@@ -3,12 +3,35 @@ package me.weishu.kernelsu.ui.component.bottombar
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.luminance
+import me.weishu.kernelsu.ui.util.SidebarMaterial
+import me.weishu.kernelsu.ui.util.defaultSidebarPalette
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SidebarSurfaceTest {
+    @Test
+    fun glassFallbackKeepsTheSameDayAndNightTintInsteadOfAnOpaqueBox() {
+        for (dark in listOf(false, true)) for (material in SidebarMaterial.entries) {
+            val colors = sidebarColors(defaultSidebarPalette(material, dark))
+            for (opacity in listOf(0f, 0.25f, 0.65f, 1f)) {
+                val expected = if (material == SidebarMaterial.Flat) opacity else opacity * colors.tintAlpha
+                assertEquals(expected, sidebarSurfaceTintOpacity(material, opacity, colors.tintAlpha), 0.0001f)
+            }
+        }
+    }
+
+    @Test
+    fun transparentBackgroundsLeaveNoTintAndInvalidValuesStayBounded() {
+        for (material in SidebarMaterial.entries) {
+            assertEquals(0f, sidebarSurfaceTintOpacity(material, 0f, 0.9f), 0f)
+            assertEquals(0f, sidebarSurfaceTintOpacity(material, -1f, 0.9f), 0f)
+            assertEquals(1f, sidebarSurfaceTintOpacity(material, Float.NaN, Float.NaN), 0f)
+            assertTrue(sidebarSurfaceTintOpacity(material, 2f, 2f) in 0f..1f)
+        }
+    }
+
     @Test
     fun lightAndDarkTokensAreOpaqueAndMonochrome() {
         for (dark in listOf(false, true)) {

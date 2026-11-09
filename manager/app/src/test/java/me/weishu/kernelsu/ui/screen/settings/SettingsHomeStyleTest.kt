@@ -29,13 +29,9 @@ class SettingsHomeStyleTest {
     }
 
     @Test
-    fun sidebarKeepsDeviceHomeAndOtherStyleRoutesAreUnchanged() {
+    fun everyInterfaceStyleUsesTheSharedDeviceHome() {
         InterfaceStyle.entries.forEach { style ->
-            assertEquals(
-                style.name,
-                style in setOf(InterfaceStyle.SidebarWidget, InterfaceStyle.Snow, InterfaceStyle.Pixel),
-                usesDeviceSettingsHome(style.value),
-            )
+            assertTrue(style.name, usesDeviceSettingsHome(style.value))
         }
         assertFalse(usesDeviceSettingsHome("unknown"))
     }
@@ -91,8 +87,9 @@ class SettingsHomeStyleTest {
         assertEquals(4, Regex("SettingsHomeCard \\{").findAll(home).count())
         assertTrue(hub.contains("SettingsHomeCard("))
         assertEquals(4, Regex("SettingsHomeCard\\(").findAll(overview).count())
-        assertTrue(card.contains("pixelAwareMiuixCardShape(shape)"))
-        assertTrue(card.contains("snowMiuixCardSurface(shape = cardShape, enabled = decorate)"))
+        assertTrue(card.contains("shape: Shape = SidebarUiTokens.Shapes.large"))
+        assertFalse(card.contains("pixelAwareMiuixCardShape"))
+        assertTrue(card.contains("snowMiuixCardSurface(shape = shape, enabled = decorate)"))
         assertTrue(card.contains("!LocalUiPassthroughSettings.current.enabled"))
         assertTrue(card.contains("else immersiveSurfaceColor(color)"))
         assertFalse(card.contains(".alpha("))

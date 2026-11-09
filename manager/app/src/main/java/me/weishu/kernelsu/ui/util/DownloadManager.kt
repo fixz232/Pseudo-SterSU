@@ -47,7 +47,7 @@ object DownloadManager {
 
     internal fun registerLocalSave(
         fileName: String,
-        targetPath: String,
+        targetPath: String? = null,
         mimeType: String? = null,
         completionAction: DownloadCompletionAction = DownloadCompletionAction.OPEN_FILE,
     ): Int {
@@ -55,7 +55,7 @@ object DownloadManager {
         val state = DownloadState(
             id = id,
             fileName = fileName,
-            url = targetPath,
+            url = targetPath ?: fileName,
             targetPath = targetPath,
             mimeType = mimeType,
             completionAction = completionAction,
@@ -76,6 +76,29 @@ object DownloadManager {
         onCompleted: ((Uri) -> Unit)? = null,
         expected: ExpectedFile? = null,
     ): Int {
+        // Only share an in-flight download that is verified exactly like this request.
+        val existing = _downloads.value.values.find {
+            it.fileName == fileName &&
+                it.targetPath == targetPath &&
+                it.completionAction == completionAction &&
+                (it.status == Status.PENDING || it.status == Status.DOWNLOADING) &&
+                canShareDownload(url, expected, it.url, it.expected)
+        }
+        if (existing != null) {
+            if (onCompleted != null) {
+                completionCallbacks.merge(existing.id, onCompleted) { a, b -> { uri -> a(uri); b(uri) } }
+                // It may have finished in between; markCompleted / markFailed already drained the
+                // callbacks then, so run (completed) or drop (failed) what was merged afterwards.
+                val now = _downloads.value[existing.id]
+                if (now?.status == Status.COMPLETED && now.resultUri != null) {
+                    completionCallbacks.remove(existing.id)?.let { cb -> mainHandler.post { cb(now.resultUri) } }
+                } else if (now == null || now.status == Status.FAILED) {
+                    completionCallbacks.remove(existing.id)
+                }
+            }
+            return existing.id
+        }
+
         val id = idCounter.incrementAndGet()
         val state = DownloadState(
             id = id,
@@ -102,15 +125,15 @@ object DownloadManager {
             putExtra(DownloadService.EXTRA_DOWNLOAD_ID, id)
             putExtra(DownloadService.EXTRA_URL, url)
             putExtra(DownloadService.EXTRA_FILE_NAME, fileName)
+            if (expected != null) {
+                putExtra(DownloadService.EXTRA_EXPECTED_SIZE, expected.size)
+                putExtra(DownloadService.EXTRA_EXPECTED_SHA256, expected.sha256)
+            }
             putExtra(DownloadService.EXTRA_TARGET_PATH, targetPath)
             putExtra(DownloadService.EXTRA_MIME_TYPE, mimeType)
             putExtra(DownloadService.EXTRA_COOKIE, cookie)
             putExtra(DownloadService.EXTRA_USER_AGENT, userAgent)
             putExtra(DownloadService.EXTRA_COMPLETION_ACTION, completionAction.name)
-            if (expected != null) {
-                putExtra(DownloadService.EXTRA_EXPECTED_SIZE, expected.size)
-                putExtra(DownloadService.EXTRA_EXPECTED_SHA256, expected.sha256)
-            }
         }
         ContextCompat.startForegroundService(context, intent)
 

@@ -81,6 +81,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -115,6 +116,7 @@ import me.weishu.kernelsu.ui.component.material.SegmentedListItem
 import me.weishu.kernelsu.ui.component.material.TonalCard
 import me.weishu.kernelsu.ui.component.material.TopBarBackButton
 import me.weishu.kernelsu.ui.component.material.expressiveTopAppBarColors
+import me.weishu.kernelsu.ui.component.material.rememberExpressivePageScrollBehavior
 import me.weishu.kernelsu.ui.component.statustag.StatusTag
 import me.weishu.kernelsu.ui.screen.module.ExpandableDescriptionText
 import me.weishu.kernelsu.ui.screen.scriptrun.lastRunText
@@ -508,98 +510,102 @@ fun ModuleRepoDetailScreenMaterial(
     var pendingDownload by remember { mutableStateOf<(() -> Unit)?>(null) }
     val confirmDialog = rememberConfirmDialog(onConfirm = { pendingDownload?.invoke() })
 
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
+    val scrollBehavior = rememberExpressivePageScrollBehavior()
+    val tabs = listOf(
+        stringResource(R.string.tab_readme),
+        stringResource(R.string.tab_releases),
+        stringResource(R.string.tab_info),
+    )
+    val pagerState = rememberPagerState(initialPage = 0, pageCount = { tabs.size })
 
     ExpressiveScaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
-                title = { Text(text = state.detail?.module?.moduleName ?: module.moduleName) },
-                navigationIcon = {
-                    TopBarBackButton(onClick = actions.onBack)
-                },
-                actions = {
-                    if (state.webUrl.isNotEmpty()) {
-                        IconButton(onClick = actions.onOpenWebUrl) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Outlined.ChromeReaderMode,
-                                contentDescription = null,
+            val barColors = expressiveTopAppBarColors()
+            Column {
+                LargeFlexibleTopAppBar(
+                    title = {
+                        Text(
+                            text = state.detail?.module?.moduleName ?: module.moduleName,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                    navigationIcon = {
+                        TopBarBackButton(onClick = actions.onBack)
+                    },
+                    actions = {
+                        if (state.webUrl.isNotEmpty()) {
+                            IconButton(onClick = actions.onOpenWebUrl) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Outlined.ChromeReaderMode,
+                                    contentDescription = null,
+                                )
+                            }
+                        }
+                    },
+                    // Keep the title and tab backgrounds aligned while scrolling, too.
+                    colors = barColors.copy(scrolledContainerColor = barColors.containerColor),
+                    scrollBehavior = scrollBehavior,
+                )
+                ExpressiveTabRow(
+                    selectedTabIndex = pagerState.currentPage,
+                    tabs = tabs,
+                    onTabClick = {
+                        scope.launch {
+                            pagerState.animateScrollToPage(
+                                page = it,
+                                animationSpec = PagerNavigationSpringSpec,
                             )
                         }
-                    }
-                },
-                colors = expressiveTopAppBarColors(),
-                scrollBehavior = scrollBehavior
-            )
+                    },
+                    containerColor = barColors.containerColor,
+                )
+            }
         },
         contentWindowInsets = WindowInsets.systemBars.add(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal),
     ) { innerPadding ->
-        val tabs = listOf(
-            stringResource(R.string.tab_readme),
-            stringResource(R.string.tab_releases),
-            stringResource(R.string.tab_info)
+        val pagePadding = PaddingValues(
+            top = 8.dp,
+            bottom = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding() + 16.dp,
         )
-        val pagerState = rememberPagerState(initialPage = 0, pageCount = { tabs.size })
-        val layoutDirection = LocalLayoutDirection.current
-        Box(modifier = Modifier.fillMaxSize()) {
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxSize(),
-                overscrollEffect = null,
-            ) { page ->
-                val paddedInnerPadding = PaddingValues(
-                    top = innerPadding.calculateTopPadding() + 56.dp + 8.dp,
-                    start = innerPadding.calculateStartPadding(layoutDirection),
-                    end = innerPadding.calculateEndPadding(layoutDirection),
-                    bottom = innerPadding.calculateBottomPadding()
-                            + WindowInsets.systemBars.asPaddingValues().calculateBottomPadding() + 16.dp
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize().padding(innerPadding).clipToBounds(),
+            overscrollEffect = null,
+        ) { page ->
+            when (page) {
+                0 -> ReadmePage(
+                    state = state,
+                    onRetry = actions.onRetry,
+                    innerPadding = pagePadding,
+                    scrollBehavior = scrollBehavior,
                 )
-                when (page) {
-                    0 -> ReadmePage(
-                        state = state,
-                        onRetry = actions.onRetry,
-                        innerPadding = paddedInnerPadding,
-                        scrollBehavior = scrollBehavior
-                    )
 
-                    1 -> ReleasesPage(
-                        state = state,
-                        onRetry = actions.onRetry,
-                        innerPadding = paddedInnerPadding,
-                        scrollBehavior = scrollBehavior,
-                        confirmTitle = confirmTitle,
-                        confirmDialog = confirmDialog,
-                        scope = scope,
-                        onInstallModule = actions.onInstallModule,
-                        context = context,
-                        setPendingDownload = { pendingDownload = it },
-                        uriHandler = object : UriHandler {
-                            override fun openUri(uri: String) = actions.onOpenUrl(uri)
-                        },
-                    )
+                1 -> ReleasesPage(
+                    state = state,
+                    onRetry = actions.onRetry,
+                    innerPadding = pagePadding,
+                    scrollBehavior = scrollBehavior,
+                    confirmTitle = confirmTitle,
+                    confirmDialog = confirmDialog,
+                    scope = scope,
+                    onInstallModule = actions.onInstallModule,
+                    context = context,
+                    setPendingDownload = { pendingDownload = it },
+                    uriHandler = object : UriHandler {
+                        override fun openUri(uri: String) = actions.onOpenUrl(uri)
+                    },
+                )
 
-                    2 -> InfoPage(
-                        state = state,
-                        innerPadding = paddedInnerPadding,
-                        scrollBehavior = scrollBehavior,
-                        uriHandler = object : UriHandler {
-                            override fun openUri(uri: String) = actions.onOpenUrl(uri)
-                        },
-                    )
-                }
+                2 -> InfoPage(
+                    state = state,
+                    innerPadding = pagePadding,
+                    scrollBehavior = scrollBehavior,
+                    uriHandler = object : UriHandler {
+                        override fun openUri(uri: String) = actions.onOpenUrl(uri)
+                    },
+                )
             }
-            ExpressiveTabRow(
-                selectedTabIndex = pagerState.currentPage,
-                tabs = tabs,
-                onTabClick = {
-                    scope.launch {
-                        pagerState.animateScrollToPage(
-                            page = it,
-                            animationSpec = PagerNavigationSpringSpec,
-                        )
-                    }
-                },
-                modifier = Modifier.padding(top = innerPadding.calculateTopPadding()),
-            )
         }
     }
 }

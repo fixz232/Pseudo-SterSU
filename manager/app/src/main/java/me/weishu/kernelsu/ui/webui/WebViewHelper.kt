@@ -21,8 +21,10 @@ import android.webkit.WebViewClient
 import androidx.webkit.WebViewAssetLoader
 import com.topjohnwu.superuser.io.SuFile
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import me.weishu.kernelsu.R
+import me.weishu.kernelsu.data.model.AppInfo
 import me.weishu.kernelsu.data.repository.ModuleRepositoryImpl
 import me.weishu.kernelsu.ui.util.createRootShell
 import me.weishu.kernelsu.ui.viewmodel.SuperUserViewModel
@@ -33,55 +35,15 @@ import java.io.File
 private const val WEB_DOMAIN = "mui.kernelsu.org"
 private const val KSU_SCHEME = "ksu"
 private const val ICON_HOST = "icon"
-private const val DOWNLOAD_JS = """
-    (function() {
-        if (window.ksu_download_enabled) return;
-        window.ksu_download_enabled = true;
-        const blobMap = new Map();
-        const originalCreateObjectURL = URL.createObjectURL;
-        URL.createObjectURL = (obj) => {
-            const url = originalCreateObjectURL(obj);
-            if (obj instanceof Blob) blobMap.set(url, obj);
-            return url;
-        };
-        const originalRevokeObjectURL = URL.revokeObjectURL;
-        URL.revokeObjectURL = (url) => {
-            setTimeout(() => blobMap.delete(url), 10000);
-            return originalRevokeObjectURL(url);
-        };
-        const handleDownload = async (anchor) => {
-            const url = new URL(anchor.href, location.href);
-            const fileName = anchor.download || url.pathname.split("/").pop().split("?")[0] || "download.bin";
-            const isInternal = url.hostname === 'mui.kernelsu.org';
-            if (url.protocol === 'blob:' || url.protocol === 'data:' || isInternal) {
-                const blob = (url.protocol === 'blob:' && blobMap.has(url.href)) ? blobMap.get(url.href) : await (await fetch(url.href, { credentials: 'include' })).blob();
-                const base64 = await new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = () => resolve(reader.result.split(',')[1] || '');
-                    reader.onerror = () => reject(reader.error || new Error('Failed to read blob'));
-                    reader.readAsDataURL(blob);
-                });
-                ksu_download.save(base64, fileName);
-                return;
-            }
-            ksu_download.download(url.href, fileName, anchor.type || null);
-        };
-        document.addEventListener('click', (event) => {
-            const anchor = event.target.closest('a[download]');
-            if (!anchor || !anchor.href) return;
-            event.preventDefault();
-            handleDownload(anchor).catch((error) => console.error('KernelSU download failed', error));
-        }, true);
-        const originalClick = HTMLAnchorElement.prototype.click;
-        HTMLAnchorElement.prototype.click = function() {
-            if (this.hasAttribute('download') && this.href) {
-                handleDownload(this).catch((error) => console.error('KernelSU download failed', error));
-                return;
-            }
-            return originalClick.apply(this, arguments);
-        };
-    })();
-"""
+private const val INTERNAL_BLOB_DOWNLOAD_HOST = "blob-download.kernelsu.internal"
+
+private fun loadDownloadJs(context: Context): String {
+    return context.assets.open("webview/download.js").bufferedReader(Charsets.UTF_8).use { it.readText() }
+}
+
+internal fun webUIApps(): List<AppInfo> = runBlocking {
+    SuperUserViewModel.loadApps(useCache = true).getOrNull()?.first.orEmpty()
+}
 
 fun Activity.setTaskDescription(label: String) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
@@ -217,6 +179,9 @@ internal suspend fun prepareWebView(
             webView.webViewClient = object : WebViewClient() {
                 override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
                     val url = request.url
+
+                    BlobDownloadHandler.shouldInterceptRequest(request)?.let { return it }
+
                     if (url.scheme.equals(KSU_SCHEME, ignoreCase = true) && url.host.equals(ICON_HOST, ignoreCase = true)) {
                         val packageName = url.path?.substring(1)
                         if (!packageName.isNullOrEmpty() && packageName.matches(Regex("[a-zA-Z0-9._]+"))) {
@@ -248,7 +213,7 @@ internal suspend fun prepareWebView(
                     if (!webUIState.owns(view)) return
                     webUIState.webCanGoBack = view?.canGoBack() ?: false
                     if (webUIState.isInsetsEnabled) webUIState.webView?.evaluateJavascript(webUIState.currentInsets.js, null)
-                    view?.evaluateJavascript(DOWNLOAD_JS, null)
+                    view?.evaluateJavascript(loadDownloadJs(activity), null)
                     super.doUpdateVisitedHistory(view, url, isReload)
                 }
             }
@@ -315,11 +280,12 @@ internal suspend fun prepareWebView(
             }
             webView.addJavascriptInterface(webviewInterface, "ksu")
             webView.addJavascriptInterface(downloadInterface, "ksu_download")
-            webView.setDownloadListener { url, _, contentDisposition, mimetype, _ ->
-                val fileName = android.webkit.URLUtil.guessFileName(url, contentDisposition, mimetype)
-                downloadInterface.download(url, fileName, mimetype)
+            webView.setDownloadListener { url, _, _, _, _ ->
+                if (Uri.parse(url).host != INTERNAL_BLOB_DOWNLOAD_HOST) {
+                    downloadInterface.openExternal(url)
+                }
             }
-            webView.evaluateJavascript(DOWNLOAD_JS, null)
+            webView.evaluateJavascript(loadDownloadJs(activity), null)
             webUIState.markWebViewReady(loadGeneration)
         }
     }

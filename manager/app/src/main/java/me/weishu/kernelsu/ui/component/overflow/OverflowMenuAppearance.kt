@@ -8,24 +8,31 @@ import me.weishu.kernelsu.ui.util.sanitizeCustomWallpaperCrop
 internal fun overflowMenuWidth(availableWidthDp: Float, fontScale: Float): Float {
     val width = availableWidthDp.takeIf(Float::isFinite) ?: 0f
     val scale = fontScale.takeIf(Float::isFinite)?.coerceIn(1f, 1.25f) ?: 1f
-    return (208f * scale).coerceAtMost((width - 24f).coerceAtLeast(0f))
+    return (232f * scale).coerceAtMost((width - 24f).coerceAtLeast(0f))
 }
 
 internal fun overflowMenuMaxHeight(availableHeightDp: Float): Float =
     ((availableHeightDp.takeIf(Float::isFinite) ?: 0f) - 24f).coerceAtLeast(0f)
 
 internal fun overflowMenuTint(darkMode: Boolean, hasBlurredBackground: Boolean): Color =
-    (if (darkMode) Color(0xFF1C2028) else Color(0xFFF5F7FA))
+    (if (darkMode) Color(0xFF19191B) else Color(0xFFF7F7F7))
         .copy(alpha = if (hasBlurredBackground) (if (darkMode) 0.68f else 0.64f) else 1f)
 
 internal fun overflowMenuContentColor(darkMode: Boolean): Color =
-    if (darkMode) Color(0xFFF3F5F8) else Color(0xFF191D24)
+    if (darkMode) Color(0xFFF7F7F7) else Color(0xFF202022)
+
+internal fun overflowMenuHighlightAlpha(darkMode: Boolean): Float =
+    if (darkMode) 0.015f else 0.05f
+
+internal fun sanitizeOverflowMenuOpacity(value: Float): Float =
+    if (value.isFinite()) value.coerceIn(0f, 1f) else 1f
 
 internal enum class OverflowMenuTarget(val wallpaperKey: String) {
     Superuser("superuser_overflow_menu_wallpaper_uri"),
     Module("module_overflow_menu_wallpaper_uri");
 
     val cropKey: String get() = "${wallpaperKey}_crop"
+    val opacityKey: String get() = "${wallpaperKey}_opacity"
 }
 
 internal fun decodeOverflowMenuCrop(value: String?): CustomWallpaperCrop {

@@ -18,11 +18,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -33,6 +36,9 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -46,6 +52,7 @@ import me.weishu.kernelsu.ui.util.adaptiveDialogContentMaxHeight
 import me.weishu.kernelsu.ui.util.loadCustomImageBitmap
 import me.weishu.kernelsu.ui.util.persistCustomImageReference
 import me.weishu.kernelsu.ui.util.releaseCustomImageReference
+import kotlin.math.roundToInt
 
 internal data class OverflowMenuWallpaperState(
     val uriString: String?,
@@ -55,6 +62,8 @@ internal data class OverflowMenuWallpaperState(
     val onPick: () -> Unit,
     val onClear: () -> Unit,
     val onCropChange: (CustomWallpaperCrop) -> Unit,
+    val opacity: Float,
+    val onOpacityChange: (Float) -> Unit,
 )
 
 @Composable
@@ -63,27 +72,30 @@ internal fun rememberOverflowMenuWallpaper(target: OverflowMenuTarget): Overflow
     val preferences = remember(context) { context.getSharedPreferences("overflow_menu_appearance", Context.MODE_PRIVATE) }
     var uriString by remember(preferences, target) { mutableStateOf(preferences.getString(target.wallpaperKey, null)) }
     var crop by remember(preferences, target) { mutableStateOf(decodeOverflowMenuCrop(preferences.getString(target.cropKey, null))) }
+    var opacity by remember(preferences, target) { mutableFloatStateOf(sanitizeOverflowMenuOpacity(preferences.getFloat(target.opacityKey, 1f))) }
     var busy by remember(target) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     DisposableEffect(preferences, target) {
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
-            if (key == null || key == target.wallpaperKey || key == target.cropKey) {
+            if (key == null || key == target.wallpaperKey || key == target.cropKey || key == target.opacityKey) {
                 uriString = prefs.getString(target.wallpaperKey, null)
                 crop = decodeOverflowMenuCrop(prefs.getString(target.cropKey, null))
+                opacity = sanitizeOverflowMenuOpacity(prefs.getFloat(target.opacityKey, 1f))
             }
         }
         preferences.registerOnSharedPreferenceChangeListener(listener)
         uriString = preferences.getString(target.wallpaperKey, null)
         crop = decodeOverflowMenuCrop(preferences.getString(target.cropKey, null))
+        opacity = sanitizeOverflowMenuOpacity(preferences.getFloat(target.opacityKey, 1f))
         onDispose { preferences.unregisterOnSharedPreferenceChangeListener(listener) }
     }
-    fun update(operation: () -> Boolean) {
+    fun update(errorRes: Int = R.string.overflow_menu_wallpaper_error, operation: () -> Boolean) {
         if (busy) return
         busy = true
         scope.launch {
             try {
                 val saved = withContext(Dispatchers.IO) { runCatching(operation).getOrDefault(false) }
-                if (!saved) Toast.makeText(context, R.string.overflow_menu_wallpaper_error, Toast.LENGTH_LONG).show()
+                if (!saved) Toast.makeText(context, errorRes, Toast.LENGTH_LONG).show()
             } finally {
                 busy = false
             }
@@ -150,12 +162,26 @@ internal fun rememberOverflowMenuWallpaper(target: OverflowMenuTarget): Overflow
                 }
             }
         },
+        opacity = opacity,
+        onOpacityChange = { value ->
+            update(errorRes = R.string.overflow_menu_appearance_error) {
+                val previous = preferences.getFloat(target.opacityKey, 1f)
+                preferences.edit().putFloat(target.opacityKey, sanitizeOverflowMenuOpacity(value)).commit().also { saved ->
+                    if (!saved) preferences.edit().putFloat(target.opacityKey, previous).commit()
+                }
+            }
+        },
     )
 }
 
 @Composable
 internal fun OverflowMenuWallpaperDialog(state: OverflowMenuWallpaperState, onDismissRequest: () -> Unit) {
     var editingCrop by remember(state.uriString) { mutableStateOf(false) }
+    var opacity by remember(state.opacity) { mutableFloatStateOf(state.opacity) }
+    val opacitySlider = remember { SliderState(opacity, trackRange = 0f..1f) }
+    opacitySlider.value = opacity
+    val opacityLabel = stringResource(R.string.overflow_menu_background_opacity)
+    val opacityValue = stringResource(R.string.overflow_menu_background_opacity_value, (opacity * 100).roundToInt())
     if (editingCrop && state.uriString != null) {
         SettingsWallpaperCropDialog(
             show = true,
@@ -171,7 +197,7 @@ internal fun OverflowMenuWallpaperDialog(state: OverflowMenuWallpaperState, onDi
     }
     AlertDialog(
         onDismissRequest = { if (!state.busy) onDismissRequest() },
-        title = { Text(stringResource(R.string.overflow_menu_wallpaper)) },
+        title = { Text(stringResource(R.string.overflow_menu_appearance)) },
         text = {
             Column(
                 Modifier.heightIn(max = adaptiveDialogContentMaxHeight()).verticalScroll(rememberScrollState()),
@@ -181,6 +207,30 @@ internal fun OverflowMenuWallpaperDialog(state: OverflowMenuWallpaperState, onDi
                     stringResource(R.string.overflow_menu_wallpaper_summary),
                     style = MaterialTheme.typography.bodyMedium,
                 )
+                Column {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(opacityLabel, modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+                        Text(opacityValue, style = MaterialTheme.typography.labelLarge)
+                    }
+                    Slider(
+                        state = opacitySlider,
+                        onValueChange = { opacity = sanitizeOverflowMenuOpacity(it) },
+                        onValueChangeFinished = { state.onOpacityChange(opacity) },
+                        enabled = !state.busy,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).semantics {
+                            contentDescription = opacityLabel
+                            stateDescription = opacityValue
+                        },
+                    )
+                    Text(
+                        stringResource(R.string.overflow_menu_background_opacity_summary),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    TextButton(onClick = { opacity = 1f; state.onOpacityChange(1f) }, enabled = !state.busy && opacity != 1f) {
+                        Text(stringResource(R.string.overflow_menu_background_opacity_reset))
+                    }
+                }
                 state.bitmap?.let {
                     Image(
                         bitmap = it,

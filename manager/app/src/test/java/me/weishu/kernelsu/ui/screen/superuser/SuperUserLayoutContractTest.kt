@@ -28,18 +28,18 @@ class SuperUserLayoutContractTest {
     }
 
     @Test
-    fun bothPagesShareOneFrostedSurfaceInsteadOfOverlappingGroups() {
+    fun bothPagesShareOneFrostedRepositoryStyleGroup() {
         val surface = source("ui/component/overflow/FrostedOverflowMenu.kt")
         val module = source("ui/screen/module/ModuleOverflowMenu.kt")
         val menu = source("ui/screen/superuser/SuperUserOverflowMenu.kt")
         assertTrue(module.contains("FrostedOverflowMenu("))
         assertTrue(menu.contains("FrostedOverflowMenu("))
         assertTrue(Regex("\\bDropdownMenuPopup\\(").findAll(surface).count() == 1)
-        assertFalse(surface.contains("DropdownMenuGroup("))
-        assertTrue(surface.contains("RoundedCornerShape(16.dp)"))
-        assertTrue(surface.contains("color = Color.Transparent"))
+        assertTrue(Regex("\\bDropdownMenuGroup\\(").findAll(surface).count() == 1)
+        assertTrue(surface.contains("shapes = MenuDefaults.groupShapes()"))
+        assertTrue(surface.contains("containerColor = Color.Transparent"))
         assertTrue(surface.contains("tonalElevation = 0.dp"))
-        assertTrue(surface.contains("shadowElevation = 4.dp"))
+        assertFalse(surface.contains("Surface("))
     }
 
     @Test
@@ -62,7 +62,7 @@ class SuperUserLayoutContractTest {
         assertTrue(surface.contains("heightIn(max = overflowMenuMaxHeight(window.heightDp).dp)"))
         assertTrue(surface.contains("verticalScroll(scrollState)"))
         for (state in listOf("reversed", "uiState.showSystemApps", "uiState.showOnlyPrimaryUserApps")) {
-            assertTrue(menu.contains(", $state)"))
+            assertTrue(menu.contains(", $state,"))
         }
         assertTrue(menu.contains("toggleableState = ToggleableState(checked)"))
         assertTrue(menu.contains("selected = sortType == type"))
@@ -70,12 +70,19 @@ class SuperUserLayoutContractTest {
     }
 
     @Test
-    fun overflowRowsUseCompactTypographyWithoutShrinkingTouchTargets() {
+    fun overflowRowsUseTheSameSelectableComponentAsTheRepository() {
         val surface = source("ui/component/overflow/FrostedOverflowMenu.kt")
-        assertTrue(surface.contains("ProvideTextStyle(MaterialTheme.typography.bodyMedium)"))
-        assertTrue(surface.contains(".heightIn(min = 48.dp)"))
-        assertTrue(surface.contains("PaddingValues(horizontal = 12.dp, vertical = 4.dp)"))
-        assertTrue(surface.contains(".clip(RoundedCornerShape(10.dp))"))
+        val repository = source("ui/screen/modulerepo/ModuleRepoMaterial.kt")
+        for (menu in listOf(surface, repository)) {
+            assertTrue(menu.contains("SelectableDropdownMenuItem("))
+            assertTrue(menu.contains("shapes = MenuDefaults.itemShape("))
+            assertTrue(menu.contains("selectedLeadingIcon = {"))
+            assertTrue(menu.contains("MenuDefaults.LeadingIconSize"))
+        }
+        assertTrue(surface.contains(".width(IntrinsicSize.Max)"))
+        assertTrue(surface.contains(".padding(MenuDefaults.DropdownMenuGroupContentPadding)"))
+        assertFalse(surface.contains("fontSize = 17.sp"))
+        assertFalse(surface.contains(".heightIn(min = 56.dp)"))
         assertTrue(source("ui/screen/module/ModuleOverflowMenu.kt").contains("CompactOverflowMenuItem("))
         assertTrue(source("ui/screen/superuser/SuperUserOverflowMenu.kt").contains("CompactOverflowMenuItem("))
     }

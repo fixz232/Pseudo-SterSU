@@ -123,9 +123,6 @@ fun SettingPagerMaterial(
                 .padding(top = 4.dp),
         ) {
             MaterialSettingsSection(SettingsCategory.Appearance) {
-                val interfaceStyleOptions = InterfaceStyle.selectableEntries.map {
-                    stringResource(it.labelRes)
-                } + uiState.installedInterfaceStyles.map { it.style.name }
                 SegmentedColumn(
                     content = listOfNotNull<@Composable () -> Unit>(
                         if (uiState.isSidebarDesignEntryVisible) {
@@ -139,23 +136,23 @@ fun SettingPagerMaterial(
                             }
                         } else null,
                         {
-                            SegmentedDropdownItem(
-                                icon = Icons.Rounded.Dashboard,
-                                title = stringResource(R.string.settings_ui_mode),
-                                summary = stringResource(R.string.settings_ui_mode_summary),
-                                items = interfaceStyleOptions,
-                                selectedIndex = uiState.interfaceStyleSelectedIndex(),
-                                onItemSelected = { index ->
-                                    if (index < InterfaceStyle.selectableEntries.size) {
-                                        actions.onSetUiModeIndex(index)
-                                    } else {
-                                        uiState.installedInterfaceStyles
-                                            .getOrNull(index - InterfaceStyle.selectableEntries.size)
-                                            ?.style
-                                            ?.let(actions.onApplyInterfaceStylePackage)
-                                    }
+                            WithGroupedInterfaceStylePicker(
+                                uiState = uiState,
+                                onSelected = { index ->
+                                    uiState.applyInterfaceStyleSelection(
+                                        index, actions.onSetUiModeIndex, actions.onApplyInterfaceStylePackage,
+                                    )
                                 },
-                            )
+                            ) { labels, selectedIndex, select ->
+                                SegmentedDropdownItem(
+                                    icon = Icons.Rounded.Dashboard,
+                                    title = stringResource(R.string.settings_ui_mode),
+                                    summary = stringResource(R.string.settings_ui_mode_summary),
+                                    items = labels,
+                                    selectedIndex = selectedIndex,
+                                    onItemSelected = select,
+                                )
+                            }
                         },
                         if (uiState.uiMode == InterfaceStyle.Rain.value) {
                             {

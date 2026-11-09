@@ -301,33 +301,30 @@ fun SettingPagerMiuix(
                         topPadding = 12.dp,
                     ) {
                         val dayNightChecked = isDayNightSwitchChecked(uiState.themeMode)
-                        val interfaceStyleOptions = InterfaceStyle.selectableEntries.map {
-                            stringResource(it.labelRes)
-                        } + uiState.installedInterfaceStyles.map { it.style.name }
-                        OverlayDropdownPreference(
-                            title = stringResource(id = R.string.settings_ui_mode),
-                            summary = stringResource(id = R.string.settings_ui_mode_summary),
-                            items = interfaceStyleOptions,
-                            startAction = {
-                                Icon(
-                                    Icons.Rounded.Dashboard,
-                                    modifier = Modifier.padding(end = 6.dp),
-                                    contentDescription = stringResource(id = R.string.settings_ui_mode),
-                                    tint = colorScheme.onBackground
+                        WithGroupedInterfaceStylePicker(
+                            uiState = uiState,
+                            onSelected = { index ->
+                                uiState.applyInterfaceStyleSelection(
+                                    index, actions.onSetUiModeIndex, actions.onApplyInterfaceStylePackage,
                                 )
                             },
-                            selectedIndex = uiState.interfaceStyleSelectedIndex(),
-                            onSelectedIndexChange = { index ->
-                                if (index < InterfaceStyle.selectableEntries.size) {
-                                    actions.onSetUiModeIndex(index)
-                                } else {
-                                    uiState.installedInterfaceStyles
-                                        .getOrNull(index - InterfaceStyle.selectableEntries.size)
-                                        ?.style
-                                        ?.let(actions.onApplyInterfaceStylePackage)
-                                }
-                            }
-                        )
+                        ) { labels, selectedIndex, select ->
+                            OverlayDropdownPreference(
+                                title = stringResource(id = R.string.settings_ui_mode),
+                                summary = stringResource(id = R.string.settings_ui_mode_summary),
+                                items = labels,
+                                startAction = {
+                                    Icon(
+                                        Icons.Rounded.Dashboard,
+                                        modifier = Modifier.padding(end = 6.dp),
+                                        contentDescription = stringResource(id = R.string.settings_ui_mode),
+                                        tint = colorScheme.onBackground
+                                    )
+                                },
+                                selectedIndex = selectedIndex,
+                                onSelectedIndexChange = select,
+                            )
+                        }
                         if (
                             uiState.uiMode == InterfaceStyle.Alpha.value ||
                             uiState.uiMode == InterfaceStyle.Delta.value

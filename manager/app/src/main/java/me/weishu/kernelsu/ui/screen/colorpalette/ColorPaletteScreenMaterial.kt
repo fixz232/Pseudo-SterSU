@@ -174,7 +174,7 @@ fun ColorPaletteScreenMaterial(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            SegmentedColumn(modifier = Modifier.padding(horizontal = 16.dp)) {
+            SegmentedColumn(modifier = Modifier.padding(horizontal = 16.dp), connected = true) {
                 item {
                     val currentPreset = ThemePreset.fromValue(uiState.themePreset)
                     val compatiblePresets = ThemePreset.workshopPresets.filter { it.isCompatibleWith(uiState.uiMode) }
@@ -291,6 +291,7 @@ fun ColorPaletteScreenMaterial(
 
                 SegmentedColumn(
                     modifier = Modifier.padding(top = 4.dp),
+                    connected = true,
                     content = listOf(
                         {
                             val styles = PaletteStyle.entries
@@ -330,7 +331,7 @@ fun ColorPaletteScreenMaterial(
                     onValueChangeFinished = actions.onSetMonetSurfaceOpacity,
                 )
 
-                SegmentedColumn(modifier = Modifier.padding(top = 4.dp)) {
+                SegmentedColumn(modifier = Modifier.padding(top = 4.dp), connected = true) {
                     item(visible = supportsBlur) {
                         SegmentedSwitchItem(
                             icon = Icons.Rounded.BlurOn,
@@ -362,6 +363,7 @@ fun ColorPaletteScreenMaterial(
 
                 SegmentedColumn(
                     modifier = Modifier.padding(top = 4.dp),
+                    connected = true,
                     content = listOf(
                         {
                             SegmentedSwitchItem(
@@ -483,6 +485,7 @@ fun ColorPaletteScreenMaterial(
                 SegmentedColumn(
                     modifier = Modifier.padding(top = 4.dp),
                     title = stringResource(R.string.theme_custom_presets),
+                    connected = true,
                 ) {
                     item {
                         SegmentedListItem(

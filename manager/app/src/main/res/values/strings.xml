@@ -149,6 +149,7 @@
     <string name="superuser_filter_umount">UMOUNT</string>
     <string name="superuser_filter_custom">CUSTOM</string>
     <string name="superuser_filter_multi_user">Multi-user</string>
+    <string name="sulog_search_hint">Search commands, apps, PID or UID</string>
     <string name="sulog_log_files">Log files</string>
     <string name="sulog_failed_to_load">Failed to load sulog</string>
     <string name="sulog_disabled_title">SU log is not enabled</string>
@@ -1014,7 +1015,7 @@
     <string name="settings_key_color">Key color</string>
     <string name="settings_key_color_default">Default</string>
     <string name="settings_ui_mode">UI Style</string>
-    <string name="settings_ui_mode_summary">Choose the interface style.</string>
+    <string name="settings_ui_mode_summary">Choose an installed style or download more from the style store.</string>
     <string name="interface_style_miuix">miuix</string>
     <string name="interface_style_material">Material</string>
     <string name="settings_miuix_classic_home_layout">Classic Miuix home layout</string>
@@ -2201,6 +2202,25 @@
     <string name="cloud_theme_filter_updates">Updates</string>
     <string name="cloud_theme_filter_favorites">Favorites</string>
     <string name="cloud_theme_category_all">All categories</string>
+    <string name="cloud_theme_discovery_browse">Browse</string>
+    <string name="cloud_theme_discovery_order">Time and usage</string>
+    <string name="cloud_theme_discovery_tone">Appearance</string>
+    <string name="cloud_theme_discovery_device">Device</string>
+    <string name="cloud_theme_discovery_compatibility">Compatibility</string>
+    <string name="cloud_theme_discovery_style">Interface style</string>
+    <string name="cloud_theme_discovery_category">Theme category</string>
+    <string name="cloud_theme_discovery_universal">Universal</string>
+    <string name="cloud_theme_discovery_dark">Dark</string>
+    <string name="cloud_theme_discovery_light">Light</string>
+    <string name="cloud_theme_discovery_phone">Phone</string>
+    <string name="cloud_theme_discovery_tablet">Tablet</string>
+    <string name="cloud_theme_discovery_compatible">Compatible</string>
+    <string name="cloud_theme_discovery_incompatible">Incompatible</string>
+    <string name="cloud_theme_discovery_recommended">Recommended</string>
+    <string name="cloud_theme_discovery_oldest">Oldest</string>
+    <string name="cloud_theme_discovery_most_used">Most used</string>
+    <string name="cloud_theme_discovery_least_used">Least used</string>
+    <string name="cloud_theme_discovery_notice">Appearance, device and style use author tags. Unlabeled themes remain in All. Compatibility uses the current Manager version and declared device/style support, not device testing. Usage sorting uses the existing store count.</string>
     <string name="cloud_theme_refresh">Refresh cloud themes</string>
     <string name="cloud_theme_bundled_catalog">The online catalog is unavailable. Showing the built-in fallback catalog.</string>
     <string name="cloud_theme_offline_catalog">Offline. Showing the last verified catalog.</string>
@@ -3161,7 +3181,7 @@
     <string name="module_wallpaper_error_title">Module wallpaper error</string>
     <string name="theme_store_customize_title">Customize</string>
     <string name="store_title">Store</string>
-    <string name="store_summary">Themes, interface styles, and built-in plugins in one place.</string>
+    <string name="store_summary">Themes, wallpapers, and customization resources in one place.</string>
     <string name="store_tab_discover">Discover</string>
     <string name="store_tab_customize">Customize</string>
     <string name="store_tab_plugins">Plugins</string>
@@ -3542,6 +3562,12 @@
     <string name="appearance_editor_icon_name_hint">Leave blank to use the default name.</string>
     <string name="overflow_menu_wallpaper">Menu wallpaper</string>
     <string name="overflow_menu_actions">More actions</string>
+    <string name="overflow_menu_appearance">Menu appearance</string>
+    <string name="overflow_menu_background_opacity">Background opacity</string>
+    <string name="overflow_menu_background_opacity_value">%1$d%%</string>
+    <string name="overflow_menu_background_opacity_summary">Adjusts only the menu background and wallpaper. Text and icons remain fully opaque. Each page saves its own setting.</string>
+    <string name="overflow_menu_background_opacity_reset">Restore 100% opacity</string>
+    <string name="overflow_menu_appearance_error">Could not save menu appearance. Please check available storage and try again.</string>
     <string name="overflow_menu_wallpaper_summary">Long-press the top-right menu button to change its wallpaper. Each page is set independently. Choose an image up to 32 MB, then adjust its crop. Frosting and light/dark overlays keep text readable.</string>
     <string name="overflow_menu_wallpaper_pick">Choose from gallery</string>
     <string name="overflow_menu_wallpaper_crop">Crop image</string>
@@ -3657,4 +3683,10 @@
     <string name="rain_sidebar_components">Sidebar widgets and navigation</string>
     <string name="rain_sidebar_material_note">Rain controls sidebar colors, opacity and dividers. Edit those in Rain design; widgets and navigation are shared with the enhanced Miuix layout.</string>
     <string name="rain_compact_navigation_note">This window uses compact bottom navigation. Sidebar settings remain saved and return when there is enough space.</string>
+    <string name="interface_styles_workspace_summary">Choose an installed style or discover more in the style store.</string>
+    <string name="interface_styles_mine">My styles</string>
+    <string name="interface_styles_builtin">Built-in · Tap to apply</string>
+    <string name="interface_styles_installed">Installed · Tap to apply</string>
+    <string name="interface_styles_variants">%1$d installed variants · Tap to expand</string>
+    <string name="interface_style_preview_artwork">Style illustration</string>
 </resources>

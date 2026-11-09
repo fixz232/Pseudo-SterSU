@@ -71,7 +71,7 @@ class SidebarDesignWorkspaceTest {
     fun previewReusesTheRealRailAndNeverRunsAReboot() {
         val workspace = File(source + "SidebarDesignWorkspace.kt").readText()
         listOf("SidebarRailLayout(", "SidebarRailItem(", "NavigationDestinationIcon(",
-            "customIcons.labelFor(", "customIcons.stateFor(", "LocalSidebarGlassBackdrop provides null",
+            "customIcons.labelFor(", "customIcons.stateFor(", "LocalSidebarGlassBackdrop provides previewBackdrop",
             "config.side.isAtStart(layoutDirection)", "tablet = tablet").forEach { assertTrue(it, workspace.contains(it)) }
         assertFalse(workspace.contains("SidebarRebootPopup("))
         assertFalse(workspace.contains("reboot("))

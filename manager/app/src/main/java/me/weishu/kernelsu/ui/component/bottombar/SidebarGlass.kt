@@ -15,6 +15,7 @@ import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import me.weishu.kernelsu.ui.component.liquid.lens
+import me.weishu.kernelsu.ui.util.CustomBackgroundState
 import me.weishu.kernelsu.ui.util.SidebarMaterial
 import top.yukonga.miuix.kmp.blur.Backdrop
 import top.yukonga.miuix.kmp.blur.LayerBackdrop
@@ -28,6 +29,7 @@ import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 
 /** Capture only wallpaper, never the rail itself or an AndroidView/video surface. */
 internal val LocalSidebarGlassBackdrop = staticCompositionLocalOf<Backdrop?> { null }
+internal val LocalSidebarGlassBackground = staticCompositionLocalOf { CustomBackgroundState() }
 internal enum class SidebarGlassMode { Fallback, Frosted, Refractive }
 // lens() accepts CornerBasedShape only. Zero radii keep the visible pane strictly rectangular.
 internal val SidebarGlassLensShape = RoundedCornerShape(0.dp)
@@ -78,16 +80,18 @@ internal fun Modifier.sidebarMaterialSurface(
     showDividers: Boolean = true,
 ): Modifier {
     val backgroundOpacity = if (opacity.isFinite()) opacity.coerceIn(0f, 1f) else 1f
+    val tintOpacity = sidebarSurfaceTintOpacity(material, backgroundOpacity, colors.tintAlpha)
     val gradient = Brush.verticalGradient(listOf(colors.background, colors.backgroundEnd))
     val base = if (backgroundOpacity > 0f && material != SidebarMaterial.Flat && backdrop != null && mode != SidebarGlassMode.Fallback) {
         Modifier.drawBackdrop(
             backdrop = backdrop,
             shape = { SidebarGlassLensShape },
             effects = {
-                val radius = (if (material == SidebarMaterial.NeumorphicGlass) 18.dp else 12.dp).toPx() * backgroundOpacity
+                // The opacity slider controls the tint, not the optical effect strength.
+                val radius = (if (material == SidebarMaterial.NeumorphicGlass) 18.dp else 12.dp).toPx()
                 blur(radius, radius)
                 if (mode == SidebarGlassMode.Refractive) {
-                    lens(14.dp.toPx() * backgroundOpacity, 4.dp.toPx() * backgroundOpacity, depthEffect = true, chromaticAberration = 0f)
+                    lens(14.dp.toPx(), 4.dp.toPx(), depthEffect = true, chromaticAberration = 0f)
                 }
             },
             highlight = {
@@ -109,10 +113,10 @@ internal fun Modifier.sidebarMaterialSurface(
                     ),
                 )
             },
-            onDrawSurface = { drawRect(gradient, alpha = colors.tintAlpha * backgroundOpacity) },
+            onDrawSurface = { drawRect(gradient, alpha = tintOpacity) },
         )
     } else {
-        Modifier.drawWithCache { onDrawBehind { drawRect(gradient, alpha = backgroundOpacity) } }
+        Modifier.drawWithCache { onDrawBehind { drawRect(gradient, alpha = tintOpacity) } }
     }
     return then(base).drawWithCache {
         val edgeWidth = 1.dp.toPx().coerceAtMost(size.width)
@@ -126,6 +130,7 @@ internal fun Modifier.sidebarMaterialSurface(
                 colors.divider,
                 Offset(if (edgeOnRight) size.width - edgeWidth else 0f, 0f),
                 Size(edgeWidth, size.height),
+                alpha = backgroundOpacity,
             )
         }
     }

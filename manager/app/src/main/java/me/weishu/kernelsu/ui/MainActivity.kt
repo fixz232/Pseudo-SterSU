@@ -143,6 +143,7 @@ import me.weishu.kernelsu.ui.component.bottombar.SideRail
 import me.weishu.kernelsu.ui.component.bottombar.SidebarWidgetRail
 import me.weishu.kernelsu.ui.component.bottombar.SidebarPaneShape
 import me.weishu.kernelsu.ui.component.bottombar.LocalSidebarGlassBackdrop
+import me.weishu.kernelsu.ui.component.bottombar.LocalSidebarGlassBackground
 import me.weishu.kernelsu.ui.component.bottombar.canCaptureSidebarWallpaper
 import me.weishu.kernelsu.ui.component.bottombar.rememberSidebarGlassBackdrop
 import me.weishu.kernelsu.ui.component.bottombar.sidebarGlassUnderlay
@@ -685,6 +686,9 @@ class MainActivity : ComponentActivity() {
                             entryProvider = entryProvider {
                                 entry<Route.Main> { mainScreenEntry() }
                                 entry<Route.SettingsCategory> { key -> SettingsCategoryScreen(key.category) }
+                                entry<Route.InterfaceStyles> {
+                                    me.weishu.kernelsu.ui.screen.settings.InterfaceStylesScreen()
+                                }
                                 entry<Route.About> { AboutScreen() }
                                 entry<Route.Sulog> { SulogScreen() }
                                 entry<Route.SuperUserTools> { SuperUserToolsScreen() }
@@ -730,19 +734,10 @@ class MainActivity : ComponentActivity() {
                                 }
                                 entry<Route.PluginStore> { PluginStoreScreen() }
                                 entry<Route.InterfaceStyleStore> {
-                                    ThemeStoreScreen(
-                                        page = ThemeStorePage.Customize,
-                                        customizeSection = ThemeStoreCustomizeSection.Style,
-                                        returnToAppearance = true,
-                                        interfaceStyleStore = true,
-                                    )
+                                    me.weishu.kernelsu.ui.screen.settings.InterfaceStylesScreen(initialStore = true)
                                 }
                                 entry<Route.StoreInterfaceStyles> {
-                                    ThemeStoreScreen(
-                                        page = ThemeStorePage.Customize,
-                                        customizeSection = ThemeStoreCustomizeSection.Style,
-                                        interfaceStyleStore = true,
-                                    )
+                                    me.weishu.kernelsu.ui.screen.settings.InterfaceStylesScreen(initialStore = true)
                                 }
                                 entry<Route.ThemeStoreAssets> {
                                     ThemeStoreScreen(
@@ -924,7 +919,7 @@ class MainActivity : ComponentActivity() {
                         horizontalPagerDriven = true,
                     )
 
-                    Box(
+                    me.weishu.kernelsu.ui.component.overflow.OverflowMenuBackdrop(
                         modifier = Modifier
                             .fillMaxSize()
                             .backgroundScrollFollowController(backgroundScrollFollowState)
@@ -957,6 +952,7 @@ class MainActivity : ComponentActivity() {
                                 LocalImmersiveBackgroundActive provides immersiveBackgroundActive,
                                 LocalBackgroundScrollFollowState provides backgroundScrollFollowState,
                                 LocalSidebarGlassBackdrop provides sidebarGlassBackdrop,
+                                LocalSidebarGlassBackground provides effectiveBackground,
                                 me.weishu.kernelsu.ui.component.rain.LocalRainCoveredByWallpaper provides
                                     hasCustomBackground,
                             ) {
@@ -999,7 +995,7 @@ class MainActivity : ComponentActivity() {
                                                 shouldShowSettingsSidebar(
                                                     currentRoute,
                                                     navigator.backStack.any {
-                                                        it is Route.SettingsCategory || it == Route.SidebarWidgetSettings || it == Route.RainDesign
+                                                        it is Route.SettingsCategory || it == Route.InterfaceStyles || it == Route.SidebarWidgetSettings || it == Route.RainDesign
                                                     },
                                                     navigator.backStack.any { (it as? Route).isStoreRoute() },
                                                 )
@@ -1197,6 +1193,7 @@ internal fun customPageBackgroundTarget(
         // Editors follow their store/settings entry point, not the pager hidden underneath.
         Route.Backgrounds, Route.HomeCardWallpapers, Route.InstallCardWallpapers, Route.NavigationIcons ->
             if (storeAncestor) CustomPageBackgroundTarget.Store else CustomPageBackgroundTarget.Settings
+        Route.InterfaceStyles -> CustomPageBackgroundTarget.Settings
         Route.Install -> CustomPageBackgroundTarget.Install
         Route.Kpm -> CustomPageBackgroundTarget.Kpm
         is Route.AppProfile -> CustomPageBackgroundTarget.Superuser
@@ -1266,7 +1263,7 @@ internal fun shouldShowSettingsSidebar(
 ): Boolean {
     if (storeAncestor || route.isStoreRoute()) return false
     return when (route) {
-        is Route.SettingsCategory, Route.SidebarWidgetSettings, Route.RainDesign, Route.About -> true
+        is Route.SettingsCategory, Route.InterfaceStyles, Route.SidebarWidgetSettings, Route.RainDesign, Route.About -> true
         null, Route.Main, Route.Home, Route.SuperUser, Route.Module, Route.Settings,
         Route.Install, is Route.Flash -> false
         else -> settingsAncestor

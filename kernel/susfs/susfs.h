@@ -39,6 +39,11 @@ int susfs_imports_guard(void);
  * pointers); the attribute belongs on the definition, so it is not repeated here. */
 int susfs_imports_crosscheck(void);
 
+/* Wait until no task can still be inside a window it entered before this call - a kprobe
+ * handler, or boot_config_proc_show()'s seq_puts().  synchronize_rcu() is NOT enough for
+ * either (neither runs in an RCU read-side section); see lsm_hook.c.  Sleeps. */
+void susfs_wait_for_readers(void);
+
 /* Add a path to sus_path's hidden set from kernel code (no supercall needed); returns 0 or negative errno. */
 int sus_path_add_hidden(const char *path);
 
@@ -67,6 +72,12 @@ int sus_path_del_path(const char *path);
 int sus_path_dirent_layout_id(long syscall_nr, bool compat);
 
 long sus_path_dirent_filter(int lay_id, unsigned long buf, long ret);
+/* Pre-emission dirent filter (sus_dirent.c): a hidden name is never written to the caller. */
+bool sus_path_dirent_hidden(u64 ino, const char *name);
+__nocfi bool susfs_dirent_prefilter(const struct pt_regs *regs, long *out,
+					bool compat);
+int susfs_sus_dirent_init(void);
+void susfs_sus_dirent_exit(void);
 
 /* One line of per-ABI dirent counters for /proc/susfs_kstat: "the callback ran and filtered
  * nothing" has to be distinguishable from "the callback never ran", and the same line names the
@@ -94,6 +105,10 @@ bool susfs_hide_modules_node_ready(void);
 /* sus_path's own control node: `cat` is the rule listing (the hide_list parameter view), writing takes add/del/clear.  An
  * operator who cannot see the rule table cannot tell "registered" from "hiding"; root-only, everyone else gets ENOENT. */
 #define SUSFS_PATH_NODE "/proc/susfs_path"
+
+/* sus_map's rule node: add/del/clear the mappings the maps/smaps/map_files walk hides.  Root-only
+ * through the same su-side gate as the other control nodes. */
+#define SUSFS_MAP_NODE "/proc/susfs_map"
 
 /* Whether the /proc/susfs_* control nodes are created at all.  Defaults to TRUE; they are created only when the LSM layer
  * that hides them is installed, so nobody ends up with an unprotected control node, and expose_proc=0 removes them. */
@@ -130,6 +145,31 @@ void susfs_avc_spoof_exit(void);
 
 int susfs_supercall_init(void);
 void susfs_supercall_exit(void);
+/* True when the sys_call_table hook could not arm and the supercall is delivered
+ * through the kprobe fallback (see susfs_supercall_init()). */
+bool susfs_supercall_kprobe_active(void);
+
+/* Feature registry for the reboot(2) supercall.  A layer arms its feature only after its init
+ * returned 0, so a non-fatal layer that failed is neither advertised by SHOW_ENABLED_FEATURES
+ * nor allowed to have its commands hijacked (userspace then keeps its ERR_CMD_NOT_SUPPORTED
+ * sentinel).  The reboot kprobe reads the bitmap with test_bit(); the arm happens once, in
+ * process context, before the module can serve a command. */
+enum susfs_feature {
+	SUSFS_FEAT_SUS_PATH = 0,
+	SUSFS_FEAT_SUS_MOUNT,
+	SUSFS_FEAT_SUS_KSTAT,
+	SUSFS_FEAT_SPOOF_UNAME,
+	SUSFS_FEAT_ENABLE_LOG,
+	SUSFS_FEAT_HIDE_SYMS,
+	SUSFS_FEAT_SPOOF_CMDLINE,
+	SUSFS_FEAT_OPEN_REDIRECT,
+	SUSFS_FEAT_SUS_MAP,
+	SUSFS_FEAT_AVC_SPOOF,	/* commands only: no upstream CONFIG_* line for it */
+	SUSFS_FEAT_COUNT,
+};
+
+void susfs_supercall_arm_feature(enum susfs_feature feature);
+bool susfs_supercall_feature_armed(enum susfs_feature feature);
 
 /* feature supercall handlers (upstream signature: void xxx(void __user **arg)) */
 void susfs_uname_supercall(void __user **arg);
@@ -150,6 +190,16 @@ void susfs_hide_syms_exit(void);
 bool susfs_hide_syms_active(void);
 bool sus_path_lsm_active(void);
 
+/* The O_PATH layer's own state, for the name layer that borrows its five open entries: true only when
+ * at least one of those entries really carries its wrapper (opath_dump=1 and opath_test=N both leave
+ * entries unwrapped while reporting success - see susfs_opath.c). */
+bool susfs_opath_armed(void);
+
+/* The same layer's post-check, called by open_redirect's name layer with the fd it produced itself, so
+ * an O_PATH answer is judged by one implementation whichever of the two produced it.  A negative
+ * argument (an errno) passes straight through. */
+long susfs_opath_post_fd(long ret);
+
 /* sus_path's hidden decision, for the layers that hold the inode the kernel resolved rather than a path they would have to
  * resolve themselves (susfs_opath.c post-checks the file an open(..., O_PATH) produced).  Same question the LSM hooks ask,
  * same answer: identity first, then (dev, i_ino), never a path string.  Not a new judgement - it is the static
@@ -157,6 +207,15 @@ bool sus_path_lsm_active(void);
  * apart.  NULL inode means "not hidden" (a negative dentry). */
 struct inode;
 bool sus_path_inode_hidden_public(struct inode *inode);
+
+/* Whether any sus_path rule is live right now: the create-family entries test this before
+ * they resolve a path, so an empty table costs one load and nothing else. */
+bool sus_path_rules_present(void);
+
+/* Whether any ordinary (operator-supplied) sus_path rule is live.  Self-protect entries for the
+ * module's own /proc nodes are deliberately excluded: the create family must stay a fast pass
+ * when only those exist. */
+bool sus_path_user_rules_present(void);
 
 /* Whether a 0777 /proc/susfs_* control node may be created.  Two independent conditions, neither optional: susfs_expose_proc
  * (the operator opted in) and sus_path_lsm_active() (with 0777 DAC passes every caller, so only the LSM layer can still
@@ -171,5 +230,38 @@ static inline bool susfs_control_node_allowed(void)
  * this is a lookup by ino alone and returns false when the number is ambiguous (two rules, same redirected ino) or the caller is
  * not one the reverse disguise applies to.  On success *out_ino is the target inode to show, *out_mnt_id the target mount id. */
 bool susfs_open_redirect_spoof_ids(unsigned long ino, unsigned long *out_ino, unsigned long *out_mnt_id);
+
+/* The width of a rule's stored pathnames (the ABI fields are char[256], and matching that width stops
+ * a legal long path from being truncated into a rule for a different path). */
+#define SUSFS_OR_PATH_MAX 256
+
+/* Asked by the name-layer entry hook (susfs_or_entry.c) for the path a caller is about to open.
+ * The redirect target is COPIED into the caller's buffer (buflen >= SUSFS_OR_PATH_MAX) while the
+ * lookup runs under rcu_read_lock, and the return value is false when no live rule matches (or the
+ * name does not fit).  A pointer into the rule could not be handed out any more: rule slots are
+ * recycled now (a deleted rule's slot is handed out again once a grace period has passed), so
+ * nothing inside an entry may be read after the lookup returns. */
+bool susfs_open_redirect_match_path(const struct path *path, char *buf, size_t buflen);
+
+/* How many rules are live right now.  The name-layer hook runs for every open() on the system, so it
+ * tests this before it resolves anything - a table with no live rule costs one load instead of a path
+ * lookup, and deleting the last rule takes that cost away again.  Written under the rule lock. */
+extern unsigned int susfs_open_redirect_rules;
+
+static inline bool susfs_open_redirect_active(void)
+{
+	return READ_ONCE(susfs_open_redirect_rules) != 0;
+}
+
+/* The name-layer redirection of the same feature: no cached path, no inode held.  Optional - it
+ * stays unarmed when a symbol it needs is missing, and such a layer makes open_redirect refuse
+ * rules - and on by default (the or_entry parameter can turn it off). */
+int susfs_or_entry_init(void);
+void susfs_or_entry_exit(void);
+
+/* The create family's entry layer (susfs_create_gate.c): answers EACCES for a hidden name
+ * where filename_create() would have answered EEXIST before any LSM hook could run. */
+int susfs_create_gate_init(void);
+void susfs_create_gate_exit(void);
 
 #endif

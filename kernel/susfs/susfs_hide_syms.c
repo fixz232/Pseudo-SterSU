@@ -22,6 +22,7 @@
 #include "susfs.h"		/* sus_path_add_self_hidden / sus_path_del_path */
 #include "symbol_resolver.h"	/* find_kernel_symbol_exact (kallsyms_op) */
 #include "susfs_kprobe.h"	/* susfs_kp_forget_addr: a probe struct must be usable twice */
+#include "ksu_allow_gate.h"	/* the control-node gate is su's own */
 
 /* ---- hide_modules: filter other kernel modules out of /proc/modules ----
  * /proc/modules is world-readable (0444) and lists every loaded module, so a checker that greps it sees the whole set
@@ -457,7 +458,7 @@ static int hide_modules_proc_open(struct inode *inode, struct file *file)
 {
 	/* 0777 node + this check, exactly like the other control nodes: a restrictive mode would answer EACCES (which
 	 * advertises that the node exists) before sus_path could answer ENOENT. */
-	if (current_uid().val != 0)
+	if (!susfs_control_visible())
 		return -ENOENT;
 	return single_open(file, hide_modules_proc_show, NULL);
 }
@@ -469,7 +470,7 @@ static ssize_t hide_modules_proc_write(struct file *file, const char __user *buf
 	int rc;
 
 	/* Same reason as the open check: an fd opened before the process dropped privileges must not become a way in. */
-	if (current_uid().val != 0)
+	if (!susfs_control_visible())
 		return -ENOENT;
 	if (len == 0)
 		return 0;
@@ -586,8 +587,15 @@ static int hide_syms_s_show_pre(struct kprobe *kp, struct pt_regs *regs)
 		return 0;
 	iter = (struct kallsym_iter_local *)m->private;
 	if (!hide_syms_iter_plausible(iter)) {
-		if (atomic_inc_return(&hide_layout_bad) == 1)
-			pr_err("susfs_hide_syms: m->private does not look like struct kallsym_iter - the kprobe is on another s_show or the mirror drifted; not touching it (symbol hiding is NOT active)\n");
+		/* A rejected caller proves neither state: on the by-name path it may be a shared s_show
+		 * body (hiding still on) or another s_show (hiding off); with the identity resolved it is
+		 * a real mirror drift.  Only the unload counters can settle it. */
+		if (atomic_inc_return(&hide_layout_bad) == 1) {
+			if (kallsyms_op_target)
+				pr_err("susfs_hide_syms: kallsyms m->private is not a struct kallsym_iter - the mirror drifted; /proc/kallsyms is NOT being filtered\n");
+			else
+				pr_warn("susfs_hide_syms: non-kallsyms caller on the by-name path (m->private is not a struct kallsym_iter) - skipping it; this alone proves neither that hiding is off nor that it is on - check the unload counters\n");
+		}
 		return 0;
 	}
 	if (!iter->name[0])
@@ -789,23 +797,23 @@ int susfs_hide_syms_init(void)
 	rc = hide_syms_resolve_show(&kp_m_show, "modules_op", "m_show",
 			&modules_op_target);
 	if (rc) {
-		/* Same fallback as s_show, same reason: by name, with modules_op_target left NULL. */
-		SUSFS_LOGI("susfs_hide_syms: modules_op.show could not be validated (%d) - arming m_show BY NAME instead\n",
-				rc);
-		kp_m_show.addr = NULL;
-		kp_m_show.symbol_name = "m_show";
-	}
-	rc = register_kprobe(&kp_m_show);
-	if (rc) {
+		/* Fail closed: a name-only fallback would arm an unvalidated function and
+		 * cannot tell /proc/modules' m_show from another same-named callback. */
 		susfs_kp_forget_addr(&kp_m_show);
-		pr_warn("susfs_hide_syms: cannot arm modules m_show (%d) - /proc/modules keeps listing the modules in hide_modules\n",
-			rc);
+		modules_op_target = NULL;
+		SUSFS_LOGI("susfs_hide_syms: modules_op.show could not be validated (%d) - NOT arming m_show; /proc/modules keeps listing the hidden modules\n",
+				rc);
 	} else {
-		m_show_registered = true;
-		SUSFS_LOGI("susfs_hide_syms: m_show armed at %px (%s)\n",
-				(void *)kp_m_show.addr,
-				modules_op_target ? "by table identity" :
-				"BY NAME - the table value could not be validated, so the m->op check is off");
+		rc = register_kprobe(&kp_m_show);
+		if (rc) {
+			susfs_kp_forget_addr(&kp_m_show);
+			pr_warn("susfs_hide_syms: cannot arm modules m_show (%d) - /proc/modules keeps listing the modules in hide_modules\n",
+				rc);
+		} else {
+			m_show_registered = true;
+			SUSFS_LOGI("susfs_hide_syms: m_show armed at %px (by table identity)\n",
+					(void *)kp_m_show.addr);
+		}
 	}
 
 	/* hide_modules starts with just this module in its list: a built-in SUSFS has no module entry, so leaving ours visible

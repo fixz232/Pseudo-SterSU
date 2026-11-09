@@ -40,7 +40,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.material3.MaterialTheme.typography
 import androidx.compose.material3.MenuDefaults
-import androidx.compose.material3.SnackbarHostState
 import me.weishu.kernelsu.ui.component.passthrough.MaterialText as Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -57,6 +56,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -65,9 +65,11 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import me.weishu.kernelsu.R
+import me.weishu.kernelsu.ui.InterfaceStyle
+import me.weishu.kernelsu.ui.LocalInterfaceStyle
 import me.weishu.kernelsu.ui.component.ScrollToTopOnChange
 import me.weishu.kernelsu.ui.component.material.ExpressiveScaffold
-import me.weishu.kernelsu.ui.component.material.SearchAppBar
+import me.weishu.kernelsu.ui.component.material.InlineSearchAppBar
 import me.weishu.kernelsu.ui.component.material.SegmentedColumn
 import me.weishu.kernelsu.ui.component.material.SegmentedDropdownItem
 import me.weishu.kernelsu.ui.component.material.SegmentedItem
@@ -83,10 +85,10 @@ fun SulogScreenMaterial(
     state: SulogScreenState,
     actions: SulogActions,
 ) {
+    val sidebar = LocalInterfaceStyle.current == InterfaceStyle.SidebarWidget.value
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
     val pullToRefreshState = rememberPullToRefreshState()
     val listState = rememberLazyListState()
-    val searchListState = rememberLazyListState()
     val haptic = LocalHapticFeedback.current
     val fileSelector = buildSulogFileSelector(state.files, state.selectedFilePath)
     var selectedEntry by remember { mutableStateOf<SulogEntry?>(null) }
@@ -104,14 +106,18 @@ fun SulogScreenMaterial(
         )
     }
 
-    val snackbarHostState = remember { SnackbarHostState() }
-
     ExpressiveScaffold(
         topBar = {
-            SearchAppBar(
-                snackbarHostState = snackbarHostState,
-                title = { Text(stringResource(R.string.settings_sulog)) },
+            InlineSearchAppBar(
+                title = {
+                    Text(
+                        stringResource(R.string.settings_sulog),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
                 searchText = localSearchText,
+                searchHint = stringResource(R.string.sulog_search_hint),
                 onSearchTextChange = {
                     localSearchText = it
                     actions.onSearchTextChange(it)
@@ -164,30 +170,8 @@ fun SulogScreenMaterial(
                     }
                 },
                 scrollBehavior = scrollBehavior,
-                searchContent = { bottomPadding, _ ->
-                    val latestVisibleEntries = rememberUpdatedState(state.visibleEntries)
-                    ScrollToTopOnChange(
-                        searchListState,
-                        state.searchText,
-                    ) { latestVisibleEntries.value }
-                    LazyColumn(
-                        state = searchListState,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .nestedScroll(scrollBehavior.nestedScrollConnection),
-                        contentPadding = PaddingValues(
-                            start = 16.dp,
-                            end = 16.dp,
-                            bottom = 16.dp + bottomPadding,
-                        ),
-                    ) {
-                        sulogEntriesSection(
-                            entries = state.visibleEntries,
-                            errorMessage = state.errorMessage,
-                            onEntryClick = { selectedEntry = it },
-                        )
-                    }
-                },
+                useWallpaperSurface = sidebar,
+                topContentPadding = if (sidebar) 8.dp else 0.dp,
             )
         },
         contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
@@ -195,7 +179,8 @@ fun SulogScreenMaterial(
         PullToRefreshBox(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                .padding(innerPadding)
+                .clipToBounds(),
             isRefreshing = state.isLoading || state.isRefreshing,
             onRefresh = {
                 haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
@@ -213,6 +198,7 @@ fun SulogScreenMaterial(
             val latestEntries = rememberUpdatedState(state.visibleEntries)
             ScrollToTopOnChange(
                 listState,
+                state.searchText,
                 state.selectedFilters,
                 state.selectedFilePath,
             ) { latestEntries.value }
@@ -236,6 +222,7 @@ fun SulogScreenMaterial(
                                     items = fileSelector.items,
                                     enabled = fileSelector.items.isNotEmpty(),
                                     selectedIndex = fileSelector.selectedIndex,
+                                    selectedValueAsSummary = true,
                                     onItemSelected = { index ->
                                         state.files.getOrNull(index)?.let { file ->
                                             actions.onSelectFile(file.path)

@@ -16,13 +16,13 @@ class OverflowMenuAppearanceTest {
 
     @Test
     fun largeFontsAndShortWindowsStayWithinTheWindow() {
-        assertEquals(260f, overflowMenuWidth(840f, 2f), 0.001f)
+        assertEquals(290f, overflowMenuWidth(840f, 2f), 0.001f)
         assertEquals(176f, overflowMenuWidth(200f, 2f), 0.001f)
         assertEquals(216f, overflowMenuMaxHeight(240f), 0.001f)
         assertEquals(0f, overflowMenuMaxHeight(20f), 0.001f)
         assertEquals(0f, overflowMenuMaxHeight(Float.NaN), 0.001f)
         assertEquals(0f, overflowMenuWidth(Float.NaN, 1f), 0.001f)
-        assertEquals(208f, overflowMenuWidth(412f, Float.NaN), 0.001f)
+        assertEquals(232f, overflowMenuWidth(412f, Float.NaN), 0.001f)
     }
 
     @Test
@@ -31,10 +31,14 @@ class OverflowMenuAppearanceTest {
             val text = overflowMenuContentColor(dark)
             assertEquals(1f, text.alpha, 0.001f)
             for (wallpaper in listOf(Color.Black, Color.White, Color.Red, Color.Blue, Color.Green)) {
-                val background = overflowMenuTint(dark, true).compositeOver(wallpaper)
-                val bright = maxOf(text.luminance(), background.luminance())
-                val dim = minOf(text.luminance(), background.luminance())
-                assertTrue("dark=$dark wallpaper=$wallpaper", (bright + 0.05f) / (dim + 0.05f) >= 4.5f)
+                for (highlight in listOf(0f, overflowMenuHighlightAlpha(dark))) {
+                    val background = Color.White.copy(alpha = highlight).compositeOver(
+                        overflowMenuTint(dark, true).compositeOver(wallpaper),
+                    )
+                    val bright = maxOf(text.luminance(), background.luminance())
+                    val dim = minOf(text.luminance(), background.luminance())
+                    assertTrue("dark=$dark wallpaper=$wallpaper highlight=$highlight", (bright + 0.05f) / (dim + 0.05f) >= 4.5f)
+                }
             }
         }
     }
@@ -71,6 +75,48 @@ class OverflowMenuAppearanceTest {
         assertTrue(wallpaper.contains("preferences.unregisterOnSharedPreferenceChangeListener(listener)"))
         assertTrue(wallpaper.contains("if (saved) releaseCustomImageReference(context, previous)"))
         assertTrue(wallpaper.contains("if (uri != null && !busy)"))
+    }
+
+    @Test
+    fun opacityHandlesEndpointsAndCorruptSavedValues() {
+        assertEquals(0f, sanitizeOverflowMenuOpacity(0f), 0f)
+        assertEquals(0.5f, sanitizeOverflowMenuOpacity(0.5f), 0f)
+        assertEquals(1f, sanitizeOverflowMenuOpacity(1f), 0f)
+        assertEquals(0f, sanitizeOverflowMenuOpacity(-0.5f), 0f)
+        assertEquals(1f, sanitizeOverflowMenuOpacity(1.5f), 0f)
+        for (value in listOf(Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY)) {
+            assertEquals(1f, sanitizeOverflowMenuOpacity(value), 0f)
+        }
+    }
+
+    @Test
+    fun menuOpacityIsIndependentAndSurvivesWallpaperChanges() {
+        val keys = OverflowMenuTarget.entries.flatMap { listOf(it.wallpaperKey, it.cropKey, it.opacityKey) }
+        assertEquals(6, keys.toSet().size)
+        val wallpaper = source("component/overflow/OverflowMenuWallpaper.kt")
+        assertTrue(wallpaper.contains("preferences.getFloat(target.opacityKey, 1f)"))
+        assertTrue(wallpaper.contains("key == target.opacityKey"))
+        assertTrue(wallpaper.contains("putFloat(target.opacityKey, sanitizeOverflowMenuOpacity(value)).commit()"))
+        assertFalse(wallpaper.contains("remove(target.opacityKey)"))
+    }
+
+    @Test
+    fun opacityAffectsOnlyBackgroundsAndIsAccessibleWithoutAWallpaper() {
+        val menu = source("component/overflow/FrostedOverflowMenu.kt")
+        assertTrue(menu.contains("Modifier.matchParentSize().graphicsLayer { alpha = opacity }"))
+        assertTrue(menu.contains("colors.containerColor.alpha * opacity"))
+        assertTrue(menu.contains("colors.selectedContainerColor.alpha * opacity"))
+        assertTrue(menu.contains("colors.disabledContainerColor.alpha * opacity"))
+        assertFalse(menu.contains("textColor ="))
+        assertFalse(menu.contains("leadingIconColor ="))
+        assertFalse(menu.contains("trailingContentColor ="))
+        val dialog = source("component/overflow/OverflowMenuWallpaper.kt")
+        val slider = dialog.substringAfter("Slider(").substringBefore("state.bitmap?.let")
+        assertTrue(dialog.contains("SliderState(opacity, trackRange = 0f..1f)"))
+        assertTrue(slider.contains("state = opacitySlider"))
+        assertTrue(slider.contains("onValueChangeFinished = { state.onOpacityChange(opacity) }"))
+        assertTrue(slider.contains("stateDescription = opacityValue"))
+        assertTrue(slider.contains("state.onOpacityChange(1f)"))
     }
 
     @Test
@@ -146,7 +192,6 @@ class OverflowMenuAppearanceTest {
         assertTrue(menu.contains("UiPassthroughTheme(UiPassthroughSettings())"))
         assertTrue(menu.contains("Modifier.matchParentSize().drawBackdrop("))
         assertTrue(menu.contains(".blur(12.dp, edgeTreatment = BlurredEdgeTreatment.Rectangle)"))
-        assertTrue(menu.contains(".heightIn(min = 48.dp)"))
         assertFalse(menu.contains(".alpha("))
     }
 
@@ -177,7 +222,34 @@ class OverflowMenuAppearanceTest {
             assertTrue(source("screen/$page").contains("OverflowMenuBackdrop {"))
         }
         val menu = source("component/overflow/FrostedOverflowMenu.kt")
-        assertTrue(menu.contains("pageBackdrop?.captureActive = expanded"))
-        assertTrue(menu.contains("onDispose { pageBackdrop?.captureActive = false }"))
+        val popup = menu.substringAfter("DropdownMenuPopup(expanded = expanded, onDismissRequest = onDismissRequest) {")
+        assertTrue(popup.contains("pageBackdrop?.acquireCapture()"))
+        assertTrue(popup.contains("onDispose { release?.invoke() }"))
+    }
+
+    @Test
+    fun dismissingOneMenuDoesNotReleaseAnotherMenusBackdrop() {
+        val state = OverflowMenuBackdropState(null)
+        assertFalse(state.captureActive)
+        val releaseSuperuser = state.acquireCapture()
+        val releaseModule = state.acquireCapture()
+        assertTrue(state.captureActive)
+        releaseSuperuser()
+        assertTrue(state.captureActive)
+        releaseModule()
+        assertFalse(state.captureActive)
+    }
+
+    @Test
+    fun rootCaptureIncludesWallpaperAndNestedPagesReuseIt() {
+        val activity = source("MainActivity.kt")
+        val root = activity.substringAfter("me.weishu.kernelsu.ui.component.overflow.OverflowMenuBackdrop(")
+        assertTrue(root.contains("CustomWallpaperRoot("))
+        assertTrue(root.indexOf("CustomWallpaperRoot(") < root.indexOf("SeasonChromeOverlay("))
+        val backdrop = source("component/overflow/OverflowMenuBackdrop.kt")
+        val nested = backdrop.substringAfter("if (LocalOverflowMenuBackdrop.current != null) {")
+            .substringBefore("}")
+        assertTrue(nested.contains("content()"))
+        assertTrue(nested.contains("return"))
     }
 }

@@ -1,5 +1,6 @@
 package me.weishu.kernelsu.ui.component.bottombar
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Extension
@@ -29,13 +31,19 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ShortNavigationBar
 import androidx.compose.material3.ShortNavigationBarArrangement
 import androidx.compose.material3.ShortNavigationBarItem
+import androidx.compose.material3.ShortNavigationBarItemDefaults
 import me.weishu.kernelsu.ui.component.passthrough.MaterialText as Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import me.weishu.kernelsu.ui.component.rain.rainNavigationIndicator
 import me.weishu.kernelsu.ui.component.rain.RainChromeArea
 import me.weishu.kernelsu.ui.component.rain.rainChromeDecoration
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import me.weishu.kernelsu.ui.theme.uiPassthroughNavigationColor
 import androidx.compose.ui.res.stringResource
@@ -132,7 +140,10 @@ private fun MaterialNavigationBar(
     val mainPagerState = LocalMainPagerState.current
     val customIcons = LocalCustomNavigationIcons.current
     ShortNavigationBar(
-        modifier = Modifier.fillMaxWidth().rainChromeDecoration(RainChromeArea.Navigation),
+        // Material3 alpha28 constrains each item with the bar's incoming minimum width.
+        // Keep the bar full width, but relax that minimum before it divides the items.
+        modifier = Modifier.fillMaxWidth().wrapContentWidth()
+            .rainChromeDecoration(RainChromeArea.Navigation),
         containerColor = containerColor,
         windowInsets = windowInsets,
         arrangement = ShortNavigationBarArrangement.EqualWeight,
@@ -140,21 +151,40 @@ private fun MaterialNavigationBar(
         destinations.forEachIndexed { index, destination ->
             val selected = mainPagerState.selectedPage == index
             val label = customIcons.labelFor(destination, stringResource(destination.label))
+            val indicatorColor by animateColorAsState(
+                targetValue = if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
+                label = "NavigationIndicatorColor",
+            )
             ShortNavigationBarItem(
                 modifier = Modifier.rainNavigationIndicator(RoundedCornerShape(24.dp), paintBackground = false, interactionKey = destination, selected = selected),
                 selected = selected,
+                colors = ShortNavigationBarItemDefaults.colors(selectedIndicatorColor = Color.Transparent),
                 onClick = {
                     if (!selected) {
                         mainPagerState.animateToPage(index)
                     }
                 },
                 icon = {
-                    NavigationIconWithBadge(
-                        destination = destination,
-                        state = customIcons.stateFor(destination),
-                        contentDescription = label,
-                        badge = badgeFor(destination, navigationBadge),
-                    )
+                    Box(
+                        // Paint a fixed capsule without changing icon, label or badge layout.
+                        modifier = Modifier.drawBehind {
+                            val width = 64.dp.toPx()
+                            val height = 32.dp.toPx()
+                            drawRoundRect(
+                                color = indicatorColor,
+                                topLeft = Offset((size.width - width) / 2f, (size.height - height) / 2f),
+                                size = Size(width, height),
+                                cornerRadius = CornerRadius(height / 2f),
+                            )
+                        },
+                    ) {
+                        NavigationIconWithBadge(
+                            destination = destination,
+                            state = customIcons.stateFor(destination),
+                            contentDescription = label,
+                            badge = badgeFor(destination, navigationBadge),
+                        )
+                    }
                 },
                 label = {
                     Text(

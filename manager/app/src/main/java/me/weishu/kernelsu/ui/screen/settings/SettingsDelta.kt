@@ -782,54 +782,43 @@ private fun DeltaStylePicker(
     uiState: SettingsUiState,
     actions: SettingsScreenActions,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(10.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        InterfaceStyle.selectableEntries.forEachIndexed { index, style ->
-            val selected = InterfaceStyle.selectedIndex(uiState.uiMode) == index
-            Box(
-                modifier = Modifier
-                    .height(36.dp)
-                    .clip(DeltaShapes.Control)
-                    .background(if (selected) DeltaColors.AccentSoft else DeltaColors.SurfaceDeep)
-                    .clickable { actions.onSetUiModeIndex(index) }
-                    .padding(horizontal = 14.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = stringResource(style.labelRes),
-                    color = if (selected) DeltaColors.Ink else DeltaColors.Muted,
-                    fontSize = deltaSp(12.5f, maxScale = 1.0f),
-                    fontWeight = FontWeight.Black,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+    WithGroupedInterfaceStylePicker(
+        uiState = uiState,
+        onSelected = { index ->
+            uiState.applyInterfaceStyleSelection(
+                index, actions.onSetUiModeIndex, actions.onApplyInterfaceStylePackage,
+            )
+        },
+    ) { labels, selectedIndex, select ->
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            labels.forEachIndexed { index, label ->
+                val selected = selectedIndex == index
+                Box(
+                    modifier = Modifier
+                        .height(36.dp)
+                        .clip(DeltaShapes.Control)
+                        .background(if (selected) DeltaColors.AccentSoft else DeltaColors.SurfaceDeep)
+                        .clickable { select(index) }
+                        .padding(horizontal = 14.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = label,
+                        color = if (selected) DeltaColors.Ink else DeltaColors.Muted,
+                        fontSize = deltaSp(12.5f, maxScale = 1.0f),
+                        fontWeight = FontWeight.Black,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
-        }
-        uiState.installedInterfaceStyles.forEach { installed ->
-            val selected = uiState.isInterfaceStyleActive(installed.style)
-            Box(
-                modifier = Modifier
-                    .height(36.dp)
-                    .clip(DeltaShapes.Control)
-                    .background(if (selected) DeltaColors.AccentSoft else DeltaColors.SurfaceDeep)
-                    .clickable { actions.onApplyInterfaceStylePackage(installed.style) }
-                    .padding(horizontal = 14.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = installed.style.name,
-                    color = if (selected) DeltaColors.Ink else DeltaColors.Muted,
-                    fontSize = deltaSp(12.5f, maxScale = 1.0f),
-                    fontWeight = FontWeight.Black,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+
         }
     }
 }

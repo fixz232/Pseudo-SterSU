@@ -115,7 +115,7 @@ import me.weishu.kernelsu.ui.util.FULL_CUSTOM_WALLPAPER_CROP
 import me.weishu.kernelsu.ui.util.adaptiveDialogContentMaxHeight
 import me.weishu.kernelsu.ui.util.managerDisplayName
 
-/** Device-oriented settings shared by sidebar, seasonal and pixel interface styles. */
+/** The beautified device-oriented settings home shared by all interface styles. */
 @Composable
 internal fun SettingsSidebarScreen(
     uiState: SettingsUiState,

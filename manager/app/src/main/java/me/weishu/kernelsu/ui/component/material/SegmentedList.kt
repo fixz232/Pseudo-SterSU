@@ -3,6 +3,7 @@ package me.weishu.kernelsu.ui.component.material
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,6 +19,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.SelectableDropdownMenuItem
 import me.weishu.kernelsu.ui.component.passthrough.MaterialIcon as Icon
@@ -45,12 +47,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
@@ -63,6 +67,7 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -77,6 +82,7 @@ import me.weishu.kernelsu.ui.component.liquid.isLiquidGlassTheme
 import kotlin.math.roundToInt
 
 val LocalListItemShapes = compositionLocalOf<ListItemShapes?> { null }
+private val LocalConnectedSegmentedGroup = compositionLocalOf { false }
 private val SegmentedOuterRadius = 16.dp
 private val SegmentedInnerRadius = 4.dp
 private const val SegmentedSpringStiffness = 800f
@@ -86,7 +92,9 @@ private const val SegmentedSpringDamping = 0.9f
 annotation class SegmentedColumnDsl
 
 @Composable
-private fun segmentedContainerColor() = if (LocalInterfaceStyle.current == InterfaceStyle.SidebarWidget.value) {
+private fun segmentedContainerColor() = if (LocalConnectedSegmentedGroup.current) {
+    Color.Transparent
+} else if (LocalInterfaceStyle.current == InterfaceStyle.SidebarWidget.value) {
     colorScheme.surfaceContainer
 } else if (isLiquidGlassTheme()) {
     colorScheme.surfaceColorAtElevation(1.dp).copy(alpha = 0.56f)
@@ -102,14 +110,23 @@ private fun defaultSegmentedColors(): ListItemColors = ListItemDefaults.segmente
 )
 
 @Composable
-private fun defaultSingleSegmentedShape(index: Int, count: Int): ListItemShapes {
+private fun defaultSingleSegmentedShape(index: Int, count: Int, connected: Boolean = false): ListItemShapes {
     val base = ListItemDefaults.segmentedShapes(index, count)
-    return if (count == 1) {
+    return if (connected) {
+        base.copy(shape = connectedSegmentedShape(index == 0, index == count - 1))
+    } else if (count == 1) {
         base.copy(shape = MaterialTheme.shapes.large)
     } else {
         base
     }
 }
+
+internal fun connectedSegmentedShape(first: Boolean, last: Boolean): RoundedCornerShape = RoundedCornerShape(
+    topStart = if (first) SegmentedOuterRadius else 0.dp,
+    topEnd = if (first) SegmentedOuterRadius else 0.dp,
+    bottomStart = if (last) SegmentedOuterRadius else 0.dp,
+    bottomEnd = if (last) SegmentedOuterRadius else 0.dp,
+)
 
 @Composable
 fun SegmentedColumn(
@@ -117,6 +134,7 @@ fun SegmentedColumn(
     title: String = "",
     visibleLen: Int = 0,
     content: List<@Composable () -> Unit>,
+    connected: Boolean = false,
 ) {
     if (content.isEmpty()) return
 
@@ -129,13 +147,19 @@ fun SegmentedColumn(
                 modifier = Modifier.padding(start = 16.dp, bottom = 8.dp)
             )
         }
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Column(
+            modifier = if (connected) Modifier.clip(RoundedCornerShape(SegmentedOuterRadius))
+                .background(segmentedContainerColor()) else Modifier,
+            verticalArrangement = Arrangement.spacedBy(if (connected) 0.dp else 2.dp),
+        ) {
             content.forEachIndexed { index, itemContent ->
                 CompositionLocalProvider(
                     LocalListItemShapes provides defaultSingleSegmentedShape(
                         index = index,
-                        count = if (visibleLen > 0) visibleLen else content.size
+                        count = if (visibleLen > 0) visibleLen else content.size,
+                        connected = connected,
                     ),
+                    LocalConnectedSegmentedGroup provides connected,
                 ) {
                     itemContent()
                 }
@@ -167,6 +191,7 @@ class SegmentedColumnScope {
 fun SegmentedColumn(
     modifier: Modifier = Modifier,
     title: String = "",
+    connected: Boolean = false,
     content: SegmentedColumnScope.() -> Unit,
 ) {
     val entries = SegmentedColumnScope().apply(content).entries
@@ -198,7 +223,10 @@ fun SegmentedColumn(
         val firstVisible = entries.indexOfFirst { it.visible }
         val lastVisible = entries.indexOfLast { it.visible }
 
+        val groupColor = segmentedContainerColor()
         Layout(
+            modifier = if (connected) Modifier.clip(RoundedCornerShape(SegmentedOuterRadius))
+                .background(groupColor) else Modifier,
             content = {
                 entries.forEachIndexed { index, entry ->
                     key(entry.key ?: index) {
@@ -206,15 +234,15 @@ fun SegmentedColumn(
                         val isLast = if (lastVisible == -1) index == entries.lastIndex else index == lastVisible
 
                         val topRadius by animateDpAsState(
-                            if (isFirst) SegmentedOuterRadius else SegmentedInnerRadius,
+                            if (isFirst) SegmentedOuterRadius else if (connected) 0.dp else SegmentedInnerRadius,
                             dpSpring, label = "SegmentedTopRadius"
                         )
                         val bottomRadius by animateDpAsState(
-                            if (isLast) SegmentedOuterRadius else SegmentedInnerRadius,
+                            if (isLast) SegmentedOuterRadius else if (connected) 0.dp else SegmentedInnerRadius,
                             dpSpring, label = "SegmentedBottomRadius"
                         )
                         val gap by animateDpAsState(
-                            if (isFirst) 0.dp else ListItemDefaults.SegmentedGap,
+                            if (connected || isFirst) 0.dp else ListItemDefaults.SegmentedGap,
                             dpSpring, label = "SegmentedGap"
                         )
 
@@ -240,7 +268,8 @@ fun SegmentedColumn(
                                 }
                         ) {
                             CompositionLocalProvider(
-                                LocalListItemShapes provides ListItemDefaults.segmentedShapes(0, 1).copy(shape = shape)
+                                LocalListItemShapes provides ListItemDefaults.segmentedShapes(0, 1).copy(shape = shape),
+                                LocalConnectedSegmentedGroup provides connected,
                             ) {
                                 Column(modifier = Modifier.padding(top = gap)) {
                                     entry.content()
@@ -439,6 +468,7 @@ fun SegmentedDropdownItem(
     enabled: Boolean = true,
     onClick: (() -> Unit)? = null,
     selectedIndex: Int,
+    selectedValueAsSummary: Boolean = false,
     onItemSelected: (Int) -> Unit,
 ) {
     val haptic = LocalHapticFeedback.current
@@ -465,14 +495,26 @@ fun SegmentedDropdownItem(
             colors = colors,
             leadingContent = icon?.let { { Icon(it, title) } },
             headlineContent = { Text(text = title) },
-            supportingContent = summary?.let { { Text(it) } },
+            supportingContent = if (selectedValueAsSummary && hasItems) {
+                {
+                    Text(
+                        items[safeIndex],
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            } else summary?.let { { Text(it) } },
             trailingContent = {
-                Text(
-                    text = if (hasItems && safeIndex >= 0) items[safeIndex] else "",
-                    textAlign = TextAlign.End,
-                    modifier = Modifier.fillMaxWidth(0.3f),
-                    color = if (enabled) colorScheme.primary else colorScheme.onSurfaceVariant
-                )
+                if (selectedValueAsSummary) {
+                    Icon(Icons.Filled.ExpandMore, contentDescription = null)
+                } else {
+                    Text(
+                        text = if (hasItems && safeIndex >= 0) items[safeIndex] else "",
+                        textAlign = TextAlign.End,
+                        modifier = Modifier.fillMaxWidth(0.3f),
+                        color = if (enabled) colorScheme.primary else colorScheme.onSurfaceVariant
+                    )
+                }
             }
         )
         OffsetAnchoredExpressiveMenu(

@@ -521,7 +521,6 @@ int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *v
 {
     if (*type == EV_KEY && *code == KEY_VOLUMEDOWN) {
         int val = *value;
-        pr_info("KEY_VOLUMEDOWN val: %d\n", val);
         if (val) {
             // key pressed, count it
             unsigned int pressed_count = atomic_inc_return(&volumedown_pressed_count);
@@ -683,8 +682,7 @@ void ksu_stop_input_hook_runtime(void)
     if (atomic_cmpxchg(&input_hook_stop_requested, 0, 1)) {
         return;
     }
-    bool ret = schedule_work(&stop_input_hook_work);
-    pr_info("unregister input kprobe: %d!\n", ret);
+    schedule_work(&stop_input_hook_work);
 }
 
 // ksud: module support

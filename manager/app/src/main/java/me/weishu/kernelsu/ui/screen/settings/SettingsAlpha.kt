@@ -577,73 +577,62 @@ private fun AlphaStylePicker(
     actions: SettingsScreenActions,
 ) {
     val snow = isSnowStyle()
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = if (snow) 12.dp else 8.dp, vertical = if (snow) 10.dp else 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(if (snow) 8.dp else 6.dp),
-    ) {
-        InterfaceStyle.selectableEntries.forEachIndexed { index, style ->
-            val selected = InterfaceStyle.selectedIndex(uiState.uiMode) == index
-            Row(
-                modifier = Modifier
-                    .height(if (snow) 36.dp else 34.dp)
-                    .clip(AlphaShapes.Control)
-                    .background(
-                        when {
-                            selected && snow -> AlphaColors.AccentSoft
-                            selected -> AlphaColors.Accent
-                            else -> AlphaColors.SurfaceStrong
-                        }
-                    )
-                    .clickable { actions.onSetUiModeIndex(index) }
-                    .padding(horizontal = if (snow) 11.dp else 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(5.dp),
-            ) {
-                if (snow && selected) {
-                    Icon(
-                        imageVector = Icons.Rounded.Check,
-                        contentDescription = null,
-                        tint = AlphaColors.Accent,
-                        modifier = Modifier.size(16.dp),
+    WithGroupedInterfaceStylePicker(
+        uiState = uiState,
+        onSelected = { index ->
+            uiState.applyInterfaceStyleSelection(
+                index, actions.onSetUiModeIndex, actions.onApplyInterfaceStylePackage,
+            )
+        },
+    ) { labels, selectedIndex, select ->
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = if (snow) 12.dp else 8.dp, vertical = if (snow) 10.dp else 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (snow) 8.dp else 6.dp),
+        ) {
+            labels.forEachIndexed { index, label ->
+                val selected = selectedIndex == index
+                Row(
+                    modifier = Modifier
+                        .height(if (snow) 36.dp else 34.dp)
+                        .clip(AlphaShapes.Control)
+                        .background(
+                            when {
+                                selected && snow -> AlphaColors.AccentSoft
+                                selected -> AlphaColors.Accent
+                                else -> AlphaColors.SurfaceStrong
+                            }
+                        )
+                        .clickable { select(index) }
+                        .padding(horizontal = if (snow) 11.dp else 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                ) {
+                    if (snow && selected) {
+                        Icon(
+                            imageVector = Icons.Rounded.Check,
+                            contentDescription = null,
+                            tint = AlphaColors.Accent,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
+                    Text(
+                        text = label,
+                        color = when {
+                            selected && snow -> AlphaColors.Accent
+                            selected -> AlphaColors.OnAccent
+                            else -> AlphaColors.Muted
+                        },
+                        fontSize = alphaSp(13f, maxScale = 1.0f),
+                        fontWeight = alphaStrongWeight(),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
-                Text(
-                    text = stringResource(style.labelRes),
-                    color = when {
-                        selected && snow -> AlphaColors.Accent
-                        selected -> AlphaColors.OnAccent
-                        else -> AlphaColors.Muted
-                    },
-                    fontSize = alphaSp(13f, maxScale = 1.0f),
-                    fontWeight = alphaStrongWeight(),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
             }
-        }
-        uiState.installedInterfaceStyles.forEach { installed ->
-            val selected = uiState.isInterfaceStyleActive(installed.style)
-            Row(
-                modifier = Modifier
-                    .height(if (snow) 36.dp else 34.dp)
-                    .clip(AlphaShapes.Control)
-                    .background(if (selected) AlphaColors.Accent else AlphaColors.SurfaceStrong)
-                    .clickable { actions.onApplyInterfaceStylePackage(installed.style) }
-                    .padding(horizontal = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = installed.style.name,
-                    color = if (selected) AlphaColors.OnAccent else AlphaColors.Muted,
-                    fontSize = alphaSp(13f, maxScale = 1.0f),
-                    fontWeight = alphaStrongWeight(),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+
         }
     }
 }

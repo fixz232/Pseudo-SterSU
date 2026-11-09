@@ -10,6 +10,10 @@ import java.io.InputStream
 class FileInputStreamInterface {
     @JavascriptInterface
     fun open(path: String): String = runCatching {
+        if (!KsuIO.canOpenStream()) {
+            Log.w(TAG, "FileInputStream open rejected: too many open streams")
+            return ""
+        }
         val stream = ManagedInputStream(SuFileInputStream.open(path))
         val id = java.util.UUID.randomUUID().toString()
         KsuIO.openInputStreams[id] = stream

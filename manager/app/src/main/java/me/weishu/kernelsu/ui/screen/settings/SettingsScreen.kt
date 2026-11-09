@@ -78,7 +78,5 @@ fun SettingPager(
     }
 }
 
-internal fun usesDeviceSettingsHome(interfaceStyle: String): Boolean = when (interfaceStyle) {
-    InterfaceStyle.SidebarWidget.value, InterfaceStyle.Snow.value, InterfaceStyle.Pixel.value -> true
-    else -> false
-}
+internal fun usesDeviceSettingsHome(interfaceStyle: String): Boolean =
+    InterfaceStyle.entries.any { it.value == interfaceStyle }

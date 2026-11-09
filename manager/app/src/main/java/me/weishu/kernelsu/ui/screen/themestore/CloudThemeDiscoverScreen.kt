@@ -18,8 +18,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -33,11 +31,9 @@ import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Image
-import androidx.compose.material.icons.rounded.NewReleases
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Update
-import androidx.compose.material3.FilterChip
 import me.weishu.kernelsu.ui.component.passthrough.MaterialIcon as Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -60,6 +56,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -72,26 +69,25 @@ import kotlinx.coroutines.withContext
 import me.weishu.kernelsu.R
 import me.weishu.kernelsu.ui.component.store.StoreSectionHeading
 import me.weishu.kernelsu.ui.component.store.StoreSearchField
-import me.weishu.kernelsu.ui.component.store.StoreFilters
-import me.weishu.kernelsu.ui.component.store.StoreExpandableSection
 import me.weishu.kernelsu.ui.component.store.StoreTag
 import me.weishu.kernelsu.ui.util.CloudTheme
 import me.weishu.kernelsu.ui.util.CloudThemeCatalogSnapshot
 import me.weishu.kernelsu.ui.util.CloudThemeCatalogSource
 import me.weishu.kernelsu.ui.util.CloudThemeLocalRecord
-import me.weishu.kernelsu.ui.util.CloudThemePublicationStatus
+import me.weishu.kernelsu.BuildConfig
+import me.weishu.kernelsu.ui.LocalInterfaceStyle
+import me.weishu.kernelsu.ui.util.CloudThemeBrowseFilter
+import me.weishu.kernelsu.ui.util.CloudThemeCompatibility
+import me.weishu.kernelsu.ui.util.CloudThemeDevice
+import me.weishu.kernelsu.ui.util.CloudThemeDiscoverySelection
+import me.weishu.kernelsu.ui.util.CloudThemeOrder
+import me.weishu.kernelsu.ui.util.CloudThemeStyle
+import me.weishu.kernelsu.ui.util.CloudThemeTone
+import me.weishu.kernelsu.ui.util.discoverCloudThemes
 import me.weishu.kernelsu.ui.util.CloudThemeRepository
 import me.weishu.kernelsu.ui.util.loadCloudThemeImage
 import java.text.DateFormat
 import java.util.Date
-
-private enum class CloudThemeDiscoverFilter {
-    All,
-    Featured,
-    Latest,
-    Updates,
-    Favorites,
-}
 
 @Composable
 internal fun CloudThemeDiscoverContent(
@@ -109,8 +105,25 @@ internal fun CloudThemeDiscoverContent(
     var loading by remember { mutableStateOf(true) }
     var refreshing by remember { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
-    var filter by rememberSaveable { mutableStateOf(CloudThemeDiscoverFilter.All) }
+    var filter by rememberSaveable { mutableStateOf(CloudThemeBrowseFilter.All) }
+    var order by rememberSaveable { mutableStateOf(CloudThemeOrder.Recommended) }
+    var tone by rememberSaveable { mutableStateOf(CloudThemeTone.All) }
+    var device by rememberSaveable { mutableStateOf(CloudThemeDevice.All) }
+    var compatibility by rememberSaveable { mutableStateOf(CloudThemeCompatibility.All) }
+    var style by rememberSaveable { mutableStateOf(CloudThemeStyle.All) }
     var categoryId by rememberSaveable { mutableStateOf<String?>(null) }
+    val interfaceStyle = LocalInterfaceStyle.current
+    val tabletDevice = LocalConfiguration.current.smallestScreenWidthDp >= 600
+    val selection = CloudThemeDiscoverySelection(filter, order, tone, device, compatibility, style, categoryId)
+    val onSelectionChange: (CloudThemeDiscoverySelection) -> Unit = {
+        filter = it.browse
+        order = it.order
+        tone = it.tone
+        device = it.device
+        compatibility = it.compatibility
+        style = it.style
+        categoryId = it.categoryId
+    }
 
     fun refresh(force: Boolean) {
         if (refreshing) return
@@ -147,46 +160,16 @@ internal fun CloudThemeDiscoverContent(
         onPauseOrDispose { }
     }
 
-    val visibleThemes = remember(snapshot, localState, query, filter, categoryId) {
-        val normalizedQuery = query.trim().lowercase()
-        val all = snapshot?.catalog?.themes
-            .orEmpty()
-            .asSequence()
-            .filter { it.status == CloudThemePublicationStatus.Published }
-            .filter { categoryId == null || it.categoryId == categoryId }
-            .filter { theme ->
-                normalizedQuery.isBlank() || listOf(
-                    theme.name,
-                    theme.author.name,
-                    theme.description,
-                    theme.tags.joinToString(" "),
-                ).any { normalizedQuery in it.lowercase() }
-            }
-            .filter { theme ->
-                when (filter) {
-                    CloudThemeDiscoverFilter.All,
-                    CloudThemeDiscoverFilter.Latest -> true
-                    CloudThemeDiscoverFilter.Featured -> theme.featured
-                    CloudThemeDiscoverFilter.Updates -> {
-                        val record = localState.record(theme.id)
-                        record != null && (
-                            record.versionCode < theme.versionCode ||
-                                (record.versionCode == theme.versionCode && record.sha256 != theme.sha256)
-                            )
-                    }
-                    CloudThemeDiscoverFilter.Favorites -> localState.isFavorite(theme.id)
-                }
-            }
-            .sortedWith(
-                if (filter == CloudThemeDiscoverFilter.Latest) {
-                    compareByDescending(CloudTheme::publishedAt)
-                } else {
-                    compareByDescending<CloudTheme> { it.featured }
-                        .thenByDescending(CloudTheme::publishedAt)
-                }
-            )
-            .toList()
-        if (filter == CloudThemeDiscoverFilter.Latest) all.take(24) else all
+    val visibleThemes = remember(snapshot, localState, query, selection, interfaceStyle, tabletDevice) {
+        discoverCloudThemes(
+            themes = snapshot?.catalog?.themes.orEmpty(),
+            localState = localState,
+            query = query,
+            selection = selection,
+            managerVersionCode = BuildConfig.VERSION_CODE.toLong(),
+            interfaceStyle = interfaceStyle,
+            tabletDevice = tabletDevice,
+        )
     }
     val themeCard: @Composable (CloudTheme) -> Unit = { theme ->
         CloudThemeCard(
@@ -219,23 +202,12 @@ internal fun CloudThemeDiscoverContent(
         item(key = "search", span = { GridItemSpan(maxLineSpan) }) {
             StoreSearchField(query, { query = it }, stringResource(R.string.cloud_theme_search_hint))
         }
-        item(key = "filters", span = { GridItemSpan(maxLineSpan) }) {
-            CloudThemeFilters(selected = filter, onSelected = { filter = it })
-        }
-        snapshot?.catalog?.categories?.takeIf { it.isNotEmpty() }?.let { categories ->
-            item(key = "categories", span = { GridItemSpan(maxLineSpan) }) {
-                StoreExpandableSection(
-                    title = stringResource(R.string.store_redesign_filter_category),
-                    summary = categories.firstOrNull { it.id == categoryId }?.name
-                        ?: stringResource(R.string.cloud_theme_category_all),
-                ) {
-                    StoreFilters(
-                        labels = listOf(stringResource(R.string.cloud_theme_category_all)) + categories.map { it.name },
-                        selectedIndex = categories.indexOfFirst { it.id == categoryId } + 1,
-                        onSelect = { categoryId = if (it == 0) null else categories[it - 1].id },
-                    )
-                }
-            }
+        item(key = "categories", span = { GridItemSpan(maxLineSpan) }) {
+            CloudThemeDiscoverFilters(
+                categories = snapshot?.catalog?.categories.orEmpty(),
+                selection = selection,
+                onSelectionChange = onSelectionChange,
+            )
         }
         item(key = "results", span = { GridItemSpan(maxLineSpan) }) {
             StoreSectionHeading(
@@ -260,7 +232,7 @@ internal fun CloudThemeDiscoverContent(
                     title = stringResource(R.string.store_redesign_no_results),
                     message = stringResource(R.string.store_redesign_no_results_summary),
                     actionLabel = stringResource(R.string.store_redesign_clear_filters),
-                    onAction = { query = ""; categoryId = null; filter = CloudThemeDiscoverFilter.All },
+                    onAction = { query = ""; onSelectionChange(CloudThemeDiscoverySelection()) },
                 )
             }
         } else {
@@ -293,44 +265,6 @@ private fun CloudThemeDiscoverHeader(
                 text = stringResource(if (it.source == CloudThemeCatalogSource.Bundled)
                     R.string.cloud_theme_bundled_catalog else R.string.cloud_theme_offline_catalog),
                 isError = it.errorMessage != null,
-            )
-        }
-    }
-}
-
-@Composable
-private fun CloudThemeFilters(
-    selected: CloudThemeDiscoverFilter,
-    onSelected: (CloudThemeDiscoverFilter) -> Unit,
-) {
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        items(CloudThemeDiscoverFilter.entries, key = { it.name }) { filter ->
-            val label = stringResource(
-                when (filter) {
-                    CloudThemeDiscoverFilter.All -> R.string.cloud_theme_filter_all
-                    CloudThemeDiscoverFilter.Featured -> R.string.cloud_theme_filter_featured
-                    CloudThemeDiscoverFilter.Latest -> R.string.cloud_theme_filter_latest
-                    CloudThemeDiscoverFilter.Updates -> R.string.cloud_theme_filter_updates
-                    CloudThemeDiscoverFilter.Favorites -> R.string.cloud_theme_filter_favorites
-                }
-            )
-            FilterChip(
-                selected = selected == filter,
-                onClick = { onSelected(filter) },
-                label = { Text(label) },
-                modifier = Modifier.heightIn(min = 48.dp),
-                leadingIcon = when (filter) {
-                    CloudThemeDiscoverFilter.Featured -> ({
-                        Icon(Icons.Rounded.NewReleases, contentDescription = null, modifier = Modifier.size(16.dp))
-                    })
-                    CloudThemeDiscoverFilter.Updates -> ({
-                        Icon(Icons.Rounded.Update, contentDescription = null, modifier = Modifier.size(16.dp))
-                    })
-                    CloudThemeDiscoverFilter.Favorites -> ({
-                        Icon(Icons.Rounded.Favorite, contentDescription = null, modifier = Modifier.size(16.dp))
-                    })
-                    else -> null
-                },
             )
         }
     }

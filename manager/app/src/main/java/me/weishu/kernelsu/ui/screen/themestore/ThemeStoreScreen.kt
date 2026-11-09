@@ -91,7 +91,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -105,6 +104,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.weishu.kernelsu.R
+import me.weishu.kernelsu.ui.component.material.ConnectedTabRow
 import me.weishu.kernelsu.ui.component.store.StoreScaffold
 import me.weishu.kernelsu.ui.component.store.StoreSectionHeading
 import me.weishu.kernelsu.ui.component.store.StoreExpandableSection
@@ -129,9 +129,6 @@ import me.weishu.kernelsu.ui.util.ThemeStoreImageSlot
 import me.weishu.kernelsu.ui.util.ThemeStoreImageGroup
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
-import top.yukonga.miuix.kmp.basic.ButtonDefaults as MiuixButtonDefaults
-import top.yukonga.miuix.kmp.basic.TextButton as MiuixTextButton
-import top.yukonga.miuix.kmp.basic.TabRow as MiuixTabRow
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import me.weishu.kernelsu.ui.component.passthrough.MiuixText
@@ -148,7 +145,6 @@ import me.weishu.kernelsu.ui.util.InterfaceStyleRegistry
 import me.weishu.kernelsu.ui.util.InstalledInterfaceStyle
 import me.weishu.kernelsu.ui.util.InterfaceStyleDownloadProgress
 import me.weishu.kernelsu.ui.util.INTERFACE_STYLE_PACKAGE_MIME_TYPE
-import me.weishu.kernelsu.ui.util.INTERFACE_STYLE_RESULT_KEY
 import me.weishu.kernelsu.ui.util.interfaceStylePackageFileName
 import me.weishu.kernelsu.ui.util.isValidStoreAcceleratorAddress
 import me.weishu.kernelsu.ui.util.readStoreDownloadSettings
@@ -170,7 +166,6 @@ enum class ThemeStorePage(@StringRes val titleRes: Int) {
 
 internal val themeStoreNavigationPages = listOf(
     ThemeStorePage.Overview,
-    ThemeStorePage.Styles,
     ThemeStorePage.Customize,
     ThemeStorePage.My,
 )
@@ -202,8 +197,6 @@ private fun InterfaceStylePackage.category(): InterfaceStyleCategory = when (eng
 fun ThemeStoreScreen(
     page: ThemeStorePage = ThemeStorePage.Overview,
     customizeSection: ThemeStoreCustomizeSection = ThemeStoreCustomizeSection.Style,
-    returnToAppearance: Boolean = false,
-    interfaceStyleStore: Boolean = false,
 ) {
     val context = LocalContext.current
     val navigator = LocalNavigator.current
@@ -212,19 +205,19 @@ fun ThemeStoreScreen(
     var busy by remember { mutableStateOf(false) }
     var pendingImport by remember { mutableStateOf<PendingThemeStoreImport?>(null) }
     var transferReport by remember { mutableStateOf<ThemeStoreTransferReport?>(null) }
-    var selectedPageIndex by rememberSaveable(page, interfaceStyleStore) {
-        mutableIntStateOf(if (interfaceStyleStore) ThemeStorePage.Styles.ordinal else page.ordinal)
+    var selectedPageIndex by rememberSaveable(page) {
+        mutableIntStateOf(page.ordinal)
     }
     val pageStateHolder = rememberSaveableStateHolder()
-    var selectedStyleId by rememberSaveable { mutableStateOf<String?>(null) }
-    val styleListScroll = rememberScrollState()
-    val styleDetailScroll = rememberScrollState()
-    LaunchedEffect(selectedStyleId) {
-        if (selectedStyleId != null) styleDetailScroll.scrollTo(0)
-    }
     val selectedPage = ThemeStorePage.entries.getOrElse(selectedPageIndex) {
         ThemeStorePage.Overview
     }.takeUnless { it == ThemeStorePage.Plugins } ?: ThemeStorePage.Overview
+
+    // Preserve the saved Styles ordinal while moving restored destinations to the workspace.
+    if (selectedPage == ThemeStorePage.Styles) {
+        LaunchedEffect(navigator) { navigator.replace(Route.StoreInterfaceStyles) }
+        return
+    }
 
     fun refresh() {
         summary = readThemeStoreSummary(context)
@@ -341,36 +334,12 @@ fun ThemeStoreScreen(
         },
     )
 
-    val onInterfaceStyleInstalled: (String) -> Unit = { id ->
-        if (returnToAppearance) {
-            navigator.setResult(INTERFACE_STYLE_RESULT_KEY, id)
-        }
-    }
     val onSelectedPage: (ThemeStorePage) -> Unit = { selected ->
         if (selected == ThemeStorePage.My) refresh()
         selectedPageIndex = selected.ordinal
     }
     val content: @Composable () -> Unit = {
         pageStateHolder.SaveableStateProvider(selectedPage.name) {
-            if (selectedPage == ThemeStorePage.Styles) {
-                ThemeStorePageColumn(
-                    scrollState = if (selectedStyleId == null) styleListScroll else styleDetailScroll,
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .widthIn(max = 840.dp)
-                        .fillMaxWidth()
-                        .navigationBarsPadding(),
-                ) {
-                    InterfaceStyleStoreContent(
-                        selectedStyleId = selectedStyleId,
-                        onSelectStyle = { selectedStyleId = it },
-                        onInstalled = onInterfaceStyleInstalled,
-                        onConfigureSidebar = dropUnlessResumed {
-                            navigator.push(Route.SidebarWidgetSettings)
-                        },
-                    )
-                }
-            } else {
                 when (selectedPage) {
                     ThemeStorePage.Styles -> Unit
                     ThemeStorePage.Overview -> ThemeStoreOverviewContent(
@@ -416,20 +385,15 @@ fun ThemeStoreScreen(
                             transferReport?.let { ThemeStoreTransferReportCard(it) }
                         },
                     )
-                }
             }
         }
     }
 
     StoreScaffold(
-        title = stringResource(if (selectedPage == ThemeStorePage.Styles && selectedStyleId != null)
-            R.string.interface_style_details else R.string.store_title),
+        title = stringResource(R.string.store_title),
         // The navigation surface paints the bottom inset; its buttons remain in the safe area.
         contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
-        onBack = {
-            if (selectedPage == ThemeStorePage.Styles && selectedStyleId != null) selectedStyleId = null
-            else actions.onBack()
-        },
+        onBack = actions.onBack,
         actions = {
             if (selectedPage == ThemeStorePage.My) {
                 IconButton(onClick = actions.onOpenProfile) {
@@ -441,7 +405,7 @@ fun ThemeStoreScreen(
         ThemeStoreResponsiveLayout(
             selectedPage = selectedPage,
             onSelected = onSelectedPage,
-            showNavigation = selectedPage != ThemeStorePage.Styles || selectedStyleId == null,
+            showNavigation = true,
             showBackButton = false,
             modifier = Modifier.fillMaxSize().padding(padding),
             onBack = actions.onBack,
@@ -753,33 +717,11 @@ private fun ThemeStoreCustomizeSelector(
     selected: ThemeStoreCustomizeSection,
     onSelected: (ThemeStoreCustomizeSection) -> Unit,
 ) {
-    val fontScale = LocalDensity.current.fontScale.coerceAtLeast(1f)
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        if (maxWidth >= 288.dp && fontScale <= 1.3f) {
-            MiuixTabRow(
-                tabs = ThemeStoreCustomizeSection.entries.map { stringResource(it.titleRes) },
-                selectedTabIndex = selected.ordinal,
-                onTabSelected = { onSelected(ThemeStoreCustomizeSection.entries[it]) },
-                height = 48.dp,
-            )
-        } else {
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                ThemeStoreCustomizeSection.entries.forEach { section ->
-                    MiuixTextButton(
-                        text = stringResource(section.titleRes),
-                        onClick = { onSelected(section) },
-                        modifier = Modifier.widthIn(min = 88.dp * fontScale).weight(1f).heightIn(min = 48.dp),
-                        colors = if (selected == section) MiuixButtonDefaults.textButtonColorsPrimary()
-                            else MiuixButtonDefaults.textButtonColors(),
-                    )
-                }
-            }
-        }
-    }
+    ConnectedTabRow(
+        tabs = ThemeStoreCustomizeSection.entries.map { stringResource(it.titleRes) },
+        selectedTabIndex = selected.ordinal,
+        onTabSelected = { onSelected(ThemeStoreCustomizeSection.entries[it]) },
+    )
 }
 
 @Composable
@@ -1048,12 +990,13 @@ private fun ColumnScope.ThemeStoreAtmosphereItems(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun InterfaceStyleStoreContent(
+internal fun InterfaceStyleStoreContent(
     selectedStyleId: String?,
     onSelectStyle: (String?) -> Unit,
     onInstalled: (String) -> Unit,
     onConfigureSidebar: () -> Unit,
     modifier: Modifier = Modifier,
+    stacked: Boolean = false,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -1344,7 +1287,7 @@ private fun InterfaceStyleStoreContent(
         } else {
             StoreSectionHeading(stringResource(R.string.store_redesign_results, visibleStyles.size))
             BoxWithConstraints(Modifier.fillMaxWidth()) {
-                val columns = if (maxWidth >= 620.dp) 2 else 1
+                val columns = if (!stacked && maxWidth >= 620.dp) 2 else 1
                 val itemWidth = (maxWidth - 16.dp * (columns - 1)) / columns
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp), maxItemsInEachRow = columns) {
@@ -1386,37 +1329,36 @@ private fun InterfaceStylePackageRow(
     val context = LocalContext.current
     val updateAvailable = hasInterfaceStyleUpdate(installed, style)
     ThemeStoreSurface(modifier, onClick = onDetails) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(48.dp).clip(MaterialTheme.shapes.medium).background(Color(style.accent.toInt())),
-                    contentAlignment = Alignment.Center) {
-                    Icon(Icons.Rounded.Palette, null, tint = if (Color(style.accent.toInt()).luminance() > 0.4f) Color.Black else Color.White)
+        Column {
+            InterfaceStyleStorePreview(style, installed)
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(style.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
+                            maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Text(stringResource(style.category().labelRes), style = MaterialTheme.typography.labelMedium,
+                            color = themeStoreMutedColor())
+                    }
+                    Icon(Icons.AutoMirrored.Rounded.ArrowForward, stringResource(R.string.interface_style_details),
+                        Modifier.size(20.dp), tint = themeStoreMutedColor())
                 }
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text(style.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
-                        maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    Text(stringResource(style.category().labelRes), style = MaterialTheme.typography.labelMedium,
-                        color = themeStoreMutedColor())
+                Text(style.summary.ifBlank { style.engine }, style = MaterialTheme.typography.bodyMedium,
+                    color = themeStoreMutedColor(), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text("v" + style.version + " · " + Formatter.formatShortFileSize(context, style.sizeBytes),
+                    style = MaterialTheme.typography.labelMedium, color = themeStoreMutedColor())
+                progress?.let {
+                    if (it.fraction == null) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    else LinearProgressIndicator(progress = { it.fraction ?: 0f }, modifier = Modifier.fillMaxWidth())
                 }
-                Icon(Icons.AutoMirrored.Rounded.ArrowForward, stringResource(R.string.interface_style_details),
-                    Modifier.size(20.dp), tint = themeStoreMutedColor())
-            }
-            Text(style.summary.ifBlank { style.engine }, style = MaterialTheme.typography.bodyMedium,
-                color = themeStoreMutedColor(), maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Text("v" + style.version + " · " + Formatter.formatShortFileSize(context, style.sizeBytes),
-                style = MaterialTheme.typography.labelMedium, color = themeStoreMutedColor())
-            progress?.let {
-                if (it.fraction == null) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                else LinearProgressIndicator(progress = { it.fraction ?: 0f }, modifier = Modifier.fillMaxWidth())
-            }
-            FilledTonalButton(onClick = onApply, enabled = !busy && (!active || updateAvailable || installed == null),
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                Text(stringResource(when {
-                    updateAvailable -> R.string.cloud_theme_update_and_apply
-                active && installed != null -> R.string.theme_store_applied
-                    installed == null -> R.string.interface_style_download_apply
-                    else -> R.string.interface_style_apply
-                }))
+                FilledTonalButton(onClick = onApply, enabled = !busy && (!active || updateAvailable || installed == null),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    Text(stringResource(when {
+                        updateAvailable -> R.string.cloud_theme_update_and_apply
+                        active && installed != null -> R.string.theme_store_applied
+                        installed == null -> R.string.interface_style_download_apply
+                        else -> R.string.interface_style_apply
+                    }))
+                }
             }
         }
     }

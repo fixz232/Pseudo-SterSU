@@ -358,6 +358,7 @@ private fun BackgroundControlPanel(
                     edgePadding = 8.dp,
                     minTabWidth = 104.dp * LocalDensity.current.fontScale.coerceAtLeast(1f),
                     containerColor = Color.Transparent,
+                    divider = {},
                 ) {
                     sections.forEachIndexed { index, label ->
                         Tab(selected = section == index, onClick = { onSectionChange(index) },

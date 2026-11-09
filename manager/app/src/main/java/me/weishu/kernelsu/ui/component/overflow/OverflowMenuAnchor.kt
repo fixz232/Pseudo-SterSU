@@ -23,7 +23,7 @@ import me.weishu.kernelsu.R
 import me.weishu.kernelsu.ui.theme.UiPassthroughTheme
 import me.weishu.kernelsu.ui.util.UiPassthroughSettings
 
-/** Tap opens actions; long press edits only this page's menu wallpaper. */
+/** Tap opens actions; long press edits only this page's menu appearance. */
 @Composable
 internal fun OverflowMenuAnchor(
     target: OverflowMenuTarget,
@@ -34,7 +34,7 @@ internal fun OverflowMenuAnchor(
     var showWallpaperEditor by remember(target) { mutableStateOf(false) }
     val wallpaper = rememberOverflowMenuWallpaper(target)
     val label = stringResource(R.string.overflow_menu_actions)
-    val wallpaperLabel = stringResource(R.string.overflow_menu_wallpaper)
+    val wallpaperLabel = stringResource(R.string.overflow_menu_appearance)
 
     Box {
         Box(

@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -180,19 +181,6 @@ fun SettingsCategoryScreen(routeValue: String) {
                     }
                 } else AppearanceSettingsContent(
                 uiState = uiState,
-                onSetUiMode = { selectedIndex ->
-                    if (selectedIndex < InterfaceStyle.selectableEntries.size) {
-                        val selected = InterfaceStyle.fromIndex(selectedIndex)
-                        if (selected != InterfaceStyle.Alpha || uiState.uiMode != InterfaceStyle.Delta.value) {
-                            viewModel.setUiMode(selected.value)
-                        }
-                    } else {
-                        uiState.installedInterfaceStyles
-                            .getOrNull(selectedIndex - InterfaceStyle.selectableEntries.size)
-                            ?.style
-                            ?.let(viewModel::applyInterfaceStylePackage)
-                    }
-                },
                 onSetAlphaDeltaMode = { useDelta ->
                     viewModel.setUiMode(if (useDelta) InterfaceStyle.Delta.value else InterfaceStyle.Alpha.value)
                 },
@@ -295,10 +283,12 @@ fun SettingsCategoryScreen(routeValue: String) {
 }
 
 @Composable
-private fun SettingsCategoryScaffold(
+internal fun SettingsCategoryScaffold(
     category: SettingsCategory,
     onBack: () -> Unit,
     miuix: Boolean = false,
+    title: String = stringResource(category.titleRes),
+    scrollState: ScrollState = rememberScrollState(),
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val bottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -312,7 +302,7 @@ private fun SettingsCategoryScaffold(
                     .fillMaxHeight()
                     .widthIn(max = 680.dp)
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(scrollState)
                     .padding(
                         start = ApkeUiTokens.PageHorizontalPadding,
                         top = innerPadding.calculateTopPadding() + 4.dp,
@@ -332,7 +322,7 @@ private fun SettingsCategoryScaffold(
             popupHost = { },
             topBar = {
                 SmallTopAppBar(
-                    title = stringResource(category.titleRes),
+                    title = title,
                     color = immersiveTopBarColor(MiuixTheme.colorScheme.surface),
                     navigationIcon = {
                         val layoutDirection = LocalLayoutDirection.current
@@ -353,7 +343,7 @@ private fun SettingsCategoryScaffold(
         )
     } else {
         ApkeSecondaryScaffold(
-            title = stringResource(category.titleRes),
+            title = title,
             onBack = onBack,
             maxContentWidth = 680.dp,
         ) { innerPadding, _ -> pageContent(innerPadding) }
@@ -363,7 +353,6 @@ private fun SettingsCategoryScaffold(
 @Composable
 private fun AppearanceSettingsContent(
     uiState: SettingsUiState,
-    onSetUiMode: (Int) -> Unit,
     onSetAlphaDeltaMode: (Boolean) -> Unit,
     onSetMiuixClassicHomeLayout: (Boolean) -> Unit,
     onSetSeasonCardMotion: (Boolean) -> Unit,
@@ -373,7 +362,6 @@ private fun AppearanceSettingsContent(
     onOpen: (Route) -> Unit,
 ) {
     val miuix = uiState.uiMode != InterfaceStyle.Material.value
-    val styles = InterfaceStyle.selectableEntries
     val stylePickerRequester = remember { BringIntoViewRequester() }
     val highlightStylePicker = uiState.installedInterfaceStyles.any {
         it.style.id == highlightedInterfaceStyleId
@@ -398,17 +386,14 @@ private fun AppearanceSettingsContent(
                 onClick = { onOpen(Route.SidebarWidgetSettings) },
             )
         }
-        SettingsChoiceRow(
+        SettingsActionRow(
             title = stringResource(R.string.settings_ui_mode),
             summary = stringResource(R.string.settings_ui_mode_summary),
             icon = Icons.Rounded.Dashboard,
-            options = styles.map { stringResource(it.labelRes) } +
-                uiState.installedInterfaceStyles.map { it.style.name },
-            selectedIndex = uiState.interfaceStyleSelectedIndex(),
             modifier = Modifier.bringIntoViewRequester(stylePickerRequester),
             highlighted = highlightStylePicker,
             miuix = miuix,
-            onSelected = onSetUiMode,
+            onClick = { onOpen(Route.InterfaceStyles) },
         )
         if (uiState.uiMode == InterfaceStyle.Miuix.value) {
             SettingsSwitchRow(

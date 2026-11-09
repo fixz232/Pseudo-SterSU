@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -29,6 +31,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import me.weishu.kernelsu.ui.LocalUiMode
+import me.weishu.kernelsu.ui.UiMode
 import me.weishu.kernelsu.ui.component.LocalBackgroundScrollFollowState
 import me.weishu.kernelsu.ui.theme.isInDarkTheme
 
@@ -59,7 +63,7 @@ fun WebUIScreen(
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
     val drawingInsets = WindowInsets.safeDrawing
-    val systemBarsInsets = WindowInsets.systemBars
+    val systemBarsInsets = WindowInsets.systemBars.union(WindowInsets.displayCutout)
     val imeInsets = WindowInsets.ime
     val backgroundScrollFollowState = LocalBackgroundScrollFollowState.current
     val contentInsets = when {
@@ -152,11 +156,15 @@ fun WebUIScreen(
                         }
                     }
                 },
+                update = { view -> view.requestLayout() },
             )
         }
     }
 
-    HandleWebUIEventMiuix(webUIState, fileLauncher)
+    when (LocalUiMode.current) {
+        UiMode.Miuix -> HandleWebUIEventMiuix(webUIState, fileLauncher)
+        UiMode.Material -> HandleWebUIEventMaterial(webUIState, fileLauncher)
+    }
 
     HandleWebViewLifecycle(webUIState)
     HandleConfigurationChanges(webUIState)

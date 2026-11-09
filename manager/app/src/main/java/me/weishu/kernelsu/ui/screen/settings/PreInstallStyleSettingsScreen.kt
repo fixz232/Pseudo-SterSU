@@ -115,25 +115,25 @@ private fun StyleSettingsContent(
     onPackageSelected: (me.weishu.kernelsu.ui.util.InterfaceStylePackage) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val selectedIndex = uiState.interfaceStyleSelectedIndex()
-    val styleCount = InterfaceStyle.selectableEntries.size
-
-    SegmentedColumn(
-        modifier = modifier,
-        title = stringResource(R.string.settings_ui_mode),
-        content = (InterfaceStyle.selectableEntries.map { style -> stringResource(style.labelRes) } +
-            uiState.installedInterfaceStyles.map { it.style.name }).mapIndexed { index, label ->
-            {
-                SegmentedRadioItem(
-                    title = label,
-                    summary = if (index == selectedIndex) stringResource(R.string.settings_ui_mode_summary) else null,
-                    selected = index == selectedIndex,
-                    onClick = {
-                        if (index < styleCount) onStyleSelected(index)
-                        else uiState.installedInterfaceStyles.getOrNull(index - styleCount)?.style?.let(onPackageSelected)
-                    },
-                )
-            }
+    WithGroupedInterfaceStylePicker(
+        uiState = uiState,
+        onSelected = { index ->
+            uiState.applyInterfaceStyleSelection(index, onStyleSelected, onPackageSelected)
         },
-    )
+    ) { labels, selectedIndex, select ->
+        SegmentedColumn(
+            modifier = modifier,
+            title = stringResource(R.string.settings_ui_mode),
+            content = labels.mapIndexed { index, label ->
+                {
+                    SegmentedRadioItem(
+                        title = label,
+                        summary = if (index == selectedIndex) stringResource(R.string.settings_ui_mode_summary) else null,
+                        selected = index == selectedIndex,
+                        onClick = { select(index) },
+                    )
+                }
+            },
+        )
+    }
 }

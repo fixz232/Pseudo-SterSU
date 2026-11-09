@@ -287,7 +287,9 @@ project's existing licenses and copyright notices.
 `kernel/susfs/` is a separate, optional SUSFS loadable kernel module. The
 immediate vendored source is `kernel/susfs` from
 [KernelSU-Next/KernelSU-Next](https://github.com/KernelSU-Next/KernelSU-Next)
-at commit `4c706b5938665866ebe16944a481a7b91e3396af`. Its integration commit
+at commit `30932946f0ec6a69c2ce1e41109fa9bbf18aa384` (2026-11-09).
+The previous snapshot was `4c706b5938665866ebe16944a481a7b91e3396af`.
+Its original integration commit
 [`8f573af08333`](https://github.com/KernelSU-Next/KernelSU-Next/commit/8f573af08333)
 names [inforcqb/susfs4ksu-lkm](https://github.com/inforcqb/susfs4ksu-lkm)
 commit `faf696a050b1c64009a4898cae7bcc0c9079f1d3` as its source. The LKM
@@ -298,9 +300,11 @@ The LKM port and its kernel sources declare GPL-2.0. The full license text is
 in `kernel/LICENSE`; original source-file SPDX and copyright notices are kept.
 The `KernelSU-Next` root GPL-3.0 license does not change those kernel-file
 terms. Repository attributes normalize the line endings of `sus_path.c` to LF.
-The `susfs_open_redirect.c` copy also includes compatible fixes from
-KernelSU-Next commits `b7c197621` and `bbe5db8f4`. Other LKM files may have
-SterSU-specific integration changes and are not a full copy of current dev.
+The full pinned LKM snapshot includes the newer open-redirect fixes that
+supersede the previously backported `b7c197621` and `bbe5db8f4` changes.
+It also includes the vendored `kallrecon` symbol-resolution library; its
+GPL-2.0 license is retained at `kernel/susfs/kallrecon/LICENSE`, together
+with the upstream source-file copyright and SPDX notices.
 SterSU adds separate ksud loading,
 policy persistence, Manager status UI and KMI build wiring; those parts follow
 their own file-level licenses and do not replace the GKI SUSFS implementation.

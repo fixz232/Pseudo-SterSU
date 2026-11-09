@@ -4,6 +4,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.lerp
 import me.weishu.kernelsu.ui.util.SidebarPalette
+import me.weishu.kernelsu.ui.util.SidebarMaterial
+
+/** Keep glass tint identical when a wallpaper backdrop is temporarily unavailable. */
+internal fun sidebarSurfaceTintOpacity(material: SidebarMaterial, backgroundOpacity: Float, tintAlpha: Float): Float {
+    val opacity = if (backgroundOpacity.isFinite()) backgroundOpacity.coerceIn(0f, 1f) else 1f
+    val tint = if (tintAlpha.isFinite()) tintAlpha.coerceIn(0f, 1f) else 1f
+    return opacity * if (material == SidebarMaterial.Flat) 1f else tint
+}
 
 internal data class SidebarColors(
     val background: Color,

@@ -55,6 +55,7 @@
 #include "susfs.h"	/* susfs_expose_proc, sus_path_dirent_filter(), SUS_NR_GETDENTS*_COMPAT */
 #include "susfs_fp_hook.h"	/* struct susfs_fp_hook + install/remove/drain: the table entries */
 #include "ksu_umount_gate.h"	/* susfs_is_current_proc_umounted_app (issue #34) */
+#include "ksu_allow_gate.h"	/* the control-node gate is su's own */
 #include "susfs_kprobe.h"
 
 /* KSTAT_SPOOF_* bits live in susfs_abi.h (upstream declares them in susfs.h next to struct
@@ -1596,7 +1597,7 @@ static __nocfi void susfs_kstat_post(long nr, bool compat, const unsigned long *
  * before this change, on the getpid line of susfs_bench (no entry of ours is involved there, so it
  * is the cost of whatever fires on every syscall):
  *
- *     kstat layer forced off (fail_layer=6)   126 / 126 / 126 ns   <- no tracepoint
+ *     kstat layer forced off (fail_layer=10)   126 / 126 / 126 ns   <- no tracepoint
  *     everything armed                        151 / 150 / 151 ns   <- tracepoint registered
  *
  * i.e. +25..31 ns per syscall, on every syscall, whether or not it is one this module cares about.
@@ -1655,7 +1656,27 @@ static susfs_syscall_fn_t kstat_orig_compat_getdents;
 SUSFS_KSTAT_WRAPPER(kstat_wrap_nfstatat, kstat_orig_nfstatat, __NR_newfstatat, false)
 SUSFS_KSTAT_WRAPPER(kstat_wrap_fstat, kstat_orig_fstat, __NR_fstat, false)
 SUSFS_KSTAT_WRAPPER(kstat_wrap_statx, kstat_orig_statx, __NR_statx, false)
-SUSFS_KSTAT_WRAPPER(kstat_wrap_getdents64, kstat_orig_getdents64, __NR_getdents64, false)
+/* getdents64 does NOT use the shared macro: sus_dirent.c can answer it without the original
+ * ever writing to the caller's buffer, which is what removes the two tells the post-hoc
+ * filter leaves (the d_ino = 0 placeholder, and the scrub that can be faulted).  When that
+ * layer declines - unresolved symbol, prefilter=0 - this falls back to exactly what the
+ * macro does, so hiding continues either way. */
+static __nocfi long kstat_wrap_getdents64(const struct pt_regs *regs)
+{
+	susfs_syscall_fn_t orig = READ_ONCE(kstat_orig_getdents64);
+	unsigned long a[6];
+	long ret, out;
+
+	if (!orig)
+		return -ENOSYS;
+	if (susfs_dirent_prefilter(regs, &out, false))
+		return out;
+	syscall_get_arguments(current, (struct pt_regs *)regs, a);
+	ret = orig(regs);
+	out = ret;
+	susfs_kstat_post(__NR_getdents64, false, a, ret, &out);
+	return out;
+}
 SUSFS_KSTAT_WRAPPER(kstat_wrap_compat_stat64, kstat_orig_compat_stat64, COMPAT_STAT64_NR, true)
 SUSFS_KSTAT_WRAPPER(kstat_wrap_compat_lstat64, kstat_orig_compat_lstat64, COMPAT_LSTAT64_NR, true)
 SUSFS_KSTAT_WRAPPER(kstat_wrap_compat_fstat64, kstat_orig_compat_fstat64, COMPAT_FSTAT64_NR, true)
@@ -1664,8 +1685,39 @@ SUSFS_KSTAT_WRAPPER(kstat_wrap_compat_stat, kstat_orig_compat_stat, COMPAT_STAT_
 SUSFS_KSTAT_WRAPPER(kstat_wrap_compat_lstat, kstat_orig_compat_lstat, COMPAT_LSTAT_NR, true)
 SUSFS_KSTAT_WRAPPER(kstat_wrap_compat_fstat, kstat_orig_compat_fstat, COMPAT_FSTAT_NR, true)
 SUSFS_KSTAT_WRAPPER(kstat_wrap_compat_statx, kstat_orig_compat_statx, COMPAT_STATX_NR, true)
-SUSFS_KSTAT_WRAPPER(kstat_wrap_compat_getdents64, kstat_orig_compat_getdents64, SUS_NR_GETDENTS64_COMPAT, true)
-SUSFS_KSTAT_WRAPPER(kstat_wrap_compat_getdents, kstat_orig_compat_getdents, SUS_NR_GETDENTS_COMPAT, true)
+static __nocfi long kstat_wrap_compat_getdents64(const struct pt_regs *regs)
+{
+	susfs_syscall_fn_t orig = READ_ONCE(kstat_orig_compat_getdents64);
+	unsigned long a[6];
+	long ret, out;
+
+	if (!orig)
+		return -ENOSYS;
+	if (susfs_dirent_prefilter(regs, &out, false))
+		return out;
+	syscall_get_arguments(current, (struct pt_regs *)regs, a);
+	ret = orig(regs);
+	out = ret;
+	susfs_kstat_post(SUS_NR_GETDENTS64_COMPAT, true, a, ret, &out);
+	return out;
+}
+
+static __nocfi long kstat_wrap_compat_getdents(const struct pt_regs *regs)
+{
+	susfs_syscall_fn_t orig = READ_ONCE(kstat_orig_compat_getdents);
+	unsigned long a[6];
+	long ret, out;
+
+	if (!orig)
+		return -ENOSYS;
+	if (susfs_dirent_prefilter(regs, &out, true))
+		return out;
+	syscall_get_arguments(current, (struct pt_regs *)regs, a);
+	ret = orig(regs);
+	out = ret;
+	susfs_kstat_post(SUS_NR_GETDENTS_COMPAT, true, a, ret, &out);
+	return out;
+}
 
 static struct susfs_fp_hook kstat_hooks[] = {
 	{ .nr = __NR_newfstatat, .nr_compat = 0, .name = "kstat/newfstatat",
@@ -2210,7 +2262,7 @@ static int kstat_proc_show(struct seq_file *m, void *v)
 static int kstat_proc_open(struct inode *inode, struct file *file)
 {
 	/* root-only, like kstat_proc_open() above - 0777 is deliberate (see susfs_kstat_init()) */
-	if (current_uid().val != 0)
+	if (!susfs_control_visible())
 		return -ENOENT;
 	return single_open(file, kstat_proc_show, NULL);
 }
@@ -2243,7 +2295,7 @@ static ssize_t kstat_proc_write(struct file *file, const char __user *buf,
 
 	/* Same gate as kstat_proc_open(): open() alone is not enough - an fd opened by root and
 	 * handed on would keep working, which is why the sibling files check both. */
-	if (current_uid().val != 0)
+	if (!susfs_control_visible())
 		return -ENOENT;
 
 	if (len >= sizeof(cmd))

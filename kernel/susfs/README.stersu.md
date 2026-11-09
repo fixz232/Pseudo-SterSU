@@ -2,7 +2,9 @@
 
 The files in this directory are vendored from
 [KernelSU-Next/KernelSU-Next](https://github.com/KernelSU-Next/KernelSU-Next)
-commit `4c706b5938665866ebe16944a481a7b91e3396af` (`kernel/susfs`).
+commit `30932946f0ec6a69c2ce1e41109fa9bbf18aa384` (`kernel/susfs`),
+verified on 2026-11-09. The previous snapshot was
+`4c706b5938665866ebe16944a481a7b91e3396af`.
 KernelSU-Next imported this LKM from
 [inforcqb/susfs4ksu-lkm](https://github.com/inforcqb/susfs4ksu-lkm) at
 `faf696a050b1c64009a4898cae7bcc0c9079f1d3`. That port credits
@@ -13,11 +15,13 @@ for supporting hook/symbol code. Thanks to all upstream authors and contributors
 The upstream LKM project and these kernel files are GPL-2.0; the full license
 text is at [`kernel/LICENSE`](../LICENSE). KernelSU-Next's repository-level
 GPL-3.0 license does not replace these kernel-file notices. The source files
-retain their upstream SPDX headers. The base import is the pinned
-KernelSU-Next snapshot; `susfs_open_redirect.c` includes compatible fixes from
-commits `b7c197621` and `bbe5db8f4`. This directory is not a complete copy
-of current dev. Repository attributes normalize `sus_path.c` line endings to
-LF. SterSU adds separate Manager/ksud build and policy wiring.
+retain their upstream SPDX headers. This update includes the complete pinned
+LKM source tree, including the upstream open-redirect fixes that supersede
+the previously backported `b7c197621` and `bbe5db8f4` fixes.
+The vendored `kallrecon/` symbol-resolution library retains its own GPL-2.0
+license in `kallrecon/LICENSE` and original notices. Repository attributes
+normalize `sus_path.c` line endings to LF. SterSU adds this attribution and
+separate Manager/ksud build and policy wiring.
 Preserve upstream notices
 and review source and license changes before updating this copy. Neither
 upstream project endorses SterSU.

@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import me.weishu.kernelsu.R
 import me.weishu.kernelsu.ui.component.KsuIsValid
 import me.weishu.kernelsu.ui.component.ListPopupDefaults
+import me.weishu.kernelsu.ui.component.miuix.DropdownItem
 import me.weishu.kernelsu.ui.screen.home.HomeMetricCardWallpaperBackground
 import me.weishu.kernelsu.ui.screen.home.HomeMetricCardWallpaperTarget
 import me.weishu.kernelsu.ui.screen.home.rememberHomeMetricCardWallpaperBitmap
@@ -118,7 +119,7 @@ fun RebootDropdownItem(
     dropdownColors: DropdownColors = DropdownDefaults.dropdownColors(),
     onReboot: (String) -> Unit,
 ) {
-    me.weishu.kernelsu.ui.component.miuix.DropdownItem(
+    DropdownItem(
         text = stringResource(option.labelRes),
         optionSize = optionSize,
         modifier = modifier,

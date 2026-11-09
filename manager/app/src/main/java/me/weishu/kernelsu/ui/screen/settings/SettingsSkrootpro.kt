@@ -376,60 +376,47 @@ private fun SkrootproStylePicker(
     uiState: SettingsUiState,
     actions: SettingsScreenActions,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(52.dp)
-            .background(SkrootproColors.BarSurface, CircleShape)
-            .horizontalScroll(rememberScrollState())
-            .padding(6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        InterfaceStyle.selectableEntries.forEachIndexed { index, style ->
-            val selected = InterfaceStyle.selectedIndex(uiState.uiMode) == index
-            Box(
-                modifier = Modifier
-                    .width(112.dp)
-                    .fillMaxSize()
-                    .background(
-                        color = if (selected) SkrootproColors.Purple else Color.Transparent,
-                        shape = CircleShape,
+    WithGroupedInterfaceStylePicker(
+        uiState = uiState,
+        onSelected = { index ->
+            uiState.applyInterfaceStyleSelection(
+                index, actions.onSetUiModeIndex, actions.onApplyInterfaceStylePackage,
+            )
+        },
+    ) { labels, selectedIndex, select ->
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp)
+                .background(SkrootproColors.BarSurface, CircleShape)
+                .horizontalScroll(rememberScrollState())
+                .padding(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            labels.forEachIndexed { index, label ->
+                val selected = selectedIndex == index
+                Box(
+                    modifier = Modifier
+                        .width(112.dp)
+                        .fillMaxSize()
+                        .background(
+                            color = if (selected) SkrootproColors.Purple else Color.Transparent,
+                            shape = CircleShape,
+                        )
+                        .clickable { select(index) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = label,
+                        color = if (selected) Color.White else SkrootproColors.Muted,
+                        fontSize = skrootproSp(14f, maxScale = 1.04f),
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                        maxLines = 1,
                     )
-                    .clickable { actions.onSetUiModeIndex(index) },
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = stringResource(style.labelRes),
-                    color = if (selected) Color.White else SkrootproColors.Muted,
-                    fontSize = skrootproSp(14f, maxScale = 1.04f),
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                    maxLines = 1,
-                )
+                }
             }
-        }
-        uiState.installedInterfaceStyles.forEach { installed ->
-            val selected = uiState.isInterfaceStyleActive(installed.style)
-            Box(
-                modifier = Modifier
-                    .width(132.dp)
-                    .fillMaxSize()
-                    .background(
-                        color = if (selected) SkrootproColors.Purple else Color.Transparent,
-                        shape = CircleShape,
-                    )
-                    .clickable { actions.onApplyInterfaceStylePackage(installed.style) },
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = installed.style.name,
-                    color = if (selected) Color.White else SkrootproColors.Muted,
-                    fontSize = skrootproSp(14f, maxScale = 1.04f),
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+
         }
     }
 }

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -38,6 +39,8 @@ import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
@@ -52,6 +55,7 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -72,6 +76,9 @@ import me.weishu.kernelsu.ui.sidebarStackForwardTransitionContentTransform
 import me.weishu.kernelsu.ui.sidebarStackPopTransitionContentTransform
 import me.weishu.kernelsu.ui.component.rememberSystemAnimationsEnabled
 import me.weishu.kernelsu.ui.component.bottombar.LocalSidebarGlassBackdrop
+import me.weishu.kernelsu.ui.component.bottombar.LocalSidebarGlassBackground
+import me.weishu.kernelsu.ui.component.bottombar.rememberSidebarGlassBackdrop
+import me.weishu.kernelsu.ui.component.bottombar.sidebarGlassUnderlay
 import me.weishu.kernelsu.ui.component.bottombar.NavigationDestinationIcon
 import me.weishu.kernelsu.ui.component.bottombar.SidebarRailItem
 import me.weishu.kernelsu.ui.component.bottombar.SidebarRailLayout
@@ -81,9 +88,13 @@ import me.weishu.kernelsu.ui.component.bottombar.orderSidebarDestinations
 import me.weishu.kernelsu.ui.component.bottombar.stateFor
 import me.weishu.kernelsu.ui.component.passthrough.MaterialIcon as Icon
 import me.weishu.kernelsu.ui.component.passthrough.MaterialText as Text
+import me.weishu.kernelsu.ui.component.CustomBackgroundMedia
 import me.weishu.kernelsu.ui.util.LocalCustomNavigationIcons
 import me.weishu.kernelsu.ui.util.SidebarWidgetConfig
+import me.weishu.kernelsu.ui.util.SidebarMaterial
 import me.weishu.kernelsu.ui.theme.immersivePageColor
+import me.weishu.kernelsu.ui.theme.immersiveSurfaceColor
+import top.yukonga.miuix.kmp.blur.layerBackdrop
 
 internal enum class SidebarDesignPage(@StringRes val title: Int, @StringRes val summary: Int) {
     Appearance(R.string.sidebar_material_title, R.string.sidebar_editor_appearance_summary),
@@ -155,11 +166,7 @@ internal fun SidebarDesignWorkspace(
                         if (twoPane) Text(stringResource(page.title), style = MaterialTheme.typography.headlineSmall)
                         Text(stringResource(page.summary), style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        TextButton(onClick = { preview = true }, modifier = Modifier.heightIn(min = 48.dp)) {
-                            Icon(Icons.Rounded.Visibility, null, Modifier.size(20.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.sidebar_editor_preview))
-                        }
+                        SidebarDesignPreviewButton(onClick = { preview = true })
                     }
                     content(page)
                 }
@@ -177,9 +184,7 @@ internal fun SidebarDesignWorkspace(
                             verticalArrangement = Arrangement.spacedBy(20.dp)) {
                             SidebarDesignSavedHint()
                             SidebarDesignPageList(active, onSelectPage)
-                            OutlinedButton(onClick = { preview = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                                Text(stringResource(R.string.sidebar_editor_preview))
-                            }
+                            SidebarDesignPreviewButton(onClick = { preview = true })
                         }
                         AnimatedContent(
                             targetState = active,
@@ -218,11 +223,7 @@ internal fun SidebarDesignWorkspace(
                             Column(Modifier.widthIn(max = 720.dp).fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
                                 verticalArrangement = Arrangement.spacedBy(24.dp)) {
                                 SidebarDesignSavedHint()
-                                OutlinedButton(onClick = { preview = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
-                                    Icon(Icons.Rounded.Visibility, null, Modifier.size(20.dp))
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(stringResource(R.string.sidebar_editor_preview))
-                                }
+                                SidebarDesignPreviewButton(onClick = { preview = true })
                                 SidebarDesignPageList(null, onSelectPage)
                             }
                         }
@@ -232,6 +233,24 @@ internal fun SidebarDesignWorkspace(
         }
     }
     if (preview) SidebarDesignPreview(config, editingDark, onEditingDarkChange) { preview = false }
+}
+
+@Composable
+private fun SidebarDesignPreviewButton(onClick: () -> Unit) {
+    FilledTonalButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = ButtonDefaults.filledTonalButtonColors(
+            containerColor = immersiveSurfaceColor(MaterialTheme.colorScheme.surfaceContainerHigh),
+            contentColor = MaterialTheme.colorScheme.onSurface,
+        ),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+    ) {
+        Icon(Icons.Rounded.Visibility, null, Modifier.size(20.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(stringResource(R.string.sidebar_editor_preview))
+    }
 }
 
 @Composable
@@ -245,13 +264,15 @@ private fun SidebarDesignSavedHint() {
 
 @Composable
 private fun SidebarDesignPageList(selected: SidebarDesignPage?, onSelect: (SidebarDesignPage) -> Unit) {
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    val colors = MaterialTheme.colorScheme
+    val shape = RoundedCornerShape(16.dp)
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         SidebarDesignPage.entries.forEach { page ->
             val isSelected = selected == page
             Row(
-                Modifier.fillMaxWidth()
-                    .background(if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent, RoundedCornerShape(12.dp))
-                    .clickable(role = Role.Button) { onSelect(page) }.padding(horizontal = 12.dp, vertical = 16.dp),
+                Modifier.fillMaxWidth().heightIn(min = 72.dp).clip(shape)
+                    .background(immersiveSurfaceColor(if (isSelected) colors.secondaryContainer else colors.surfaceContainer))
+                    .clickable(role = Role.Button) { onSelect(page) }.padding(horizontal = 16.dp, vertical = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(page.icon(), null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.onSurface)
@@ -307,6 +328,7 @@ internal fun SidebarDesignChoice(
 private fun SidebarDesignPreview(config: SidebarWidgetConfig, dark: Boolean, onDarkChange: (Boolean) -> Unit, onDismiss: () -> Unit) {
     val main = LocalMainPagerState.current
     val customIcons = LocalCustomNavigationIcons.current
+    val background = LocalSidebarGlassBackground.current
     val destinations = orderSidebarDestinations(config.navigationOrder, mainDestinations(main.kpmActive, main.stealthModeEnabled))
     val configuration = LocalConfiguration.current
     val window = me.weishu.kernelsu.ui.util.currentAppWindowSize()
@@ -316,6 +338,9 @@ private fun SidebarDesignPreview(config: SidebarWidgetConfig, dark: Boolean, onD
     val previewHeight = (configuration.screenHeightDp - 112).coerceAtLeast(360).dp
     val tablet = configuration.smallestScreenWidthDp >= 600
     Dialog(onDismissRequest = onDismiss) {
+        val previewBackdrop = rememberSidebarGlassBackdrop(
+            enabled = config.material != SidebarMaterial.Flat && !background.hasVideo,
+        )
         Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface) {
             Column(Modifier.widthIn(max = 480.dp).fillMaxWidth()
                 .heightIn(max = (window.heightDp - 48f).coerceAtLeast(0f).dp)
@@ -324,32 +349,46 @@ private fun SidebarDesignPreview(config: SidebarWidgetConfig, dark: Boolean, onD
                 SidebarDesignChoice(stringResource(R.string.sidebar_palette_mode),
                     listOf(stringResource(R.string.sidebar_palette_light), stringResource(R.string.sidebar_palette_dark)),
                     if (dark) 1 else 0, onSelected = { onDarkChange(it == 1) })
-                CompositionLocalProvider(LocalSidebarGlassBackdrop provides null) {
-                    Row(Modifier.fillMaxWidth().height(previewHeight)
-                        .background(if (dark) Color(0xFF16181C) else Color(0xFFF3F4F6), RoundedCornerShape(12.dp))) {
-                        @Composable
-                        fun Rail() {
-                            SidebarRailLayout(config, destinations.size, dark = dark, tablet = tablet) {
-                                destinations.forEachIndexed { index, destination ->
-                                    SidebarRailItem(selected = index == 0,
-                                        label = customIcons.labelFor(destination, stringResource(destination.label)),
-                                        iconOnly = config.iconOnlyNavigation) {
-                                        NavigationDestinationIcon(destination, customIcons.stateFor(destination), null,
-                                            tint = androidx.compose.material3.LocalContentColor.current)
+                Box(Modifier.fillMaxWidth().height(previewHeight).clip(RoundedCornerShape(12.dp))) {
+                    // Capture a separate wallpaper sibling inside this dialog window.
+                    // Never sample the rail itself or reuse coordinates from the activity window.
+                    Box(Modifier.fillMaxSize()
+                        .then(if (previewBackdrop != null) Modifier.layerBackdrop(previewBackdrop) else Modifier)
+                        .sidebarGlassUnderlay(dark)) {
+                        CustomBackgroundMedia(
+                            imageUriString = background.wallpaperUriString,
+                            videoUriString = null,
+                            opacity = background.opacity,
+                            crop = background.crop,
+                            visualSettings = background.visualSettings,
+                        )
+                    }
+                    CompositionLocalProvider(LocalSidebarGlassBackdrop provides previewBackdrop) {
+                        Row(Modifier.fillMaxSize()) {
+                            @Composable
+                            fun Rail() {
+                                SidebarRailLayout(config, destinations.size, dark = dark, tablet = tablet) {
+                                    destinations.forEachIndexed { index, destination ->
+                                        SidebarRailItem(selected = index == 0,
+                                            label = customIcons.labelFor(destination, stringResource(destination.label)),
+                                            iconOnly = config.iconOnlyNavigation) {
+                                            NavigationDestinationIcon(destination, customIcons.stateFor(destination), null,
+                                                tint = androidx.compose.material3.LocalContentColor.current)
+                                        }
                                     }
                                 }
                             }
-                        }
-                        @Composable
-                        fun Page() {
-                            Column(Modifier.weight(1f).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Text(stringResource(R.string.home), color = if (dark) Color.White else Color.Black,
-                                    style = MaterialTheme.typography.titleMedium)
-                                Text(stringResource(R.string.sidebar_editor_preview_note),
-                                    color = if (dark) Color.White else Color.Black, style = MaterialTheme.typography.bodySmall)
+                            @Composable
+                            fun Page() {
+                                Column(Modifier.weight(1f).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Text(stringResource(R.string.home), color = if (dark) Color.White else Color.Black,
+                                        style = MaterialTheme.typography.titleMedium)
+                                    Text(stringResource(R.string.sidebar_editor_preview_note),
+                                        color = if (dark) Color.White else Color.Black, style = MaterialTheme.typography.bodySmall)
+                                }
                             }
+                            if (config.side.isAtStart(layoutDirection)) { Rail(); Page() } else { Page(); Rail() }
                         }
-                        if (config.side.isAtStart(layoutDirection)) { Rail(); Page() } else { Page(); Rail() }
                     }
                 }
                 TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End).heightIn(min = 48.dp)) {

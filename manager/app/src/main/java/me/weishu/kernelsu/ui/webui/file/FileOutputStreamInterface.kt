@@ -10,6 +10,10 @@ import java.util.UUID
 class FileOutputStreamInterface {
     @JavascriptInterface
     fun open(path: String, append: Boolean): String = runCatching {
+        if (!KsuIO.canOpenStream()) {
+            Log.w(TAG, "FileOutputStream open rejected: too many open streams")
+            return ""
+        }
         val file = com.topjohnwu.superuser.io.SuFile(path)
         val fos = SuFileOutputStream.open(file, append)
         val bos = BufferedOutputStream(fos, 64 * 1024)

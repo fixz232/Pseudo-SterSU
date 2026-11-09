@@ -536,6 +536,8 @@ class WebUIState {
             view.destroy()
         }
         webView = null
+        filePathCallback?.onReceiveValue(null)
+        filePathCallback = null
         rootShell?.close()
         rootShell = null
     }

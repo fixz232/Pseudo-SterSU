@@ -1,11 +1,9 @@
 package me.weishu.kernelsu.ui.screen.superuser
 
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -49,11 +47,16 @@ internal fun SuperUserOverflowMenu(
         if (expanded) menuScrollState.scrollTo(0) else showSortMenu = false
     }
     FrostedOverflowMenu(expanded, onDismissRequest, wallpaper, menuScrollState) {
+        val itemCount = if (showSortMenu) 6 else 2 +
+            (if (uiState.userIds.size > 1) 1 else 0) + (if (showTools) 2 else 0)
+        var itemIndex = 0
         if (showSortMenu) {
             CompactOverflowMenuItem(
                 text = { Text(stringResource(R.string.menu_sort), fontWeight = FontWeight.SemiBold) },
                 leadingIcon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, Modifier.size(20.dp)) },
                 onClick = { showSortMenu = false },
+                index = itemIndex++,
+                count = itemCount,
             )
             val sortType = uiState.sortOption / 2
             val reversed = uiState.sortOption % 2 != 0
@@ -66,7 +69,9 @@ internal fun SuperUserOverflowMenu(
                 CompactOverflowMenuItem(
                     text = { Text(stringResource(label), maxLines = 2, overflow = TextOverflow.Ellipsis) },
                     modifier = Modifier.semantics { selected = sortType == type },
-                    trailingIcon = { if (sortType == type) Icon(Icons.Filled.Check, null, Modifier.size(20.dp)) },
+                    selected = sortType == type,
+                    index = itemIndex++,
+                    count = itemCount,
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
                         actions.onUpdateSortOption(if (type == 2) DEFAULT_SUPERUSER_SORT_OPTION else type * 2 + if (reversed) 1 else 0)
@@ -74,7 +79,7 @@ internal fun SuperUserOverflowMenu(
                     },
                 )
             }
-            SuperUserCheckableMenuItem(R.string.sort_reverse, reversed) {
+            SuperUserCheckableMenuItem(R.string.sort_reverse, reversed, itemIndex, itemCount) {
                 haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
                 actions.onUpdateSortOption(sortType * 2 + if (reversed) 0 else 1)
                 onDismissRequest()
@@ -83,14 +88,16 @@ internal fun SuperUserOverflowMenu(
             CompactOverflowMenuItem(
                 text = { Text(stringResource(R.string.superuser_sort_menu, stringResource(superUserSortLabel(uiState.sortOption))), maxLines = 2, overflow = TextOverflow.Ellipsis) },
                 onClick = { showSortMenu = true },
+                index = itemIndex++,
+                count = itemCount,
             )
-            SuperUserCheckableMenuItem(R.string.show_system_apps, uiState.showSystemApps) {
+            SuperUserCheckableMenuItem(R.string.show_system_apps, uiState.showSystemApps, itemIndex++, itemCount) {
                 haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
                 actions.onToggleShowSystemApps()
                 onDismissRequest()
             }
             if (uiState.userIds.size > 1) {
-                SuperUserCheckableMenuItem(R.string.show_only_primary_user_apps, uiState.showOnlyPrimaryUserApps) {
+                SuperUserCheckableMenuItem(R.string.show_only_primary_user_apps, uiState.showOnlyPrimaryUserApps, itemIndex++, itemCount) {
                     haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
                     actions.onToggleShowOnlyPrimaryUserApps()
                     onDismissRequest()
@@ -100,10 +107,14 @@ internal fun SuperUserOverflowMenu(
                 CompactOverflowMenuItem(
                     text = { Text(stringResource(R.string.settings_sulog), maxLines = 2, overflow = TextOverflow.Ellipsis) },
                     onClick = { onDismissRequest(); actions.onOpenSulog() },
+                    index = itemIndex++,
+                    count = itemCount,
                 )
                 CompactOverflowMenuItem(
                     text = { Text(stringResource(R.string.superuser_app_tools_title), maxLines = 2, overflow = TextOverflow.Ellipsis) },
                     onClick = { onDismissRequest(); actions.onOpenAppTools() },
+                    index = itemIndex,
+                    count = itemCount,
                 )
             }
         }
@@ -111,11 +122,13 @@ internal fun SuperUserOverflowMenu(
 }
 
 @Composable
-private fun SuperUserCheckableMenuItem(label: Int, checked: Boolean, onClick: () -> Unit) {
+private fun SuperUserCheckableMenuItem(label: Int, checked: Boolean, index: Int, count: Int, onClick: () -> Unit) {
     CompactOverflowMenuItem(
         text = { Text(stringResource(label), maxLines = 2, overflow = TextOverflow.Ellipsis) },
         modifier = Modifier.semantics { role = Role.Checkbox; toggleableState = ToggleableState(checked) },
-        trailingIcon = { if (checked) Icon(Icons.Filled.Check, null, Modifier.size(20.dp)) },
+        selected = checked,
+        index = index,
+        count = count,
         onClick = onClick,
     )
 }

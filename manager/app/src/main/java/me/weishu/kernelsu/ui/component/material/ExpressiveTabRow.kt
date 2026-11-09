@@ -4,6 +4,7 @@ import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
@@ -19,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -34,6 +36,7 @@ fun ExpressiveTabRow(
         selectedTabIndex = safeIndex,
         modifier = modifier,
         containerColor = containerColor,
+        divider = {},
     ) {
         tabs.forEachIndexed { index, label ->
             val selected = safeIndex == index
@@ -41,6 +44,7 @@ fun ExpressiveTabRow(
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
+                    .heightIn(min = 48.dp)
                     .selectable(
                         selected = selected,
                         interactionSource = interactionSource,
@@ -63,6 +67,8 @@ fun ExpressiveTabRow(
                         color = if (selected) LocalContentColor.current
                         else MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.titleSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }

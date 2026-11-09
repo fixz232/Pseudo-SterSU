@@ -903,7 +903,7 @@
     <string name="settings_key_color">强调色</string>
     <string name="settings_key_color_default">默认</string>
     <string name="settings_ui_mode">界面风格</string>
-    <string name="settings_ui_mode_summary">选择应用的界面风格</string>
+    <string name="settings_ui_mode_summary">选择已安装风格，或从风格商店下载更多</string>
     <string name="settings_page_scale">界面缩放</string>
     <string name="settings_page_scale_summary">调整全局显示比例</string>
     <string name="settings_font_scale">字体缩放</string>
@@ -1606,7 +1606,7 @@
     <string name="theme_preset_geek_dark_summary">AMOLED 黑、单色调和更紧凑的系统面板。</string>
     <string name="theme_store">主题商店</string>
     <string name="store_title">商店</string>
-    <string name="store_summary">主题、界面风格和内置插件统一管理。</string>
+    <string name="store_summary">主题、壁纸与个性化资源集中管理。</string>
     <string name="store_tab_discover">发现</string>
     <string name="store_tab_customize">定制</string>
     <string name="store_tab_plugins">插件</string>
@@ -2141,6 +2141,25 @@
     <string name="cloud_theme_filter_updates">可更新</string>
     <string name="cloud_theme_filter_favorites">收藏</string>
     <string name="cloud_theme_category_all">全部分类</string>
+    <string name="cloud_theme_discovery_browse">浏览</string>
+    <string name="cloud_theme_discovery_order">时间与使用量</string>
+    <string name="cloud_theme_discovery_tone">明暗</string>
+    <string name="cloud_theme_discovery_device">设备</string>
+    <string name="cloud_theme_discovery_compatibility">兼容性</string>
+    <string name="cloud_theme_discovery_style">界面风格</string>
+    <string name="cloud_theme_discovery_category">主题分类</string>
+    <string name="cloud_theme_discovery_universal">通用</string>
+    <string name="cloud_theme_discovery_dark">暗色</string>
+    <string name="cloud_theme_discovery_light">亮色</string>
+    <string name="cloud_theme_discovery_phone">手机</string>
+    <string name="cloud_theme_discovery_tablet">平板</string>
+    <string name="cloud_theme_discovery_compatible">兼容</string>
+    <string name="cloud_theme_discovery_incompatible">不兼容</string>
+    <string name="cloud_theme_discovery_recommended">推荐排序</string>
+    <string name="cloud_theme_discovery_oldest">最早</string>
+    <string name="cloud_theme_discovery_most_used">多人用</string>
+    <string name="cloud_theme_discovery_least_used">少人用</string>
+    <string name="cloud_theme_discovery_notice">明暗、设备和风格按作者标签筛选，未标注的主题保留在“全部”中。兼容性参考当前管理器版本及已声明的设备、风格范围，不代表实机验证；使用量按商店现有统计排序。</string>
     <string name="cloud_theme_refresh">刷新云主题</string>
     <string name="cloud_theme_bundled_catalog">在线目录暂不可用，当前显示应用内置的备用目录。</string>
     <string name="cloud_theme_offline_catalog">当前处于离线状态，正在显示上次通过校验的目录。</string>
@@ -2770,6 +2789,7 @@
     <string name="home_copied_to_clipboard">已复制到剪贴板</string>
     <string name="home_expand_fingerprint">展开指纹</string>
     <string name="home_collapse_fingerprint">折叠指纹</string>
+    <string name="sulog_search_hint">搜索命令、应用、PID 或 UID</string>
     <string name="sulog_log_files">日志文件</string>
     <string name="sulog_failed_to_load">无法加载sulog</string>
     <string name="sulog_disabled_title">SU 日志未启用</string>
@@ -3495,6 +3515,12 @@
     <string name="appearance_editor_icon_name_hint">留空时使用默认名称。</string>
     <string name="overflow_menu_wallpaper">菜单壁纸</string>
     <string name="overflow_menu_actions">更多操作</string>
+    <string name="overflow_menu_appearance">菜单外观</string>
+    <string name="overflow_menu_background_opacity">背景不透明度</string>
+    <string name="overflow_menu_background_opacity_value">%1$d%%</string>
+    <string name="overflow_menu_background_opacity_summary">仅调整菜单底色和壁纸，文字与图标保持清晰。两个页面分别保存，日夜模式均生效。</string>
+    <string name="overflow_menu_background_opacity_reset">恢复 100% 不透明度</string>
+    <string name="overflow_menu_appearance_error">菜单外观保存失败，请检查存储空间后重试。</string>
     <string name="overflow_menu_wallpaper_summary">长按右上角菜单按钮即可设置当前菜单壁纸，两处菜单独立保存。选择 32 MB 以内的图片后，可调整裁剪范围。自动叠加磨砂与日夜遮罩，保持文字和图标清晰。</string>
     <string name="overflow_menu_wallpaper_pick">从图库选择</string>
     <string name="overflow_menu_wallpaper_crop">裁剪图片</string>
@@ -3610,4 +3636,10 @@
     <string name="rain_sidebar_components">侧栏组件与导航</string>
     <string name="rain_sidebar_material_note">雨境的侧栏配色、透明度和分隔线在「雨境设计」中调整；组件与导航沿用美化版布局设置。</string>
     <string name="rain_compact_navigation_note">当前窗口使用紧凑底部导航。侧栏设置已保留，空间足够时会自动恢复。</string>
+    <string name="interface_styles_workspace_summary">选择已安装的界面风格，或从风格商店获取更多。</string>
+    <string name="interface_styles_mine">我的风格</string>
+    <string name="interface_styles_builtin">内置 · 点按应用</string>
+    <string name="interface_styles_installed">已安装 · 点按应用</string>
+    <string name="interface_styles_variants">已安装 %1$d 种变体 · 点按展开</string>
+    <string name="interface_style_preview_artwork">风格示意</string>
 </resources>

@@ -406,6 +406,8 @@ class MainLayoutTest {
 
     @Test
     fun directKpmRouteUsesTheKpmBackgroundTarget() {
+        assertEquals(CustomPageBackgroundTarget.Settings, customPageBackgroundTarget(Route.InterfaceStyles))
+        assertTrue(shouldShowSettingsSidebar(Route.InterfaceStyles, settingsAncestor = false))
         assertEquals(CustomPageBackgroundTarget.Kpm, customPageBackgroundTarget(Route.Kpm))
         assertEquals(CustomPageBackgroundTarget.Install, customPageBackgroundTarget(Route.Install))
         assertNull(customPageBackgroundTarget(Route.Settings))

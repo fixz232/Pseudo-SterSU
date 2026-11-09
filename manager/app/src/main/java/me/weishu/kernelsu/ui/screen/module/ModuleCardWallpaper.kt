@@ -212,20 +212,14 @@ internal fun replaceModuleCardWallpaperSnapshot(
     moduleId: String,
     snapshot: ModuleCardWallpaperSnapshot,
 ): Boolean {
-    val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
-    val previous = readModuleCardWallpaperSnapshot(prefs, moduleId)
-    val normalized = snapshot.normalized()
-    val editor = prefs.edit().putModuleCardWallpaperSnapshot(moduleId, normalized)
-    if (!editor.commit()) return false
-    releaseRemovedModuleWallpaperEntries(context, previous, normalized)
-    return true
+    return updateModuleCardWallpaperSnapshot(context, moduleId) { snapshot } != null
 }
 
 internal fun replaceModuleCardWallpaperSnapshots(
     context: Context,
     replacements: Map<String, ModuleCardWallpaperSnapshot>,
-): Boolean {
-    if (replacements.isEmpty()) return true
+): Boolean = synchronized(moduleWallpaperPersistenceLock) {
+    if (replacements.isEmpty()) return@synchronized true
     val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
     val previous = replacements.keys.associateWith { readModuleCardWallpaperSnapshot(prefs, it) }
     val normalized = replacements.mapValues { it.value.normalized() }
@@ -233,11 +227,16 @@ internal fun replaceModuleCardWallpaperSnapshots(
     normalized.forEach { (moduleId, snapshot) ->
         editor.putModuleCardWallpaperSnapshot(moduleId, snapshot)
     }
-    if (!editor.commit()) return false
+    if (!editor.commit()) {
+        val rollback = prefs.edit()
+        previous.forEach { (moduleId, snapshot) -> rollback.putModuleCardWallpaperSnapshot(moduleId, snapshot) }
+        rollback.commit()
+        return@synchronized false
+    }
     normalized.forEach { (moduleId, snapshot) ->
         releaseRemovedModuleWallpaperEntries(context, previous.getValue(moduleId), snapshot)
     }
-    return true
+    true
 }
 
 internal data class ModuleCardWallpaperState(
@@ -352,29 +351,25 @@ internal fun rememberModuleCardWallpaperState(
                 }
             },
             onToggleCarousel = {
-                if (collection.entries.size > 1) {
-                    val nextCollection = collection.copy(carouselEnabled = !collection.carouselEnabled)
-                    val nextSnapshot = snapshot.withCollection(variant, nextCollection)
-                    if (replaceModuleCardWallpaperSnapshot(context, moduleId, nextSnapshot)) {
-                        snapshot = nextSnapshot
-                    }
-                }
+                updateModuleCardWallpaperSnapshot(context, moduleId) { latest ->
+                    val current = latest.collection(variant)
+                    latest.withCollection(variant, current.copy(carouselEnabled = !current.carouselEnabled))
+                }?.let { snapshot = it }
             },
             onCropChange = { nextCrop ->
                 val safeCrop = sanitizeCustomWallpaperCrop(nextCrop)
                 val safeIndex = selectedIndex.coerceIn(0, collection.entries.lastIndex.coerceAtLeast(0))
-                val nextEntries = collection.entries.mapIndexed { index, entry ->
-                    if (index == safeIndex) entry.copy(crop = safeCrop) else entry
-                }
-                val nextSnapshot = snapshot.withCollection(variant, collection.copy(entries = nextEntries))
-                if (replaceModuleCardWallpaperSnapshot(context, moduleId, nextSnapshot)) {
-                    snapshot = nextSnapshot
+                collection.entries.getOrNull(safeIndex)?.let { selected ->
+                    updateModuleCardWallpaperSnapshot(context, moduleId) { latest ->
+                        updateModuleWallpaperEntry(latest, variant, selected.uriString) { it.copy(crop = safeCrop) }
+                    }?.let { snapshot = it }
                 }
             },
             onClearWallpaper = {
-                val nextSnapshot = snapshot.withCollection(variant, ModuleWallpaperCollection())
-                if (replaceModuleCardWallpaperSnapshot(context, moduleId, nextSnapshot)) {
-                    snapshot = nextSnapshot
+                updateModuleCardWallpaperSnapshot(context, moduleId) { latest ->
+                    latest.withCollection(variant, ModuleWallpaperCollection())
+                }?.let {
+                    snapshot = it
                     selectedIndex = 0
                 }
             },
@@ -794,7 +789,7 @@ internal fun importModuleWallpaperEntries(
         }
         imported
     } catch (error: Throwable) {
-        imported.forEach { releaseCustomImageReference(context, it.uriString) }
+        releaseModuleWallpaperSnapshot(context, ModuleCardWallpaperSnapshot(imported, false))
         throw error
     }
 }
@@ -812,23 +807,22 @@ internal fun importAndSaveModuleWallpapers(
 ): Result<ModuleCardWallpaperSnapshot> = runCatching {
     val imported = importModuleWallpaperEntries(context, moduleId, variant, uris).getOrThrow()
     try {
-        // Read after copying, not from the editor's pre-picker snapshot.
-        val latest = readModuleCardWallpaperSnapshot(context, moduleId)
-        val previous = latest.collection(variant)
-        val entries = if (append) previous.entries + imported else imported
-        if (entries.size > MODULE_CARD_WALLPAPER_MAX_COUNT) throw ModuleWallpaperLimitException()
-        val next = latest.withCollection(
-            variant,
-            previous.copy(
-                entries = entries,
-                carouselEnabled = entries.size > 1 && (startCarousel || previous.carouselEnabled),
-                selectedIndex = if (append) previous.entries.size else 0,
-            ),
-        )
-        check(replaceModuleCardWallpaperSnapshot(context, moduleId, next)) { "Unable to save module wallpaper" }
-        next
+        // Read after copying, under the same lock used by editor and batch saves.
+        checkNotNull(updateModuleCardWallpaperSnapshot(context, moduleId) { latest ->
+            val previous = latest.collection(variant)
+            val entries = if (append) previous.entries + imported else imported
+            if (entries.size > MODULE_CARD_WALLPAPER_MAX_COUNT) throw ModuleWallpaperLimitException()
+            latest.withCollection(
+                variant,
+                previous.copy(
+                    entries = entries,
+                    carouselEnabled = entries.size > 1 && (startCarousel || previous.carouselEnabled),
+                    selectedIndex = if (append) previous.entries.size else 0,
+                ),
+            )
+        }) { "Unable to save module wallpaper" }
     } catch (error: Throwable) {
-        imported.forEach { releaseCustomImageReference(context, it.uriString) }
+        releaseModuleWallpaperSnapshot(context, ModuleCardWallpaperSnapshot(imported, false))
         throw error
     }
 }
@@ -877,8 +871,10 @@ internal fun releaseModuleWallpaperSnapshot(
     context: Context,
     snapshot: ModuleCardWallpaperSnapshot,
 ) {
-    snapshot.allEntries().map(ModuleCardWallpaperEntry::uriString).distinct().forEach {
-        releaseCustomImageReference(context, it)
+    synchronized(moduleWallpaperPersistenceLock) {
+        val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+        val candidates = snapshot.allEntries().mapTo(hashSetOf(), ModuleCardWallpaperEntry::uriString)
+        unreferencedModuleWallpaperUris(prefs, candidates).forEach { releaseCustomImageReference(context, it) }
     }
 }
 
@@ -888,12 +884,12 @@ internal fun releaseRemovedModuleWallpaperEntries(
     next: ModuleCardWallpaperSnapshot,
 ) {
     val retainedUris = next.allEntries().mapTo(hashSetOf(), ModuleCardWallpaperEntry::uriString)
-    previous.allEntries()
-        .asSequence()
-        .map(ModuleCardWallpaperEntry::uriString)
-        .distinct()
-        .filterNot(retainedUris::contains)
-        .forEach { releaseCustomImageReference(context, it) }
+    val removed = previous.allEntries().mapTo(hashSetOf(), ModuleCardWallpaperEntry::uriString) - retainedUris
+    if (removed.isEmpty()) return
+    synchronized(moduleWallpaperPersistenceLock) {
+        val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+        unreferencedModuleWallpaperUris(prefs, removed).forEach { releaseCustomImageReference(context, it) }
+    }
 }
 
 private fun ModuleWallpaperCollection.toJson(): JSONObject {

@@ -7,10 +7,18 @@ import com.topjohnwu.superuser.io.SuRandomAccessFile
 import java.util.concurrent.ConcurrentHashMap
 
 class RandomAccessFileInterface {
+    companion object {
+        private const val MAX_OPEN_FILES = 30
+    }
+
     private val openFiles = ConcurrentHashMap<String, SuRandomAccessFile>()
 
     @JavascriptInterface
     fun open(path: String, mode: String): String = runCatching {
+        if (openFiles.size >= MAX_OPEN_FILES) {
+            Log.w(TAG, "RandomAccessFile open rejected: too many open files")
+            return ""
+        }
         val raf = SuRandomAccessFile.open(path, mode)
         val id = java.util.UUID.randomUUID().toString()
         openFiles[id] = raf
@@ -93,62 +101,62 @@ class RandomAccessFileInterface {
     fun write(id: String, b: Int): Unit = runCatching {
         val raf = openFiles[id] ?: return
         synchronized(raf) { raf.write(b) }
-    }.onFailure { Log.e(TAG, "RandomAccessFile write failed", it) }.let { }
+    }.onFailure { Log.e(TAG, "RandomAccessFile write failed", it) }.getOrDefault(Unit)
 
     @JavascriptInterface
     fun writeBase64(id: String, data: String): Unit = runCatching {
         val raf = openFiles[id] ?: return
         val bytes = Base64.decode(data, Base64.NO_WRAP)
         synchronized(raf) { raf.write(bytes) }
-    }.onFailure { Log.e(TAG, "RandomAccessFile writeBase64 failed", it) }.let { }
+    }.onFailure { Log.e(TAG, "RandomAccessFile writeBase64 failed", it) }.getOrDefault(Unit)
 
     @JavascriptInterface
     fun writeBoolean(id: String, v: Boolean): Unit = runCatching {
         val raf = openFiles[id] ?: return
         synchronized(raf) { raf.writeBoolean(v) }
-    }.onFailure { Log.e(TAG, "RandomAccessFile writeBoolean failed", it) }.let { }
+    }.onFailure { Log.e(TAG, "RandomAccessFile writeBoolean failed", it) }.getOrDefault(Unit)
 
     @JavascriptInterface
     fun writeByte(id: String, v: Int): Unit = runCatching {
         val raf = openFiles[id] ?: return
         synchronized(raf) { raf.writeByte(v) }
-    }.onFailure { Log.e(TAG, "RandomAccessFile writeByte failed", it) }.let { }
+    }.onFailure { Log.e(TAG, "RandomAccessFile writeByte failed", it) }.getOrDefault(Unit)
 
     @JavascriptInterface
     fun writeInt(id: String, v: Int): Unit = runCatching {
         val raf = openFiles[id] ?: return
         synchronized(raf) { raf.writeInt(v) }
-    }.onFailure { Log.e(TAG, "RandomAccessFile writeInt failed", it) }.let { }
+    }.onFailure { Log.e(TAG, "RandomAccessFile writeInt failed", it) }.getOrDefault(Unit)
 
     @JavascriptInterface
     fun writeLong(id: String, v: Long): Unit = runCatching {
         val raf = openFiles[id] ?: return
         synchronized(raf) { raf.writeLong(v) }
-    }.onFailure { Log.e(TAG, "RandomAccessFile writeLong failed", it) }.let { }
+    }.onFailure { Log.e(TAG, "RandomAccessFile writeLong failed", it) }.getOrDefault(Unit)
 
     @JavascriptInterface
     fun writeShort(id: String, v: Int): Unit = runCatching {
         val raf = openFiles[id] ?: return
         synchronized(raf) { raf.writeShort(v) }
-    }.onFailure { Log.e(TAG, "RandomAccessFile writeShort failed", it) }.let { }
+    }.onFailure { Log.e(TAG, "RandomAccessFile writeShort failed", it) }.getOrDefault(Unit)
 
     @JavascriptInterface
     fun writeFloat(id: String, v: Float): Unit = runCatching {
         val raf = openFiles[id] ?: return
         synchronized(raf) { raf.writeFloat(v) }
-    }.onFailure { Log.e(TAG, "RandomAccessFile writeFloat failed", it) }.let { }
+    }.onFailure { Log.e(TAG, "RandomAccessFile writeFloat failed", it) }.getOrDefault(Unit)
 
     @JavascriptInterface
     fun writeDouble(id: String, v: Double): Unit = runCatching {
         val raf = openFiles[id] ?: return
         synchronized(raf) { raf.writeDouble(v) }
-    }.onFailure { Log.e(TAG, "RandomAccessFile writeDouble failed", it) }.let { }
+    }.onFailure { Log.e(TAG, "RandomAccessFile writeDouble failed", it) }.getOrDefault(Unit)
 
     @JavascriptInterface
     fun writeUTF(id: String, str: String): Unit = runCatching {
         val raf = openFiles[id] ?: return
         synchronized(raf) { raf.writeUTF(str) }
-    }.onFailure { Log.e(TAG, "RandomAccessFile writeUTF failed", it) }.let { }
+    }.onFailure { Log.e(TAG, "RandomAccessFile writeUTF failed", it) }.getOrDefault(Unit)
 
     @JavascriptInterface
     fun seek(id: String, pos: Long): Boolean = runCatching {
