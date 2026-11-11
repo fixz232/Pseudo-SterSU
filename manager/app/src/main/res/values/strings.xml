@@ -341,6 +341,7 @@
     <string name="open">Open</string>
     <string name="module_more_actions">More module actions</string>
     <string name="close">Close</string>
+    <string name="external_link_open_failed">Unable to open link</string>
     <string name="back">Back</string>
     <string name="loading">Loading…</string>
     <string name="retry">Retry</string>

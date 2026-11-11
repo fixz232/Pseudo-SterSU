@@ -3658,6 +3658,16 @@ private fun moduleNeedsReboot(zip: File): Boolean {
 fun runModuleAction(
     moduleId: String, onStdout: (String) -> Unit, onStderr: (String) -> Unit
 ): Shell.Result {
+    if (!MODULE_ID_REGEX.matches(moduleId)) {
+        val error = "Invalid module id"
+        Log.e(TAG, "runModuleAction: rejecting invalid module id: $moduleId")
+        onStderr(error)
+        return object : Shell.Result() {
+            override fun getOut(): List<String> = emptyList()
+            override fun getErr(): List<String> = listOf(error)
+            override fun getCode(): Int = 1
+        }
+    }
     val stdoutCallback: CallbackList<String?> = object : CallbackList<String?>() {
         override fun onAddElement(s: String?) {
             onStdout(s ?: "")

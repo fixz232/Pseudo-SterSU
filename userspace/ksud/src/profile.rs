@@ -11,6 +11,8 @@ fn entry_path(base: &str, name: &str) -> Result<PathBuf> {
         || name.contains('/')
         || name.contains('\\')
         || name.contains('\0')
+        || name.contains('\n')
+        || name.contains('\r')
     {
         bail!("invalid profile entry name");
     }
@@ -37,8 +39,8 @@ fn write_atomic(path: &Path, contents: impl AsRef<[u8]>) -> Result<()> {
 }
 
 pub fn set_sepolicy(pkg: &str, policy: String) -> Result<()> {
-    ensure_dir_exists(defs::PROFILE_SELINUX_DIR)?;
     let policy_file = entry_path(defs::PROFILE_SELINUX_DIR, pkg)?;
+    ensure_dir_exists(defs::PROFILE_SELINUX_DIR)?;
     sepolicy::live_patch_strict(&policy)?;
     write_atomic(&policy_file, policy)?;
     Ok(())
@@ -53,8 +55,8 @@ pub fn get_sepolicy(pkg: &str) -> Result<()> {
 
 // ksud does not validate template contents; it only persists them.
 pub fn set_template(id: &str, template: String) -> Result<()> {
-    ensure_dir_exists(defs::PROFILE_TEMPLATE_DIR)?;
     let template_file = entry_path(defs::PROFILE_TEMPLATE_DIR, id)?;
+    ensure_dir_exists(defs::PROFILE_TEMPLATE_DIR)?;
     write_atomic(&template_file, template)?;
     Ok(())
 }
@@ -109,4 +111,53 @@ pub fn apply_sepolies() -> Result<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{entry_path, write_atomic};
+    use std::path::Path;
+
+    #[test]
+    fn reject_traversal_and_multiline_entry_names() {
+        for name in [
+            "",
+            ".",
+            "..",
+            "../escape",
+            "/absolute",
+            "a/b",
+            "a\\b",
+            "a\0b",
+            "a\nb",
+            "a\rb",
+        ] {
+            assert!(entry_path("/profiles", name).is_err(), "accepted {name:?}");
+        }
+    }
+
+    #[test]
+    fn preserve_valid_entry_names() {
+        for name in [
+            "com.example.app",
+            "template-1_2",
+            "with spaces",
+            "single'quote",
+        ] {
+            assert_eq!(
+                entry_path("/profiles", name).unwrap(),
+                Path::new("/profiles").join(name)
+            );
+        }
+    }
+
+    #[test]
+    fn atomic_write_replaces_the_complete_template() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("template");
+        write_atomic(&file, "old template contents").unwrap();
+        write_atomic(&file, "new").unwrap();
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "new");
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+    }
 }
