@@ -118,14 +118,26 @@ class SuperUserLayoutContractTest {
     }
 
     @Test
-    fun latestVisibleGroupIsPinnedAfterExistingSortingWithoutChangingPreferences() {
+    fun rootPriorityIsAppliedAfterExistingSortingWithoutChangingPreferences() {
         val viewModel = source("ui/viewmodel/SuperUserViewModel.kt")
         val update = viewModel.substringAfter("private suspend fun updateVisibleApps(").substringBefore("private fun filterAndSort(")
         assertTrue(update.contains("val ordered = if (resort) sortGroups(grouped, sortOption) else grouped"))
-        assertTrue(update.contains("moveMostRecentlyInstalledFirst(ordered)"))
+        assertTrue(update.contains("val s = superUserDisplayOrder("))
+        assertTrue(update.contains("hasRoot = { it.anyAllowSu }"))
         assertTrue(update.contains("group.apps.maxOfOrNull { it.packageInfo.firstInstallTime }"))
         assertTrue(update.contains("filterSearchResults(s, searchText)"))
         assertFalse(update.contains("putInt("))
         assertFalse(update.contains("RECENTLY_INSTALLED_WINDOW_MILLIS"))
+    }
+
+    @Test
+    fun everyInterfaceStyleUsesTheSharedRootFirstListAndSearchResults() {
+        for (style in listOf("Miuix", "Material", "Skrootpro", "Delta", "Alpha")) {
+            val screen = source("ui/screen/superuser/SuperUser$style.kt")
+            assertTrue(style, screen.contains("uiState.groupedApps"))
+            assertTrue(style, screen.contains("uiState.searchResults"))
+            assertFalse(style, screen.contains("sortedWith("))
+            assertFalse(style, screen.contains("sortedBy"))
+        }
     }
 }

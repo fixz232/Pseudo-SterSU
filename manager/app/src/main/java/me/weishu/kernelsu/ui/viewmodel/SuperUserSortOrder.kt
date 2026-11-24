@@ -35,3 +35,14 @@ internal fun <T> moveMostRecentlyInstalledFirst(
         add(0, removeAt(newestIndex))
     }
 }
+
+internal fun <T> superUserDisplayOrder(
+    items: List<T>,
+    firstInstallTime: (T) -> Long,
+    hasRoot: (T) -> Boolean,
+): List<T> {
+    val newestFirst = moveMostRecentlyInstalledFirst(items, firstInstallTime)
+    // Root access takes precedence over the newest-install pin and every sort mode.
+    val (rootApps, otherApps) = newestFirst.partition(hasRoot)
+    return if (rootApps.isEmpty() || otherApps.isEmpty()) newestFirst else rootApps + otherApps
+}

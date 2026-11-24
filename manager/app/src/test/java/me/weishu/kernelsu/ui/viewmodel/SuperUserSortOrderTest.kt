@@ -28,7 +28,7 @@ class SuperUserSortOrderTest {
     }
 
     @Test
-    fun newestUnprivilegedAppPrecedesAnOlderRootApp() {
+    fun installationComparatorUsesTimeBeforeFinalRootPrioritization() {
         val apps = listOf(App("Root", 100, 0), App("Recent", 300, 3), App("Custom", 200, 1))
         val order = superUserSortComparator(DEFAULT_SUPERUSER_SORT_OPTION, compareBy<App> { it.timestamp }) { it.rank }
         assertEquals(listOf("Recent", "Custom", "Root"), apps.sortedWith(order).map { it.name })
@@ -42,7 +42,7 @@ class SuperUserSortOrderTest {
     }
 
     @Test
-    fun updateTimeAlsoHasPriorityOverAuthorizationGroups() {
+    fun updateComparatorUsesTimeBeforeFinalRootPrioritization() {
         val apps = listOf(App("Root", 100, 0), App("Updated", 200, 3))
         val order = superUserSortComparator(SORT_BY_UPDATE_TIME * 2 + 1, compareBy<App> { it.timestamp }) { it.rank }
         assertEquals(listOf("Updated", "Root"), apps.sortedWith(order).map { it.name })
